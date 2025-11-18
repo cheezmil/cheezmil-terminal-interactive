@@ -1,8 +1,9 @@
 # Cheestard Terminal Interactive MCP Server
 
+[English README](README.en.md)
+
 ##### This tool enables AI to control multiple terminals and interact through MCP (Model Context Protocol), solving the problem of AI programming tools getting stuck in terminals and not proceeding to the next step. It implements persistent terminal session management - even after the AI conversation is closed, terminal commands continue running. Recommended for Claude Code, Codex, Cursor, Cline, Roocode, Kilocode users, effectively reducing the probability of getting stuck and improving the success rate of automated task execution.
 
-[中文文档](README.md)
 
 As of 2025-11-03, comparison of terminal interaction features in mainstream AI programming tools (please correct me if there are errors 🥲):
 
@@ -68,13 +69,7 @@ As of 2025-11-03, comparison of terminal interaction features in mainstream AI p
 Always use cheestard-terminal-interactive MCP terminal, prohibit using system prompt's built-in tool functions to execute commands.
 ```
 
-### 🚀 Streamable HTTP Transport
-
-Better than stdio, state will not be lost.
-
-#### Client Configuration
-
-**All MCP clients that support Streamable HTTP can use the following configuration, different MCP clients have different configurations**
+**All MCP clients that support Streamable HTTP can be used, different MCP clients will have slightly different configurations, please check the official documentation, here are simple examples**
 
 - **Cline / Roocode / Kilocode**:
 ```json
@@ -158,13 +153,6 @@ Better than stdio, state will not be lost.
 
 ## 🌐 Web Management Interface
 
-### Configuration
-Add to .env file:
-```plaintext
-# Frontend port
-FRONTEND_PORT=1107
-```
-
 ### Usage
 ```bash
 # Install dependencies
@@ -174,56 +162,6 @@ node start_install.mjs
 node start_fe_cheestard-terminal-interactive.mjs
 ```
 
-## 🚀 Script Usage Guide
-
-This project provides a set of scripts for easy installation, building, and running of the frontend and backend components.
-
-### Script Usage Order
-
-1. **Installation** (First time setup)
-   ```bash
-   node start_install.mjs
-   ```
-
-2. **Building** (Required after code changes)
-   ```bash
-   # Build backend
-   node start_build_be.mjs
-   
-   # Build frontend
-   node start_build_fe.mjs
-   ```
-
-3. **Running** (Choose one based on your needs)
-   ```bash
-   # Development mode (with hot reload)
-   node start_be_dev_cheestard-terminal-interactive.mjs  # Backend dev
-   node start_fe_dev_cheestard-terminal-interactive.mjs  # Frontend dev
-   
-   # Production mode (using built files)
-   node start_be_cheestard-terminal-interactive.mjs      # Backend
-   node start_fe_cheestard-terminal-interactive.mjs      # Frontend
-   ```
-
-### Script Descriptions
-
-| Script | Purpose |
-|--------|---------|
-| `start_install.mjs` | Install project dependencies |
-| `start_build_be.mjs` | Build backend TypeScript code |
-| `start_build_fe.mjs` | Build frontend Vue.js code |
-| `start_be_dev_cheestard-terminal-interactive.mjs` | Run backend in development mode |
-| `start_fe_dev_cheestard-terminal-interactive.mjs` | Run frontend in development mode |
-| `start_be_cheestard-terminal-interactive.mjs` | Run backend in production mode |
-| `start_fe_cheestard-terminal-interactive.mjs` | Run frontend in production mode |
-
-### Notes
-
-- All scripts automatically handle process termination and port conflicts
-- Environment variables are loaded from `.env` file
-- Development mode provides hot reload for faster development
-- Production mode uses optimized built files for better performance
-
 ## 🌐 Open Web Management Interface
 
 Tell the AI:
@@ -231,10 +169,10 @@ Tell the AI:
 Please call the open_terminal_ui tool
 ```
 
-## Environment Variable Description
+## Copy .env.example to .env in the root directory, you can set parameters to your liking
 | Variable | Description | Default Value |
 |----------|-------------|---------------|
-| `MCP_PORT` | MCP Streamable HTTP server port | 1106 |
+| `MCP_PORT` | MCP Streamable HTTP server backend port | 1106 |
 | `FRONTEND_PORT` | Frontend port | 1107 |
 | `MAX_BUFFER_SIZE` | Maximum buffer lines | 10000 |
 | `SESSION_TIMEOUT` | Session timeout (milliseconds) | 86400000 (24 hours) |

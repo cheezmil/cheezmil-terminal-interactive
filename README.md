@@ -1,9 +1,9 @@
 # Cheestard Terminal Interactive MCP Server
 
+[English README](README.en.md)
+
 ##### 本工具能让AI控制多个终端，并通过 MCP（模型上下文协议）进行交互，解决一些AI编程工具的终端卡住不再继续下一步的问题，实现持久化终端会话管理，即使与AI的对话关闭，终端命令也会继续运行。推荐Claude Code、Codex、Cursor、Cline、Roocode、Kilocode用户使用，能够有效减少不卡住的概率，提升自动化任务进行的成功概率。
 
-
-[English README](README.en.md)
 
 
 截至2025-11-03，主流AI编程工具终端交互功能对比（如有错误，请告诉我修正🥲）：
@@ -73,7 +73,7 @@
 务必使用cheestard-terminal-interactive这个MCP终端，禁止用系统提示词自带的工具函数执行命令。
 ```
 
-**所有支持 Streamable HTTP 的 MCP 客户端都可以使用以下配置，不同MCP客户端的配置有所不同。**
+**所有支持 Streamable HTTP 的 MCP 客户端都可用，不同MCP客户端的配置会略有不同，注意查询对应客户端的官方文档，这里给出简单的示例**
 
 - **Cline / Roocode / Kilocode**:
 ```json
@@ -166,7 +166,7 @@ node start_install.mjs
 node start_fe_cheestard-terminal-interactive.mjs
 ```
 
-## .env环境变量说明，可以设置成你喜欢的参数
+## 在根目录复制.env.example改名为.env，可以设置成你喜欢的参数
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `MCP_PORT` | MCP Streamable HTTP 服务器后端端口 | 1106 |
