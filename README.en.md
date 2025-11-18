@@ -70,26 +70,7 @@ Always use cheestard-terminal-interactive MCP terminal, prohibit using system pr
 
 ### 🚀 Streamable HTTP Transport
 
-This project supports **Streamable HTTP** transport, which has better network compatibility and session management capabilities compared to traditional stdio method.
-
-#### Environment Variable Configuration
-
-Create `.env` file in project root directory:
-
-```bash
-# MCP Streamable HTTP server port
-MCP_PORT=1106
-
-# Frontend port
-FRONTEND_PORT=1107
-```
-
-#### Start HTTP Server
-
-```bash
-# Start Streamable HTTP MCP server
-node dist/http-server.js
-```
+Better than stdio, state will not be lost.
 
 #### Client Configuration
 

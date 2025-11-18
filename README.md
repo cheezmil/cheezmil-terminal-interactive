@@ -3,7 +3,7 @@
 ##### 本工具能让AI控制多个终端，并通过 MCP（模型上下文协议）进行交互，解决一些AI编程工具的终端卡住不再继续下一步的问题，实现持久化终端会话管理，即使与AI的对话关闭，终端命令也会继续运行。推荐Claude Code、Codex、Cursor、Cline、Roocode、Kilocode用户使用，能够有效减少不卡住的概率，提升自动化任务进行的成功概率。
 
 
-[English](README.en.md)
+[English README](README.en.md)
 
 
 截至2025-11-03，主流AI编程工具终端交互功能对比（如有错误，请告诉我修正🥲）：
@@ -68,27 +68,12 @@
 
 > ⚠️ 由于 `node-pty` 的缘故，Windows 用户目前需要使用不大于 Node.js 20 的版本才能正常使用，推荐使用 `fnm use 20` https://github.com/Schniz/fnm
 
-> 在配置MCP客户端之前，最好对你的AI编程工具加一条规则
+**在配置MCP客户端之前，最好对你的AI编程工具加一条规则：**
 ```plaintext
 务必使用cheestard-terminal-interactive这个MCP终端，禁止用系统提示词自带的工具函数执行命令。
 ```
 
-### 🚀 Streamable HTTP 传输方式
-
-比stdio更好的方式，状态不会丢失。
-
-#### 环境变量配置
-
-复制.env.example并在项目根目录改名为 `.env` 文件：
-
-```plaintext
-# MCP Streamable HTTP 服务器端口
-MCP_PORT=1106
-```
-
-#### 客户端配置
-
-**所有支持 Streamable HTTP 的 MCP 客户端都可以使用以下配置，不同MCP客户端的配置有所不同**
+**所有支持 Streamable HTTP 的 MCP 客户端都可以使用以下配置，不同MCP客户端的配置有所不同。**
 
 - **Cline / Roocode / Kilocode**:
 ```json
@@ -172,12 +157,6 @@ MCP_PORT=1106
 
 ## 🌐 Web 管理界面
 
-### 配置
-在.env，添加
-```plaintext
-# 前端端口
-FRONTEND_PORT=1107
-```
 ### 使用方式
 ```bash
 # 安装依赖
@@ -187,10 +166,10 @@ node start_install.mjs
 node start_fe_cheestard-terminal-interactive.mjs
 ```
 
-## 环境变量说明
+## .env环境变量说明，可以设置成你喜欢的参数
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `MCP_PORT` | MCP Streamable HTTP 服务器端口 | 1106 |
+| `MCP_PORT` | MCP Streamable HTTP 服务器后端端口 | 1106 |
 | `FRONTEND_PORT` | 前端端口 | 1107 |
 | `MAX_BUFFER_SIZE` | 缓冲区最大行数 | 10000 |
 | `SESSION_TIMEOUT` | 会话超时时间（毫秒） | 86400000 (24小时) |
