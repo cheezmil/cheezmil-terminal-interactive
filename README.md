@@ -64,8 +64,9 @@
 
 
 ## 使用方法
-### 运行后端服务器
-⚠️ 由于 `node-pty` 的缘故，Windows 用户目前需要使用不大于 Node.js 20 的版本才能正常使用，所以为了方便使用我将安装编译运行脚本都使用了20.19.5，请务必安装好fnm：https://github.com/Schniz/fnm，否则无法使用，除非你每个项目都使用同一个nodejs不过这是不太可能的因为本文档列举的某个AI编程工具或比较热门的MCP工具用到了nodejs22+。
+### 运行后端
+⚠️ 由于 `node-pty` 的缘故，Windows 用户目前需要使用不大于 Node.js 20 的版本才能正常使用，所以为了方便使用我将安装编译运行脚本都使用了20.19.5，请务必安装好fnm：https://github.com/Schniz/fnm
+否则将无法使用，除非你每个项目都使用同一个nodejs不过这是不太可能的因为本文档列举的某个AI编程工具或比较热门的MCP工具用到了nodejs22+。
 
 ```bash
 # 安装依赖
@@ -192,13 +193,6 @@ claude mcp remove cheestard-terminal-interactive
 ### 🌐 Web 管理界面使用方式
 ```bash
 node start_fe_cheestard-terminal-interactive.mjs
-```
-
-## 🌐 打开Web管理界面
-
-告诉AI：
-```
-请调用open_terminal_ui工具
 ```
 
 ## 在根目录复制.env.example改名为.env，可以设置成你喜欢的参数

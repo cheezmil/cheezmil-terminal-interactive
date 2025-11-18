@@ -1,6 +1,6 @@
 # Cheestard Terminal Interactive MCP Server
 
-[English README](README.en.md)
+[中文README](README.md)
 
 #### This tool enables AI to control multiple terminals and interact through MCP (Model Context Protocol), solving the problem of AI programming tools getting stuck in terminals and not proceeding to the next step. It implements persistent terminal session management - even after the AI conversation is closed, terminal commands continue running. Recommended for Claude Code, Codex, Cursor, Cline, Roocode, Kilocode users, effectively reducing the probability of getting stuck and improving the success rate of automated task execution.
 
@@ -60,8 +60,7 @@ As of 2025-11-03, comparison of terminal interaction features in mainstream AI p
 - **Interactive application support**: Supports vim, npm create and other interactive programs
 - **ANSI escape sequences**: Correctly handles terminal control characters
 
-## Usage
-
+## Usage Methods
 ### Run Backend Server
 ⚠️ Due to `node-pty`, Windows users currently need to use Node.js version 20 or lower to work properly. For convenience, I have set all installation, compilation, and running scripts to use 20.19.5. Please make sure to install fnm: https://github.com/Schniz/fnm, otherwise it cannot be used, unless you use the same Node.js for every project, which is unlikely.
 ```bash
@@ -186,16 +185,10 @@ For complex configurations, it's recommended to directly edit the configuration 
     }
 ```
 
+
 ### 🌐 Web Management Interface Usage
 ```bash
 node start_fe_cheestard-terminal-interactive.mjs
-```
-
-## 🌐 Open Web Management Interface
-
-Tell the AI:
-```
-Please call the open_terminal_ui tool
 ```
 
 ## Copy .env.example to .env in the root directory, you can set parameters to your liking
