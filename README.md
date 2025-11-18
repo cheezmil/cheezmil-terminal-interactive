@@ -73,242 +73,127 @@
 务必使用cheestard-terminal-interactive这个MCP终端，禁止用系统提示词自带的工具函数执行命令。
 ```
 
-### 🚀 Streamable HTTP 传输方式（推荐）
+### 🚀 Streamable HTTP 传输方式
 
-本项目现已支持 **Streamable HTTP** 传输方式，相比传统的 stdio 方式具有更好的网络兼容性和会话管理能力。
+比stdio更好的方式，状态不会丢失。
 
 #### 环境变量配置
 
-在项目根目录创建 `.env` 文件：
+复制.env.example并在项目根目录改名为 `.env` 文件：
 
-```bash
+```plaintext
 # MCP Streamable HTTP 服务器端口
 MCP_PORT=1106
-
-# 前端端口
-FRONTEND_PORT=1107
-```
-
-#### 启动 HTTP 服务器
-
-```bash
-# 启动 Streamable HTTP MCP 服务器
-node dist/http-server.js
 ```
 
 #### 客户端配置
 
-**所有支持 Streamable HTTP 的 MCP 客户端都可以使用以下配置：**
+**所有支持 Streamable HTTP 的 MCP 客户端都可以使用以下配置，不同MCP客户端的配置有所不同**
 
+- **Cline / Roocode / Kilocode**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "transport": "streamable_http",
-      "url": "http://localhost:1106/mcp",
-      "headers": {
-        "Content-Type": "application/json"
-      }
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-**优势：**
-- ✅ 更好的网络兼容性
-- ✅ 支持多客户端并发连接
-- ✅ 自动会话管理和恢复
-- ✅ 详细的错误日志和调试信息
-- ✅ 无需处理进程管理问题
-
----
-
-### 📡 传统 Stdio 传输方式
-
-### Claude Desktop
-
-#### macOS / Linux
-
-**配置文件位置**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-在配置文件中添加以下内容：
-
+- **Cursor**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "command": "npx",
-      "args": ["-y", "cheestard-terminal-interactive"],
-      "env": {
-        "MAX_BUFFER_SIZE": "10000",
-        "SESSION_TIMEOUT": "86400000",
-        "COMPACT_ANIMATIONS": "true",
-        "ANIMATION_THROTTLE_MS": "100"
-      }
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-**说明**：
-- `-y` 参数会自动确认 npx 的下载提示
-- 若已全局安装（`npm install -g cheestard-terminal-interactive`），可将 `command` 改为 `"cheestard-terminal-interactive"` 并移除 `args` 中的 `-y`
-
-#### Windows
-
-**配置文件位置**: `%APPDATA%\Claude\claude_desktop_config.json`
-
+- **Claude Code**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "cheestard-terminal-interactive"],
-      "env": {
-        "MAX_BUFFER_SIZE": "10000",
-        "SESSION_TIMEOUT": "86400000",
-        "COMPACT_ANIMATIONS": "true",
-        "ANIMATION_THROTTLE_MS": "100"
-      }
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-**说明**：
-- Windows 需要通过 `cmd /c` 来调用 `npx`
-- 若已全局安装，可将 `args` 改为 `["/c", "cheestard-terminal-interactive"]`
-
----
-
-### Claude Code
-
-#### macOS / Linux
-
-使用命令行快速添加：
-
-```bash
-claude mcp add cheestard-terminal-interactive \
-  --env MAX_BUFFER_SIZE=10000 \
-  --env SESSION_TIMEOUT=86400000 \
-  --env COMPACT_ANIMATIONS=true \
-  --env ANIMATION_THROTTLE_MS=100 \
-  -- npx -y cheestard-terminal-interactive
-```
-
-**或者**编辑配置文件 `~/.claude.json`：
-
+- **Gemini CLI**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "command": "npx",
-      "args": ["-y", "cheestard-terminal-interactive"],
-      "env": {
-        "MAX_BUFFER_SIZE": "10000",
-        "SESSION_TIMEOUT": "86400000",
-        "COMPACT_ANIMATIONS": "true",
-        "ANIMATION_THROTTLE_MS": "100"
-      }
+      "type": "http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-#### Windows
+- **Windsurf**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
 
-> # ⚠️ **Windows 用户请注意**
->
-> ## **Claude Code** 在 Windows 下 `claude mcp add` 命令存在参数解析问题
->
-> ### **🚫 不推荐使用命令行方式**
->
-> 请参考专门的配置文档：
-> ### 📖 [《Windows 下配置 cheestard-terminal-interactive MCP》](docs/claude_code/claude-code-windows.md)
->
-> 该文档提供了两种推荐方案：
-> - ✅ **项目级配置**（推荐）：在项目根目录创建 `.mcp.json` 文件
-> - ✅ **全局配置**：使用 Python 脚本修改 `~/.claude.json`
+- **Qwen Code**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
 
----
+- **iFlow CLI**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
 
-### Cursor / Cline / Roocode / Kilocode
-- git clone、install、build后使用例子：
+- **Open Code**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
+
+- **warp**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
+
+- **Augment**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
+
+## 🌐 Web 管理界面
+
+### 配置
+在.env，添加
 ```plaintext
-"cheestard-terminal-interactive": {
-  "command": "cmd",
-  "args": [
-    "/c",
-    "fnm exec --using=20 -- node d:/CodeRelated/cheestard-terminal-interactive/dist/index.js"
-  ],
-  "env": {
-    "MAX_BUFFER_SIZE": "10000",
-    "SESSION_TIMEOUT": "86400000",
-    "COMPACT_ANIMATIONS": "true",
-    "ANIMATION_THROTTLE_MS": "100",
-    "MCP_DEBUG": "true"
-  }
-}
+# 前端端口
+FRONTEND_PORT=1107
+```
+### 使用方式
+```bash
+# 安装依赖
+node start_install.mjs
+```
+```bash
+node start_fe_cheestard-terminal-interactive.mjs
 ```
 
-
-### Codex
-
-#### macOS / Linux
-
-在 `.codex/config.toml` 文件中添加以下配置：
-
-```toml
-# MCP Server Configuration (TOML Format)
-# 用于配置 cheestard-terminal-interactive MCP 服务器
-
-[mcp_servers.cheestard-terminal-interactive]
-command = "npx"
-args = ["-y", "cheestard-terminal-interactive"]
-
-[mcp_servers.cheestard-terminal-interactive.env]
-MAX_BUFFER_SIZE = "10000"
-SESSION_TIMEOUT = "86400000"
-COMPACT_ANIMATIONS = "true"
-ANIMATION_THROTTLE_MS = "100"
-```
-
-#### Windows
-
-在 `.codex/config.toml` 文件中添加以下配置：
-
-```toml
-# MCP Server Configuration (TOML Format)
-# 用于配置 cheestard-terminal-interactive MCP 服务器
-
-[mcp_servers.cheestard-terminal-interactive]
-command = "cmd"
-args = ["/c", "npx", "-y", "cheestard-terminal-interactive"]
-
-[mcp_servers.cheestard-terminal-interactive.env]
-MAX_BUFFER_SIZE = "10000"
-SESSION_TIMEOUT = "86400000"
-COMPACT_ANIMATIONS = "true"
-ANIMATION_THROTTLE_MS = "100"
-```
-
-**说明**：Windows 需要通过 `cmd /c` 来调用 `npx`
-
----
-
-### 环境变量说明
+## 环境变量说明
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
+| `MCP_PORT` | MCP Streamable HTTP 服务器端口 | 1106 |
+| `FRONTEND_PORT` | 前端端口 | 1107 |
 | `MAX_BUFFER_SIZE` | 缓冲区最大行数 | 10000 |
 | `SESSION_TIMEOUT` | 会话超时时间（毫秒） | 86400000 (24小时) |
 | `COMPACT_ANIMATIONS` | 是否启用 Spinner 压缩 | true |
 | `ANIMATION_THROTTLE_MS` | 动画节流时间（毫秒） | 100 |
 | `MCP_DEBUG` | 是否启用调试日志 | false |
-
-
-## 🌐 Web 管理界面打开
-
-对AI说：
-```
-请调用open_terminal_ui工具
-```

@@ -68,9 +68,9 @@ As of 2025-11-03, comparison of terminal interaction features in mainstream AI p
 Always use cheestard-terminal-interactive MCP terminal, prohibit using system prompt's built-in tool functions to execute commands.
 ```
 
-### 🚀 Streamable HTTP Transport (Recommended)
+### 🚀 Streamable HTTP Transport
 
-This project now supports **Streamable HTTP** transport, which has better network compatibility and session management capabilities compared to traditional stdio method.
+This project supports **Streamable HTTP** transport, which has better network compatibility and session management capabilities compared to traditional stdio method.
 
 #### Environment Variable Configuration
 
@@ -93,214 +93,170 @@ node dist/http-server.js
 
 #### Client Configuration
 
-**All MCP clients that support Streamable HTTP can use the following configuration:**
+**All MCP clients that support Streamable HTTP can use the following configuration, different MCP clients have different configurations**
 
+- **Cline / Roocode / Kilocode**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "transport": "streamable_http",
-      "url": "http://localhost:1106/mcp",
-      "headers": {
-        "Content-Type": "application/json"
-      }
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-**Advantages:**
-- ✅ Better network compatibility
-- ✅ Support for multi-client concurrent connections
-- ✅ Automatic session management and recovery
-- ✅ Detailed error logs and debugging information
-- ✅ No need to handle process management issues
-
----
-
-### 📡 Traditional Stdio Transport
-
-### Claude Desktop
-
-#### macOS / Linux
-
-**Configuration file location**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-Add the following content to the configuration file:
-
+- **Cursor**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "command": "npx",
-      "args": ["-y", "cheestard-terminal-interactive"],
-      "env": {
-        "MAX_BUFFER_SIZE": "10000",
-        "SESSION_TIMEOUT": "86400000",
-        "COMPACT_ANIMATIONS": "true",
-        "ANIMATION_THROTTLE_MS": "100"
-      }
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-**Notes**:
-- The `-y` parameter will automatically confirm npx download prompts
-- If globally installed (`npm install -g cheestard-terminal-interactive`), you can change `command` to `"cheestard-terminal-interactive"` and remove `-y` from `args`
-
-#### Windows
-
-**Configuration file location**: `%APPDATA%\Claude\claude_desktop_config.json`
-
+- **Claude Code**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "cheestard-terminal-interactive"],
-      "env": {
-        "MAX_BUFFER_SIZE": "10000",
-        "SESSION_TIMEOUT": "86400000",
-        "COMPACT_ANIMATIONS": "true",
-        "ANIMATION_THROTTLE_MS": "100"
-      }
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-**Notes**:
-- Windows needs to call `npx` through `cmd /c`
-- If globally installed, you can change `args` to `["/c", "cheestard-terminal-interactive"]`
-
----
-
-### Claude Code
-
-#### macOS / Linux
-
-Quick add using command line:
-
-```bash
-claude mcp add cheestard-terminal-interactive \
-  --env MAX_BUFFER_SIZE=10000 \
-  --env SESSION_TIMEOUT=86400000 \
-  --env COMPACT_ANIMATIONS=true \
-  --env ANIMATION_THROTTLE_MS=100 \
-  -- npx -y cheestard-terminal-interactive
-```
-
-**Or** edit configuration file `~/.claude.json`:
-
+- **Gemini CLI**:
 ```json
-{
-  "mcpServers": {
     "cheestard-terminal-interactive": {
-      "command": "npx",
-      "args": ["-y", "cheestard-terminal-interactive"],
-      "env": {
-        "MAX_BUFFER_SIZE": "10000",
-        "SESSION_TIMEOUT": "86400000",
-        "COMPACT_ANIMATIONS": "true",
-        "ANIMATION_THROTTLE_MS": "100"
-      }
+      "type": "http",
+      "url": "http://localhost:1106/mcp"
     }
-  }
-}
 ```
 
-#### Windows
+- **Windsurf**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
 
-> # ⚠️ **Windows Users Please Note**
->
-> ## **Claude Code** has parameter parsing issues with `claude mcp add` command on Windows
->
-> ### **🚫 Command Line Method Not Recommended**
->
-> Please refer to dedicated configuration documentation:
-> ### 📖 [《Configuring cheestard-terminal-interactive MCP on Windows》](docs/claude_code/claude-code-windows.md)
->
-> This document provides two recommended solutions:
-> - ✅ **Project-level configuration** (recommended): Create `.mcp.json` file in project root
-> - ✅ **Global configuration**: Use Python script to modify `~/.claude.json`
+- **Qwen Code**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
 
----
+- **iFlow CLI**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
 
-### Cursor / Cline / Roocode / Kilocode
-- After git clone, install, build, use example:
+- **Open Code**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
+
+- **warp**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
+
+- **Augment**:
+```json
+    "cheestard-terminal-interactive": {
+      "type": "streamable-http",
+      "url": "http://localhost:1106/mcp"
+    }
+```
+
+## 🌐 Web Management Interface
+
+### Configuration
+Add to .env file:
 ```plaintext
-"cheestard-terminal-interactive": {
-  "command": "cmd",
-  "args": [
-    "/c",
-    "fnm exec --using=20 -- node d:/CodeRelated/cheestard-terminal-interactive/dist/index.js"
-  ],
-  "env": {
-    "MAX_BUFFER_SIZE": "10000",
-    "SESSION_TIMEOUT": "86400000",
-    "COMPACT_ANIMATIONS": "true",
-    "ANIMATION_THROTTLE_MS": "100",
-    "MCP_DEBUG": "true"
-  }
-}
+# Frontend port
+FRONTEND_PORT=1107
 ```
 
-### Codex
-
-#### macOS / Linux
-
-Add the following configuration to `.codex/config.toml` file:
-
-```toml
-# MCP Server Configuration (TOML Format)
-# For configuring cheestard-terminal-interactive MCP server
-
-[mcp_servers.cheestard-terminal-interactive]
-command = "npx"
-args = ["-y", "cheestard-terminal-interactive"]
-
-[mcp_servers.cheestard-terminal-interactive.env]
-MAX_BUFFER_SIZE = "10000"
-SESSION_TIMEOUT = "86400000"
-COMPACT_ANIMATIONS = "true"
-ANIMATION_THROTTLE_MS = "100"
+### Usage
+```bash
+# Install dependencies
+node start_install.mjs
+```
+```bash
+node start_fe_cheestard-terminal-interactive.mjs
 ```
 
-#### Windows
+## 🚀 Script Usage Guide
 
-Add the following configuration to `.codex/config.toml` file:
+This project provides a set of scripts for easy installation, building, and running of the frontend and backend components.
 
-```toml
-# MCP Server Configuration (TOML Format)
-# For configuring cheestard-terminal-interactive MCP server
+### Script Usage Order
 
-[mcp_servers.cheestard-terminal-interactive]
-command = "cmd"
-args = ["/c", "npx", "-y", "cheestard-terminal-interactive"]
+1. **Installation** (First time setup)
+   ```bash
+   node start_install.mjs
+   ```
 
-[mcp_servers.cheestard-terminal-interactive.env]
-MAX_BUFFER_SIZE = "10000"
-SESSION_TIMEOUT = "86400000"
-COMPACT_ANIMATIONS = "true"
-ANIMATION_THROTTLE_MS = "100"
-```
+2. **Building** (Required after code changes)
+   ```bash
+   # Build backend
+   node start_build_be.mjs
+   
+   # Build frontend
+   node start_build_fe.mjs
+   ```
 
-**Notes**: Windows needs to call `npx` through `cmd /c`
+3. **Running** (Choose one based on your needs)
+   ```bash
+   # Development mode (with hot reload)
+   node start_be_dev_cheestard-terminal-interactive.mjs  # Backend dev
+   node start_fe_dev_cheestard-terminal-interactive.mjs  # Frontend dev
+   
+   # Production mode (using built files)
+   node start_be_cheestard-terminal-interactive.mjs      # Backend
+   node start_fe_cheestard-terminal-interactive.mjs      # Frontend
+   ```
 
----
+### Script Descriptions
 
-### Environment Variable Description
-| Variable | Description | Default Value |
-|----------|-------------|---------------|
-| `MAX_BUFFER_SIZE` | Maximum buffer lines | 10000 |
-| `SESSION_TIMEOUT` | Session timeout (milliseconds) | 86400000 (24 hours) |
-| `COMPACT_ANIMATIONS` | Enable spinner compression | true |
-| `ANIMATION_THROTTLE_MS` | Animation throttle time (milliseconds) | 100 |
-| `MCP_DEBUG` | Enable debug logging | false |
+| Script | Purpose |
+|--------|---------|
+| `start_install.mjs` | Install project dependencies |
+| `start_build_be.mjs` | Build backend TypeScript code |
+| `start_build_fe.mjs` | Build frontend Vue.js code |
+| `start_be_dev_cheestard-terminal-interactive.mjs` | Run backend in development mode |
+| `start_fe_dev_cheestard-terminal-interactive.mjs` | Run frontend in development mode |
+| `start_be_cheestard-terminal-interactive.mjs` | Run backend in production mode |
+| `start_fe_cheestard-terminal-interactive.mjs` | Run frontend in production mode |
+
+### Notes
+
+- All scripts automatically handle process termination and port conflicts
+- Environment variables are loaded from `.env` file
+- Development mode provides hot reload for faster development
+- Production mode uses optimized built files for better performance
 
 ## 🌐 Open Web Management Interface
 
 Tell the AI:
 ```
 Please call the open_terminal_ui tool
+```
+
+## Environment Variable Description
+| Variable | Description | Default Value |
+|----------|-------------|---------------|
+| `MCP_PORT` | MCP Streamable HTTP server port | 1106 |
+| `FRONTEND_PORT` | Frontend port | 1107 |
+| `MAX_BUFFER_SIZE` | Maximum buffer lines | 10000 |
+| `SESSION_TIMEOUT` | Session timeout (milliseconds) | 86400000 (24 hours) |
+| `COMPACT_ANIMATIONS` | Enable spinner compression | true |
+| `ANIMATION_THROTTLE_MS` | Animation throttle time (milliseconds) | 100 |
+| `MCP_DEBUG` | Enable debug logging | false |
