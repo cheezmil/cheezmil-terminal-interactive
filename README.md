@@ -67,7 +67,9 @@
 ### 运行后端
 ⚠️ 由于 `node-pty` 的缘故，Windows 用户目前需要使用不大于 Node.js 20 的版本才能正常使用，所以为了方便使用我将安装编译运行脚本都使用了20.19.5，请务必安装好fnm：https://github.com/Schniz/fnm
 否则将无法使用，除非你每个项目都使用同一个nodejs不过这是不太可能的因为本文档列举的某个AI编程工具或比较热门的MCP工具用到了nodejs22+。
-
+```bash
+git clone https://github.com/cheestard/cheestard-terminal-interactive.git
+```
 ```bash
 # 安装依赖
 node start_install.mjs

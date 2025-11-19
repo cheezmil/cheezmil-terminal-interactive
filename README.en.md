@@ -64,6 +64,9 @@ As of 2025-11-03, comparison of terminal interaction features in mainstream AI p
 ### Run Backend Server
 ⚠️ Due to `node-pty`, Windows users currently need to use Node.js version 20 or lower to work properly. For convenience, I have set all installation, compilation, and running scripts to use 20.19.5. Please make sure to install fnm: https://github.com/Schniz/fnm, otherwise it cannot be used, unless you use the same Node.js for every project, which is unlikely.
 ```bash
+git clone https://github.com/cheestard/cheestard-terminal-interactive.git
+```
+```bash
 # Install dependencies
 node start_install.mjs
 ```
