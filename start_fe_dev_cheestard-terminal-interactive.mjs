@@ -4,40 +4,55 @@ import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 
-// 检查并设置 Node.js 版本
+// 跨平台检查并设置 Node.js 版本
 function checkAndSetNodeVersion() {
   const requiredVersion = '20.19.5';
   const currentVersion = process.version;
+  const majorVersion = parseInt(currentVersion.slice(1).split('.')[0]);
   
-  if (currentVersion !== `v${requiredVersion}`) {
-    console.log(`当前 Node.js 版本: ${currentVersion}，需要版本: v${requiredVersion}`);
-    console.log('正在切换到正确的 Node.js 版本...');
-    
-    // 使用 spawn 而不是 execSync 来避免创建额外的 Node.js 进程
-    const fnmProcess = spawn('fnm', ['use', requiredVersion], {
-      stdio: 'inherit',
-      shell: true
-    });
-    
-    fnmProcess.on('close', (code) => {
-      if (code === 0) {
-        console.log(`已切换到 Node.js v${requiredVersion}`);
-        // 重新启动脚本以使用新的 Node.js 版本
-        const newProcess = spawn(process.argv[0], process.argv.slice(1), {
-          stdio: 'inherit',
-          shell: true
-        });
-        newProcess.on('close', (code) => {
-          process.exit(code);
-        });
-      } else {
-        console.error(`切换 Node.js 版本失败，退出码: ${code}`);
-        process.exit(1);
-      }
-    });
-    
-    // 等待 fnm 命令完成
-    return false;
+  if (process.platform === 'win32') {
+    // Windows系统：自动切换Node.js版本
+    if (currentVersion !== `v${requiredVersion}`) {
+      console.log(`当前 Node.js 版本: ${currentVersion}，需要版本: v${requiredVersion}`);
+      console.log('正在切换到正确的 Node.js 版本...');
+      
+      // 使用 spawn 而不是 execSync 来避免创建额外的 Node.js 进程
+      const fnmProcess = spawn('fnm', ['use', requiredVersion], {
+        stdio: 'inherit',
+        shell: true
+      });
+      
+      fnmProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log(`已切换到 Node.js v${requiredVersion}`);
+          // 重新启动脚本以使用新的 Node.js 版本
+          const newProcess = spawn(process.argv[0], process.argv.slice(1), {
+            stdio: 'inherit',
+            shell: true
+          });
+          newProcess.on('close', (code) => {
+            process.exit(code);
+          });
+        } else {
+          console.error(`切换 Node.js 版本失败，退出码: ${code}`);
+          process.exit(1);
+        }
+      });
+      
+      // 等待 fnm 命令完成
+      return false;
+    }
+  } else {
+    // Linux/macOS系统：检查版本但不强制切换
+    if (majorVersion < 20) {
+      console.log(`⚠️  检测到Node.js版本: ${currentVersion} (推荐使用v${requiredVersion}或更高版本)`);
+      console.log('💡 提示: 如需切换版本，可以使用以下命令:');
+      console.log('   - 使用fnm: fnm use 20.19.5');
+      console.log('   - 使用nvm: nvm use 20.19.5');
+      console.log('   - 继续使用当前版本可能会遇到兼容性问题\n');
+    } else {
+      console.log(`✅ Node.js版本检查通过: ${currentVersion}`);
+    }
   }
   
   return true;
@@ -89,7 +104,7 @@ function loadEnvConfig() {
 const config = loadEnvConfig();
 const PORT = parseInt(config.FRONTEND_PORT) || 5173;
 
-// Execute command helper function
+// 跨平台执行命令函数
 function execCommand(command) {
     return new Promise((resolve, reject) => {
         const child = spawn(command, [], {
@@ -123,66 +138,130 @@ function execCommand(command) {
     });
 }
 
-// Find and terminate frontend related processes
+// 跨平台查找并终止前端相关进程
 async function killFrontendProcesses() {
     try {
         console.log('Searching for frontend processes occupying the port...');
         
-        // Get current process ID to avoid killing ourselves
+        // 获取当前进程ID以避免杀死自己
         const currentPid = process.pid;
         
-        // Use wmic to find all node.exe processes and their command lines
-        const wmicOutput = await execCommand('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv');
-        
-        // Parse output, find related frontend processes
-        const lines = wmicOutput.split('\n').filter(line => line.trim());
-        const processes = [];
-        
-        // Skip header lines, only process data lines containing commas
-        const dataLines = lines.filter(line => !line.includes('Node,CommandLine,ProcessId') && line.includes(','));
-        
-        for (const line of dataLines) {
-            // CSV format: Node,CommandLine,ProcessId
-            const parts = line.split(',');
-            if (parts.length >= 3) {
-                const commandLine = parts[1];
-                const processId = parts[2].trim();
-                
-                // Find frontend-related processes, but exclude current process
-                if (commandLine && parseInt(processId) !== currentPid && (
-                    commandLine.includes('vite') ||
-                    commandLine.includes('dev') ||
-                    commandLine.includes('frontend') ||
-                    commandLine.includes(`:${PORT}`) ||
-                    commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')
-                )) {
-                    processes.push({
-                        pid: parseInt(processId),
-                        commandLine: commandLine
-                    });
-                }
-            }
-        }
-        
-        if (processes.length > 0) {
-            console.log(`Found ${processes.length} related processes, terminating...`);
+        if (process.platform === 'win32') {
+            // Windows系统：使用wmic查找所有node.exe进程及其命令行
+            const wmicOutput = await execCommand('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv');
             
-            for (const process of processes) {
-                try {
-                    console.log(`Terminating process PID: ${process.pid}`);
-                    console.log(`Command line: ${process.commandLine.substring(0, 100)}...`);
+            // 解析输出，查找相关的前端进程
+            const lines = wmicOutput.split('\n').filter(line => line.trim());
+            const processes = [];
+            
+            // 跳过标题行，只处理包含逗号的数据行
+            const dataLines = lines.filter(line => !line.includes('Node,CommandLine,ProcessId') && line.includes(','));
+            
+            for (const line of dataLines) {
+                // CSV格式：Node,CommandLine,ProcessId
+                const parts = line.split(',');
+                if (parts.length >= 3) {
+                    const commandLine = parts[1];
+                    const processId = parts[2].trim();
                     
-                    await execCommand(`taskkill /PID ${process.pid} /F`);
-                    console.log(`Process ${process.pid} terminated successfully`);
-                } catch (error) {
-                    console.error(`Failed to terminate process ${process.pid}:`, error.message);
+                    // 查找前端相关进程，但排除当前进程
+                    if (commandLine && parseInt(processId) !== currentPid && (
+                        commandLine.includes('vite') ||
+                        commandLine.includes('dev') ||
+                        commandLine.includes('frontend') ||
+                        commandLine.includes(`:${PORT}`) ||
+                        commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')
+                    )) {
+                        processes.push({
+                            pid: parseInt(processId),
+                            commandLine: commandLine
+                        });
+                    }
                 }
             }
             
-            // Wait a moment for processes to fully exit
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (processes.length > 0) {
+                console.log(`Found ${processes.length} related processes, terminating...`);
+                
+                // 并发终止所有进程
+                const terminatePromises = processes.map(async (process) => {
+                    try {
+                        console.log(`Terminating process PID: ${process.pid}`);
+                        console.log(`Command line: ${process.commandLine.substring(0, 100)}...`);
+                        
+                        await execCommand(`taskkill /PID ${process.pid} /F`);
+                        console.log(`Process ${process.pid} terminated successfully`);
+                        return { pid: process.pid, success: true };
+                    } catch (error) {
+                        console.error(`Failed to terminate process ${process.pid}:`, error.message);
+                        return { pid: process.pid, success: false, error: error.message };
+                    }
+                });
+                
+                // 等待所有进程终止完成
+                const results = await Promise.all(terminatePromises);
+                
+                // 统计结果
+                const successCount = results.filter(r => r.success).length;
+                const failureCount = results.length - successCount;
+                
+                console.log(`Process termination completed: ${successCount} successful, ${failureCount} failed`);
+                
+                // 等待进程完全退出
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+                console.log('No related processes found occupying the port');
+            }
         } else {
-            console.log('No related processes found occupying the port');
+            // Linux/macOS系统：使用ps查找进程
+            try {
+                const psOutput = await execCommand('ps aux | grep node');
+                const lines = psOutput.split('\n').filter(line => line.trim() && !line.includes('grep'));
+                const processes = [];
+                
+                for (const line of lines) {
+                    const parts = line.trim().split(/\s+/);
+                    if (parts.length >= 2) {
+                        const pid = parseInt(parts[1]);
+                        const commandLine = parts.slice(10).join(' ');
+                        
+                        if (pid && pid !== currentPid && (
+                            commandLine.includes('vite') ||
+                            commandLine.includes('dev') ||
+                            commandLine.includes('frontend') ||
+                            commandLine.includes(`:${PORT}`) ||
+                            commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')
+                        )) {
+                            processes.push({
+                                pid: pid,
+                                commandLine: commandLine
+                            });
+                        }
+                    }
+                }
+                
+                if (processes.length > 0) {
+                    console.log(`Found ${processes.length} related processes, terminating...`);
+                    
+                    for (const process of processes) {
+                        try {
+                            console.log(`Terminating process PID: ${process.pid}`);
+                            console.log(`Command line: ${process.commandLine.substring(0, 100)}...`);
+                            
+                            await execCommand(`kill -9 ${process.pid}`);
+                            console.log(`Process ${process.pid} terminated successfully`);
+                        } catch (error) {
+                            console.error(`Failed to terminate process ${process.pid}:`, error.message);
+                        }
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    console.log('No related processes found occupying the port');
+                }
+            } catch (psError) {
+                console.error('Failed to find processes using ps command:', psError.message);
+            }
         }
         
     } catch (error) {
@@ -192,12 +271,12 @@ async function killFrontendProcesses() {
 
 async function startFrontendDev() {
   try {
-    // Terminate old frontend processes
+    // 终止旧的前端进程
     await killFrontendProcesses();
     
     console.log('Starting frontend in development mode...');
 
-    // Start the frontend development server with hot reload
+    // 启动前端开发服务器，支持热重载
     const frontendProcess = spawn('npm', ['run', 'dev'], {
       cwd: FRONTEND_DIR,
       stdio: 'inherit',

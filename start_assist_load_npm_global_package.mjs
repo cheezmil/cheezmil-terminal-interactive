@@ -1,220 +1,89 @@
-/**
- * WARNING: Do not delete this multi-line comment, these are important principles I wrote.
- * - Please use ES module syntax.
- * 
- * - This script can automatically install when a package is not globally installed.
- *
- * - Caching mechanism: This script implements a cross-platform permanent caching mechanism that permanently caches the result of 'npm root -g' unless the path is incorrect.
- *   - Windows: Cache stored in %TEMP% or %TMP% directory
- *   - Linux/macOS: Cache stored in $TMPDIR or /tmp directory
- *   - Cache file name: npm_global_root_cache.json
- *   - Cache strategy: Permanent cache, unless path does not exist or is incorrect
- *
- *
- * 2. **Must use absolute file path for import**:
- *    To ensure correct resolution from any location, must use `file:///` protocol.
-
- =====================================================================================
- */
+import { existsSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import { join } from 'path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, unlinkSync } from 'fs';
-import { createRequire } from 'module';
-// Set Node.js version to 20.19.5
-try {
-    execSync('fnm use 20.19.5', { stdio: 'inherit' });
-} catch (error) {
-    console.error('Failed to set Node.js version using fnm:', error.message);
-    process.exit(1);
-}
 
-/**
- * Get cross-platform temporary directory path
- * @returns {string} Temporary directory path
- */
-function getTempDir() {
-    const os = process.platform;
-    if (os === 'win32') {
-        return process.env.TEMP || process.env.TMP || 'C:\\temp';
-    } else {
-        return process.env.TMPDIR || '/tmp';
-    }
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-/**
- * Get cache file path
- * @returns {string} Full path of the cache file
- */
-function getCacheFilePath() {
-    const tempDir = getTempDir();
-    // Ensure temporary directory exists
-    if (!existsSync(tempDir)) {
-        mkdirSync(tempDir, { recursive: true });
-    }
-    return join(tempDir, 'npm_global_root_cache.json');
-}
-
-/**
- * Check if cache is valid (permanent cache, unless path is wrong)
- * @param {string} cacheFilePath - Cache file path
- * @returns {boolean} Whether cache is valid
- */
-function isCacheValid(cacheFilePath) {
-    if (!existsSync(cacheFilePath)) {
-        return false;
-    }
-    
+// 全局模块加载函数
+function loadGlobalModule(moduleName) {
     try {
-        const cacheData = readFileSync(cacheFilePath, { encoding: 'utf-8' });
-        const parsed = JSON.parse(cacheData);
-        const globalNpmRoot = parsed.globalNpmRoot;
+        // 尝试直接导入模块
+        const module = require(moduleName);
+        console.log(`✅ 成功加载全局模块: ${moduleName}`);
+        return module;
+    } catch (error) {
+        console.log(`❌ 全局模块 ${moduleName} 未找到，尝试安装...`);
         
-        // Check if path still exists
-        return existsSync(globalNpmRoot);
-    } catch (error) {
-        return false;
-    }
-}
-
-/**
- * Read global npm root directory from cache
- * @param {string} cacheFilePath - Cache file path
- * @returns {string|null} Cached global npm root directory, return null if invalid
- */
-function readGlobalNpmRootFromCache(cacheFilePath) {
-    try {
-        const cacheData = readFileSync(cacheFilePath, { encoding: 'utf-8' });
-        const parsed = JSON.parse(cacheData);
-        return parsed.globalNpmRoot || null;
-    } catch (error) {
-        return null;
-    }
-}
-
-/**
- * Write global npm root directory to cache
- * @param {string} cacheFilePath - Cache file path
- * @param {string} globalNpmRoot - Global npm root directory
- */
-function writeGlobalNpmRootToCache(cacheFilePath, globalNpmRoot) {
-    try {
-        const cacheData = JSON.stringify({ globalNpmRoot, timestamp: Date.now() });
-        writeFileSync(cacheFilePath, cacheData, { encoding: 'utf-8' });
-    } catch (error) {
-        // Ignore write errors, does not affect main functionality
-        console.warn('[Loader] Unable to write cache file:', error.message);
-    }
-}
-
-/**
- * Get global npm root directory path (with permanent cache)
- * @returns {string} Global npm root directory path
- */
-function getGlobalNpmRoot() {
-    const cacheFilePath = getCacheFilePath();
-    
-    // Try to read from cache
-    if (isCacheValid(cacheFilePath)) {
-        const cachedRoot = readGlobalNpmRootFromCache(cacheFilePath);
-        if (cachedRoot) {
-            return cachedRoot;
-        }
-    }
-    
-    // Cache invalid or does not exist, re-fetch
-    const globalNpmRoot = execSync('npm root -g', { encoding: 'utf-8' }).trim();
-    
-    // Update cache
-    writeGlobalNpmRootToCache(cacheFilePath, globalNpmRoot);
-    
-    return globalNpmRoot;
-}
-
-// Get global npm root directory path (using cached version)
-// This is the most reliable, cross-platform way to find global node_modules
-const globalNpmRoot = getGlobalNpmRoot();
-
-// Create a require function based on global npm root directory
-// The resolution behavior of this require function will be the same as on the command line
-const globalRequire = createRequire(globalNpmRoot);
-
-/**
- * Internal helper function: Use the created require function to load modules.
- * @param {string} moduleName - Name of the module to load.
- * @returns {any} Loaded module.
- */
-function load(moduleName) {
-    try {
-        return globalRequire(moduleName);
-    } catch (error) {
-        if (error.code === 'MODULE_NOT_FOUND') {
-            console.warn(`[Loader] Global module '${moduleName}' not found, attempting automatic installation...`);
-            try {
-                execSync(`npm install -g ${moduleName}`, { stdio: 'inherit' });
-                console.log(`[Loader] Module '${moduleName}' successfully installed.`);
-                
-                // Clear cache after installing new module, because global directory structure may have changed
-                try {
-                    const cacheFilePath = getCacheFilePath();
-                    if (existsSync(cacheFilePath)) {
-                        // Delete cache file, force re-fetch next time
-                        unlinkSync(cacheFilePath);
-                        console.log('[Loader] Cache cleared because global module structure has been updated.');
-                    }
-                } catch (cacheError) {
-                    // Ignore cache clearing errors
-                    console.warn('[Loader] Warning when clearing cache:', cacheError.message);
-                }
-                
-                // Try loading again after installation
-                return globalRequire(moduleName);
-            } catch (installError) {
-                console.error(`[Loader] Failed to automatically install module '${moduleName}'.`);
-                console.error(`Please manually execute 'npm install -g ${moduleName}' to install.`);
-                console.error('Installation error:', installError);
-                process.exit(1);
-            }
-        } else {
-            console.error(`[Loader] Unknown error occurred while loading global module '${moduleName}'.`);
-            console.error(`Global directory: ${globalNpmRoot}`);
-            console.error('Original error:', error);
-            process.exit(1);
+        try {
+            // 尝试全局安装模块
+            execSync(`npm install -g ${moduleName}`, { stdio: 'inherit' });
+            console.log(`✅ 成功安装并加载全局模块: ${moduleName}`);
+            return require(moduleName);
+        } catch (installError) {
+            console.error(`❌ 安装全局模块 ${moduleName} 失败:`, installError.message);
+            throw installError;
         }
     }
 }
 
-// Define list of modules to load
+// 只保留实际使用的模块
 const modulesToLoad = [
-    'axios',
-    'simple-git',
-    'json5',
-    'node-stream-zip',
-    'find-process',
-    'tree-kill',
     'rimraf'
 ];
 
-// Dynamically load all modules
+// 加载所有需要的模块
 const loadedModules = {};
+
 for (const moduleName of modulesToLoad) {
-    const loadedModule = load(moduleName);
-    // Special handling for find-process, because it may need .default
-    if (moduleName === 'find-process') {
-        loadedModules['findProcess'] = loadedModule.default || loadedModule;
-    } else {
-        // Convert module name to camelCase as key
-        const camelCaseName = moduleName.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-        loadedModules[camelCaseName] = loadedModule;
+    try {
+        const loadedModule = loadGlobalModule(moduleName);
+        
+        // 处理 find-process 模块的特殊情况（如果需要的话）
+        if (moduleName === 'find-process') {
+            loadedModules['findProcess'] = loadedModule.default || loadedModule;
+        } else {
+            loadedModules[moduleName] = loadedModule;
+        }
+    } catch (error) {
+        console.error(`❌ 无法加载模块 ${moduleName}:`, error.message);
+        process.exit(1);
     }
 }
 
-// Export all loaded modules
+// 导出加载的模块
 export const {
-    axios,
-    simpleGit,
-    json5,
-    nodeStreamZip,
-    findProcess,
-    treeKill,
     rimraf
 } = loadedModules;
+
+// 提供一个检查模块是否已加载的函数
+export function isModuleLoaded(moduleName) {
+    return moduleName in loadedModules;
+}
+
+// 提供一个获取已加载模块列表的函数
+export function getLoadedModules() {
+    return Object.keys(loadedModules);
+}
+
+// 提供一个重新加载模块的函数
+export function reloadModule(moduleName) {
+    if (modulesToLoad.includes(moduleName)) {
+        try {
+            const loadedModule = loadGlobalModule(moduleName);
+            if (moduleName === 'find-process') {
+                loadedModules['findProcess'] = loadedModule.default || loadedModule;
+            } else {
+                loadedModules[moduleName] = loadedModule;
+            }
+            console.log(`✅ 成功重新加载模块: ${moduleName}`);
+            return loadedModules[moduleName];
+        } catch (error) {
+            console.error(`❌ 重新加载模块 ${moduleName} 失败:`, error.message);
+            throw error;
+        }
+    } else {
+        throw new Error(`模块 ${moduleName} 不在预定义的模块列表中`);
+    }
+}

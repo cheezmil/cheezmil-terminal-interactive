@@ -4,49 +4,36 @@ import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 
-// 检查并设置 Node.js 版本
-function checkAndSetNodeVersion() {
+// 检查 Node.js 版本并在Windows自动切换
+function checkNodeVersion() {
   const requiredVersion = '20.19.5';
   const currentVersion = process.version;
   
   if (currentVersion !== `v${requiredVersion}`) {
-    console.log(`当前 Node.js 版本: ${currentVersion}，需要版本: v${requiredVersion}`);
-    console.log('正在切换到正确的 Node.js 版本...');
+    console.log(`当前 Node.js 版本: ${currentVersion}，推荐版本: v${requiredVersion}`);
     
-    // 使用 spawn 而不是 execSync 来避免创建额外的 Node.js 进程
-    const fnmProcess = spawn('fnm', ['use', requiredVersion], {
-      stdio: 'inherit',
-      shell: true
-    });
-    
-    fnmProcess.on('close', (code) => {
-      if (code === 0) {
+    if (process.platform === 'win32') {
+      console.log('Windows系统正在自动切换到正确的 Node.js 版本...');
+      try {
+        execSync('fnm use 20.19.5', { stdio: 'inherit' });
         console.log(`已切换到 Node.js v${requiredVersion}`);
-        // 重新启动脚本以使用新的 Node.js 版本
-        const newProcess = spawn(process.argv[0], process.argv.slice(1), {
-          stdio: 'inherit',
-          shell: true
-        });
-        newProcess.on('close', (code) => {
-          process.exit(code);
-        });
-      } else {
-        console.error(`切换 Node.js 版本失败，退出码: ${code}`);
-        process.exit(1);
+      } catch (fnmError) {
+        console.error('自动切换版本失败，请手动运行: fnm use 20.19.5');
+        console.log('继续使用当前版本可能会遇到兼容性问题...');
       }
-    });
-    
-    // 等待 fnm 命令完成
-    return false;
+    } else {
+      console.log('Linux/macOS用户无需强制版本要求，继续使用当前版本');
+      console.log('如需切换版本，请手动运行: fnm use 20.19.5');
+    }
+  } else {
+    console.log(`Node.js 版本正确: ${currentVersion}`);
   }
   
   return true;
 }
 
-// 只有版本正确时才继续执行
-if (!checkAndSetNodeVersion()) {
-  process.exit(0);
-}
+// 检查版本并继续执行
+checkNodeVersion();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -123,6 +110,81 @@ function execCommand(command) {
     });
 }
 
+// 跨平台进程终止函数
+async function killProcess(pid) {
+    const command = process.platform === 'win32'
+        ? `taskkill /PID ${pid} /F`
+        : `kill -9 ${pid}`;
+    
+    return execCommand(command);
+}
+
+// 跨平台进程查找函数
+async function findNodeProcesses() {
+    let command, output;
+    
+    if (process.platform === 'win32') {
+        // Windows: 使用wmic
+        command = 'wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv';
+        output = await execCommand(command);
+        return parseWmicOutput(output);
+    } else {
+        // Linux/macOS: 使用ps
+        command = 'ps aux | grep node';
+        output = await execCommand(command);
+        return parsePsOutput(output);
+    }
+}
+
+// 解析Windows wmic输出
+function parseWmicOutput(output) {
+    const lines = output.split('\n').filter(line => line.trim());
+    const processes = [];
+    
+    // 跳过标题行，只处理包含逗号的数据行
+    const dataLines = lines.filter(line => !line.includes('Node,CommandLine,ProcessId') && line.includes(','));
+    
+    for (const line of dataLines) {
+        const parts = line.split(',');
+        if (parts.length >= 3) {
+            const commandLine = parts[1];
+            const processId = parts[2].trim();
+            
+            if (commandLine && processId) {
+                processes.push({
+                    pid: parseInt(processId),
+                    commandLine: commandLine
+                });
+            }
+        }
+    }
+    
+    return processes;
+}
+
+// 解析Linux/macOS ps输出
+function parsePsOutput(output) {
+    const lines = output.split('\n').filter(line => line.trim() && !line.includes('grep'));
+    const processes = [];
+    
+    for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            const pid = parseInt(parts[1]);
+            const commandLine = parts.slice(10).join(' '); // 从第10列开始是命令行
+            
+            if (pid && commandLine) {
+                processes.push({
+                    pid: pid,
+                    commandLine: commandLine
+                });
+            }
+        }
+    }
+    
+    return processes;
+}
+
 // Find and terminate backend related processes
 async function killBackendProcesses() {
     try {
@@ -131,53 +193,46 @@ async function killBackendProcesses() {
         // Get current process ID to avoid killing ourselves
         const currentPid = process.pid;
         
-        // Use wmic to find all node.exe processes and their command lines
-        const wmicOutput = await execCommand('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv');
+        // 跨平台查找node进程
+        const processes = await findNodeProcesses();
         
-        // Parse output, find related backend processes
-        const lines = wmicOutput.split('\n').filter(line => line.trim());
-        const processes = [];
+        // 过滤出相关的后端进程
+        const backendProcesses = processes.filter(process => {
+            return parseInt(process.pid) !== currentPid && (
+                process.commandLine.includes('dist/http-server.js') ||
+                process.commandLine.includes('node') && process.commandLine.includes('dist/http-server.js') ||
+                process.commandLine.includes('start_be_cheestard-terminal-interactive.mjs') ||
+                process.commandLine.includes(`:${PORT}`) ||
+                process.commandLine.includes('cheestard-terminal-interactive')
+            );
+        });
         
-        // Skip header lines, only process data lines containing commas
-        const dataLines = lines.filter(line => !line.includes('Node,CommandLine,ProcessId') && line.includes(','));
-        
-        for (const line of dataLines) {
-            // CSV format: Node,CommandLine,ProcessId
-            const parts = line.split(',');
-            if (parts.length >= 3) {
-                const commandLine = parts[1];
-                const processId = parts[2].trim();
-                
-                // Find backend-related processes, but exclude current process
-                if (commandLine && parseInt(processId) !== currentPid && (
-                    commandLine.includes('dist/http-server.js') ||
-                    commandLine.includes('node') && commandLine.includes('dist/http-server.js') ||
-                    commandLine.includes('start_be_cheestard-terminal-interactive.mjs') ||
-                    commandLine.includes(`:${PORT}`) ||
-                    commandLine.includes('cheestard-terminal-interactive')
-                )) {
-                    processes.push({
-                        pid: parseInt(processId),
-                        commandLine: commandLine
-                    });
-                }
-            }
-        }
-        
-        if (processes.length > 0) {
-            console.log(`Found ${processes.length} related processes, terminating...`);
+        if (backendProcesses.length > 0) {
+            console.log(`Found ${backendProcesses.length} related processes, terminating...`);
             
-            for (const process of processes) {
+            // 并发终结所有进程
+            const terminatePromises = backendProcesses.map(async (process) => {
                 try {
                     console.log(`Terminating process PID: ${process.pid}`);
                     console.log(`Command line: ${process.commandLine.substring(0, 100)}...`);
                     
-                    await execCommand(`taskkill /PID ${process.pid} /F`);
+                    await killProcess(process.pid);
                     console.log(`Process ${process.pid} terminated successfully`);
+                    return { pid: process.pid, success: true };
                 } catch (error) {
                     console.error(`Failed to terminate process ${process.pid}:`, error.message);
+                    return { pid: process.pid, success: false, error: error.message };
                 }
-            }
+            });
+            
+            // 等待所有进程终结完成
+            const results = await Promise.all(terminatePromises);
+            
+            // 统计结果
+            const successCount = results.filter(r => r.success).length;
+            const failureCount = results.length - successCount;
+            
+            console.log(`Process termination completed: ${successCount} successful, ${failureCount} failed`);
             
             // Wait a moment for processes to fully exit
             await new Promise(resolve => setTimeout(resolve, 1000));

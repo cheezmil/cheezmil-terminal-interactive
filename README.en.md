@@ -86,7 +86,7 @@ Always use cheestard-terminal-interactive MCP terminal, prohibit using system pr
 
 - **Cline / Roocode / Kilocode**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -94,7 +94,7 @@ Always use cheestard-terminal-interactive MCP terminal, prohibit using system pr
 
 - **Cursor**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -102,7 +102,7 @@ Always use cheestard-terminal-interactive MCP terminal, prohibit using system pr
 
 - **Claude Code**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -112,14 +112,14 @@ Always use cheestard-terminal-interactive MCP terminal, prohibit using system pr
 In addition to the configuration file method, Claude Code also supports quickly adding MCP servers using the command line:
 
 ```bash
-# Add cheestard-terminal-interactive server
-claude mcp add cheestard-terminal-interactive --scope user --type streamable-http --url http://localhost:1106/mcp
+# Add CTI server
+claude mcp add CTI --scope user --type streamable-http --url http://localhost:1106/mcp
 
 # List configured MCP servers
 claude mcp list
 
 # Remove MCP server
-claude mcp remove cheestard-terminal-interactive
+claude mcp remove CTI
 ```
 
 **Command Line Parameter Description:**
@@ -134,7 +134,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **Gemini CLI**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "http",
       "url": "http://localhost:1106/mcp"
     }
@@ -142,7 +142,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **Windsurf**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -150,7 +150,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **Qwen Code**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -158,7 +158,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **iFlow CLI**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -166,7 +166,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **Open Code**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -174,7 +174,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **Warp**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -182,7 +182,7 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 - **Augment**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }

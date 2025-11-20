@@ -83,14 +83,14 @@ node start_be_cheestard-terminal-interactive.mjs
 ### ⚙️ MCP 客户端配置
 #### 在配置MCP客户端之前，最好对你的AI编程工具加一条规则：
 ```plaintext
-务必使用cheestard-terminal-interactive这个MCP终端，禁止用系统提示词自带的工具函数执行命令。
+务必使用CTI这个MCP终端工具，禁止用系统提示词自带的工具函数执行命令。
 ```
 
 #### 所有支持 Streamable HTTP 的 MCP 客户端都可用，不同MCP客户端的配置会略有不同，注意查询对应客户端的官方文档，这里给出简单的示例
 
 - **Cline / Roocode / Kilocode**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -98,7 +98,7 @@ node start_be_cheestard-terminal-interactive.mjs
 
 - **Cursor**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -106,7 +106,7 @@ node start_be_cheestard-terminal-interactive.mjs
 
 - **Claude Code**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -138,7 +138,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **Gemini CLI**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "http",
       "url": "http://localhost:1106/mcp"
     }
@@ -146,7 +146,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **Windsurf**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -154,7 +154,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **Qwen Code**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -162,7 +162,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **iFlow CLI**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -170,7 +170,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **Open Code**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -178,7 +178,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **Warp**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }
@@ -186,7 +186,7 @@ claude mcp remove cheestard-terminal-interactive
 
 - **Augment**:
 ```json
-    "cheestard-terminal-interactive": {
+    "CTI": {
       "type": "streamable-http",
       "url": "http://localhost:1106/mcp"
     }

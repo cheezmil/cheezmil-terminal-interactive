@@ -4,49 +4,36 @@ import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 
-// 检查并设置 Node.js 版本
-function checkAndSetNodeVersion() {
+// 检查 Node.js 版本并在Windows自动切换
+function checkNodeVersion() {
   const requiredVersion = '20.19.5';
   const currentVersion = process.version;
   
   if (currentVersion !== `v${requiredVersion}`) {
-    console.log(`当前 Node.js 版本: ${currentVersion}，需要版本: v${requiredVersion}`);
-    console.log('正在切换到正确的 Node.js 版本...');
+    console.log(`当前 Node.js 版本: ${currentVersion}，推荐版本: v${requiredVersion}`);
     
-    // 使用 spawn 而不是 execSync 来避免创建额外的 Node.js 进程
-    const fnmProcess = spawn('fnm', ['use', requiredVersion], {
-      stdio: 'inherit',
-      shell: true
-    });
-    
-    fnmProcess.on('close', (code) => {
-      if (code === 0) {
+    if (process.platform === 'win32') {
+      console.log('Windows系统正在自动切换到正确的 Node.js 版本...');
+      try {
+        execSync('fnm use 20.19.5', { stdio: 'inherit' });
         console.log(`已切换到 Node.js v${requiredVersion}`);
-        // 重新启动脚本以使用新的 Node.js 版本
-        const newProcess = spawn(process.argv[0], process.argv.slice(1), {
-          stdio: 'inherit',
-          shell: true
-        });
-        newProcess.on('close', (code) => {
-          process.exit(code);
-        });
-      } else {
-        console.error(`切换 Node.js 版本失败，退出码: ${code}`);
-        process.exit(1);
+      } catch (fnmError) {
+        console.error('自动切换版本失败，请手动运行: fnm use 20.19.5');
+        console.log('继续使用当前版本可能会遇到兼容性问题...');
       }
-    });
-    
-    // 等待 fnm 命令完成
-    return false;
+    } else {
+      console.log('Linux/macOS用户无需强制版本要求，继续使用当前版本');
+      console.log('如需切换版本，请手动运行: fnm use 20.19.5');
+    }
+  } else {
+    console.log(`Node.js 版本正确: ${currentVersion}`);
   }
   
   return true;
 }
 
-// 只有版本正确时才继续执行
-if (!checkAndSetNodeVersion()) {
-  process.exit(0);
-}
+// 检查版本并继续执行
+checkNodeVersion();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -167,17 +154,29 @@ async function killBackendProcesses() {
         if (processes.length > 0) {
             console.log(`Found ${processes.length} related processes, terminating...`);
             
-            for (const process of processes) {
+            // 并发终结所有进程
+            const terminatePromises = processes.map(async (process) => {
                 try {
                     console.log(`Terminating process PID: ${process.pid}`);
                     console.log(`Command line: ${process.commandLine.substring(0, 100)}...`);
                     
                     await execCommand(`taskkill /PID ${process.pid} /F`);
                     console.log(`Process ${process.pid} terminated successfully`);
+                    return { pid: process.pid, success: true };
                 } catch (error) {
                     console.error(`Failed to terminate process ${process.pid}:`, error.message);
+                    return { pid: process.pid, success: false, error: error.message };
                 }
-            }
+            });
+            
+            // 等待所有进程终结完成
+            const results = await Promise.all(terminatePromises);
+            
+            // 统计结果
+            const successCount = results.filter(r => r.success).length;
+            const failureCount = results.length - successCount;
+            
+            console.log(`Process termination completed: ${successCount} successful, ${failureCount} failed`);
             
             // Wait a moment for processes to fully exit
             await new Promise(resolve => setTimeout(resolve, 1000));

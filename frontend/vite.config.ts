@@ -41,4 +41,14 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: Number(process.env.FRONTEND_PORT) || 1107,
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${process.env.MCP_PORT || 1106}`, // MCP服务器地址
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+      },
+    },
+  },
 })

@@ -56,13 +56,23 @@ export class TerminalManager extends EventEmitter {
   async createTerminal(options: TerminalCreateOptions = {}): Promise<string> {
     const terminalId = uuidv4();
 
+    let { shell } = options;
+    // Handle shell parameter conversion for Windows compatibility
+    // Convert "pwsh" to "pwsh.exe" on Windows platforms to improve robustness
+    if (process.platform === 'win32' && shell === 'pwsh') {
+      shell = 'pwsh.exe';
+    }
+
     const {
-      shell = this.config.defaultShell,
+      shell: finalShell = this.config.defaultShell,
       cwd = process.cwd(),
       env = { ...process.env } as Record<string, string>,
       cols = this.config.defaultCols,
       rows = this.config.defaultRows
     } = options;
+
+    // Use the converted shell if provided, otherwise use the default
+    const resolvedShell = shell || finalShell;
 
     try {
       // 确保环境变量中包含 TERM，这对交互式应用很重要
@@ -76,7 +86,7 @@ export class TerminalManager extends EventEmitter {
       };
 
       // 创建 PTY 进程
-      const ptyProcess = spawn(shell, [], {
+      const ptyProcess = spawn(resolvedShell, [], {
         name: 'xterm-256color',  // 修复：使用正确的终端类型
         cols,
         rows,
@@ -99,7 +109,7 @@ export class TerminalManager extends EventEmitter {
       const session: TerminalSession = {
         id: terminalId,
         pid: ptyProcess.pid,
-        shell,
+        shell: resolvedShell,
         cwd,
         env,
         created: new Date(),
