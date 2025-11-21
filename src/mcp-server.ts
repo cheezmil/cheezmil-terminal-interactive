@@ -384,13 +384,32 @@ Fix tool: OpenAI Codex
   }
 
   /**
+   * 检查工具是否被禁用
+   * @param toolName 工具名称
+   * @returns 如果工具被禁用则返回true
+   */
+  private isToolDisabled(toolName: string): boolean {
+    const disabledTools = process.env.DISABLED_TOOLS;
+    if (!disabledTools) {
+      return false;
+    }
+    
+    // 将逗号分隔的工具名称转换为数组，并去除空白字符
+    const disabledList = disabledTools.split(',').map(tool => tool.trim().toLowerCase());
+    
+    // 检查当前工具名称是否在禁用列表中
+    return disabledList.includes(toolName.toLowerCase());
+  }
+
+  /**
    * 设置 MCP 工具
    */
   private setupTools(): void {
     // 统一终端交互工具
-    this.server.tool(
-      'interact_with_terminal',
-      `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。`,
+    if (!this.isToolDisabled('interact_with_terminal')) {
+      this.server.tool(
+        'interact_with_terminal',
+        `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。`,
       {
         // 终端创建参数
         terminalId: z.string().describe('Terminal ID for identification. If terminal does not exist, it will be created automatically.'),
@@ -603,12 +622,16 @@ Fix tool: OpenAI Codex
           } as CallToolResult;
         }
       }
-    );
+      );
+    } else {
+      console.log('[MCP-INFO] Tool "interact_with_terminal" is disabled');
+    }
 
     // Codex Bug Fix Tool
-    this.server.tool(
-      'fix_bug_with_codex',
-      `Use OpenAI Codex CLI to automatically fix bugs with FULL SYSTEM ACCESS.
+    if (!this.isToolDisabled('fix_bug_with_codex')) {
+      this.server.tool(
+        'fix_bug_with_codex',
+        `Use OpenAI Codex CLI to automatically fix bugs with FULL SYSTEM ACCESS.
 
 WARNING CRITICAL: This tool gives Codex COMPLETE control over the codebase!
 - Sandbox: danger-full-access (no restrictions)
@@ -736,7 +759,10 @@ The more detailed, the better the fix!`),
         if (timeout) params.timeout = timeout;
         return await this.fixBugWithCodex(params);
       }
-    );
+      );
+    } else {
+      console.log('[MCP-INFO] Tool "fix_bug_with_codex" is disabled');
+    }
   }
 
   /**
