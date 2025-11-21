@@ -54,7 +54,6 @@ export class CheestardTerminalInteractiveServer {
         capabilities: {
           tools: {},
           resources: {},
-          prompts: {},
           logging: {}
         }
       }
@@ -484,13 +483,12 @@ Fix tool: OpenAI Codex
             terminalCreated
           };
           
-          // 检查是否在input字段中输入了"Ctrl+C"等字符串，如果是则返回警告
+          // 检查是否在input字段中输入了"Ctrl+C"等字符串，如果是则记录警告但继续执行
+          let hasWarning = false;
+          let warningMessage = '';
           if (input && (input.toLowerCase().includes('ctrl+c') || input.toLowerCase().includes('ctrl c'))) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: `⚠️ 警告：检测到您在input字段中输入了"Ctrl+C"。
+            hasWarning = true;
+            warningMessage = `⚠️ 警告：检测到您在input字段中输入了"Ctrl+C"。
 
 正确的使用方法：
 - 使用 specialOperation: "ctrl_c" 参数来发送中断信号
@@ -502,11 +500,11 @@ Fix tool: OpenAI Codex
   "specialOperation": "ctrl_c"
 }
 
-这样可以正确发送Ctrl+C中断信号到终端。`
-                }
-              ],
-              isError: true
-            } as CallToolResult;
+这样可以正确发送Ctrl+C中断信号到终端。
+
+当前输入将被原样发送到终端，但可能不会产生预期的中断效果。
+
+---`;
           }
 
           // 处理特殊操作
@@ -582,6 +580,11 @@ Fix tool: OpenAI Codex
               const outputResult = await this.terminalManager.readFromTerminal(readOptions);
               
               responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
+              
+              // 如果有警告信息，添加到响应中
+              if (hasWarning) {
+                responseText = `${warningMessage}\n\n${responseText}`;
+              }
               
               structuredContent = {
                 ...structuredContent,
@@ -930,7 +933,8 @@ The more detailed, the better the fix!`),
    * 设置 MCP 提示
    */
   private setupPrompts(): void {
-    // 暂时不提供任何 prompts
+    // 提供一个空的prompts列表，避免Method not found错误
+    // 注意：虽然capabilities中声明了prompts，但可以不提供具体的prompt实现
   }
 
   /**
