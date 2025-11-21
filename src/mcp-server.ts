@@ -390,10 +390,10 @@ Fix tool: OpenAI Codex
     // 统一终端交互工具
     this.server.tool(
       'interact_with_terminal',
-      `与指定名称的终端进行交互操作。如果终端不存在，将自动创建新终端。`,
+      `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。`,
       {
         // 终端创建参数
-        terminalName: z.string().describe('Terminal name for identification. If terminal does not exist, it will be created automatically.'),
+        terminalId: z.string().describe('Terminal ID for identification. If terminal does not exist, it will be created automatically.'),
         shell: z.string().optional().describe('Shell to use (default: system default, only used when creating new terminal)'),
         cwd: z.string().optional().describe('Working directory (default: current directory, only used when creating new terminal)'),
         env: z.record(z.string()).optional().describe('Environment variables (only used when creating new terminal)'),
@@ -416,28 +416,28 @@ Fix tool: OpenAI Codex
         readOnlyHint: false
       },
       async ({
-        terminalName, shell, cwd, env,
+        terminalId, shell, cwd, env,
         input, appendNewline, waitForOutput,
         since, maxLines, mode, headLines, tailLines, stripSpinner
       }): Promise<CallToolResult> => {
         try {
-          let actualTerminalName = terminalName;
+          let actualTerminalId = terminalId;
           let terminalCreated = false;
           
-          // 检查是否提供了终端名称
-          if (!actualTerminalName) {
-            throw new Error('terminalName is required.');
+          // 检查是否提供了终端ID
+          if (!actualTerminalId) {
+            throw new Error('terminalId is required.');
           }
           
           // 检查终端是否存在，如果不存在则创建
           try {
             // 尝试读取终端信息来检查是否存在
-            await this.terminalManager.readFromTerminal({ terminalName: actualTerminalName, maxLines: 1 });
+            await this.terminalManager.readFromTerminal({ terminalName: actualTerminalId, maxLines: 1 });
           } catch (error) {
             // 终端不存在，创建新终端
-            if (error instanceof Error && error.message.includes('不存在')) {
+            if (error instanceof Error && (error.message.includes('不存在') || error.message.includes('not found'))) {
               await this.terminalManager.createTerminal({
-                terminalName: actualTerminalName,
+                terminalName: actualTerminalId,
                 shell,
                 cwd,
                 env
@@ -450,14 +450,14 @@ Fix tool: OpenAI Codex
           
           let responseText = '';
           let structuredContent: any = {
-            terminalName: actualTerminalName,
+            terminalId: actualTerminalId,
             terminalCreated
           };
           
           // 如果提供了输入，则发送到终端
           if (input) {
             const writeOptions: any = {
-              terminalName: actualTerminalName,
+              terminalName: actualTerminalId,
               input
             };
             if (appendNewline !== undefined) {
@@ -475,7 +475,7 @@ Fix tool: OpenAI Codex
               
               // 使用智能读取模式或指定模式读取输出
               const readOptions: any = {
-                terminalName: actualTerminalName,
+                terminalName: actualTerminalId,
                 since: since || undefined,
                 maxLines: maxLines || undefined,
                 mode: mode || 'smart',
@@ -486,7 +486,7 @@ Fix tool: OpenAI Codex
               
               const outputResult = await this.terminalManager.readFromTerminal(readOptions);
               
-              responseText = `Command executed successfully on terminal ${actualTerminalName}.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
+              responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
               
               structuredContent = {
                 ...structuredContent,
@@ -508,12 +508,12 @@ Fix tool: OpenAI Codex
                 structuredContent.status = outputResult.status;
               }
             } else {
-              responseText = `Input sent to terminal ${actualTerminalName} successfully.`;
+              responseText = `Input sent to terminal ${actualTerminalId} successfully.`;
             }
           } else {
             // 如果没有输入，则只读取终端输出
             const readOptions: any = {
-              terminalName: actualTerminalName,
+              terminalName: actualTerminalId,
               since: since || undefined,
               maxLines: maxLines || undefined,
               mode: mode || 'smart',
@@ -524,7 +524,7 @@ Fix tool: OpenAI Codex
             
             const outputResult = await this.terminalManager.readFromTerminal(readOptions);
             
-            responseText = `Terminal Output (${actualTerminalName}):\n\n${outputResult.output}\n\n--- End of Output ---`;
+            responseText = `Terminal Output (${actualTerminalId}):\n\n${outputResult.output}\n\n--- End of Output ---`;
             responseText += `\nTotal Lines: ${outputResult.totalLines}\n`;
             responseText += `Has More: ${outputResult.hasMore}\n`;
             responseText += `Next Read Cursor: ${outputResult.cursor ?? outputResult.since}`;
@@ -578,7 +578,7 @@ Fix tool: OpenAI Codex
           // 如果创建了新终端，添加相关信息
           if (terminalCreated) {
             responseText = terminalCreated
-              ? `Terminal "${actualTerminalName}" created and ready.\n\n${responseText}`
+              ? `Terminal "${actualTerminalId}" created and ready.\n\n${responseText}`
               : responseText;
           }
           

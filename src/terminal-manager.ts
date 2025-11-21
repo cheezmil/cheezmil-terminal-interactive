@@ -40,7 +40,7 @@ export class TerminalManager extends EventEmitter {
     this.config = {
       maxBufferSize: config.maxBufferSize || 10000,
       sessionTimeout: config.sessionTimeout || 24 * 60 * 60 * 1000, // 24 hours
-      defaultShell: config.defaultShell || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash'),
+      defaultShell: config.defaultShell ?? process.env.DEFAULT_SHELL ?? (process.platform === 'win32' ? 'pwsh.exe' : '/bin/bash'),
       defaultCols: config.defaultCols || 80,
       defaultRows: config.defaultRows || 24,
       compactAnimations: config.compactAnimations ?? true,
