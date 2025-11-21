@@ -203,4 +203,4 @@ node start_fe_cheestard-terminal-interactive.mjs
 | `SESSION_TIMEOUT` | Session timeout (milliseconds) | 86400000 (24 hours) |
 | `COMPACT_ANIMATIONS` | Enable spinner compression | true |
 | `ANIMATION_THROTTLE_MS` | Animation throttle time (milliseconds) | 100 |
-| `MCP_DEBUG` | Enable debug logging | false |
+| `DEFAULT_SHELL` | Default shell program | pwsh.exe |

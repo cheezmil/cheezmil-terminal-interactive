@@ -206,4 +206,4 @@ node start_fe_cheestard-terminal-interactive.mjs
 | `SESSION_TIMEOUT` | 会话超时时间（毫秒） | 86400000 (24小时) |
 | `COMPACT_ANIMATIONS` | 是否启用 Spinner 压缩 | true |
 | `ANIMATION_THROTTLE_MS` | 动画节流时间（毫秒） | 100 |
-| `MCP_DEBUG` | 是否启用调试日志 | false |
+| `DEFAULT_SHELL` | 默认Shell程序 | pwsh.exe |
