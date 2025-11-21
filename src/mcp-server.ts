@@ -112,7 +112,8 @@ export class CheestardTerminalInteractiveServer {
     }
 
     const result: CreateTerminalResult = {
-      terminalId,
+      terminalName: terminalId,
+      terminalId: terminalId,
       status: session.status,
       pid: session.pid,
       shell: session.shell,
@@ -169,6 +170,7 @@ export class CheestardTerminalInteractiveServer {
       const ourSuffix = `
 
 ---
+
 REQUIREMENTS AFTER FIX:
 
 1. Create a detailed fix report in docs/ directory: ${reportPath}
@@ -245,7 +247,7 @@ Fix tool: OpenAI Codex
 
       // 执行命令
       await this.terminalManager.writeToTerminal({
-        terminalId,
+        terminalName: terminalId,
         input: codexCmd
       });
 
@@ -260,7 +262,7 @@ Fix tool: OpenAI Codex
 
         // 只读取最后 50 行来检查状态，避免读取过多数据
         const result = await this.terminalManager.readFromTerminal({
-          terminalId,
+          terminalName: terminalId,
           mode: 'tail',
           tailLines: 50
         });
@@ -288,7 +290,7 @@ Fix tool: OpenAI Codex
 
       // 读取最终输出（只读取最后 50 行，避免上下文过长）
       const finalResult = await this.terminalManager.readFromTerminal({
-        terminalId,
+        terminalName: terminalId,
         mode: 'tail',
         tailLines: 50
       });
@@ -385,146 +387,201 @@ Fix tool: OpenAI Codex
    * 设置 MCP 工具
    */
   private setupTools(): void {
-    // 创建终端工具
-    // 创建终端工具
+    // 统一终端交互工具
     this.server.tool(
-      'create_terminal',
-      'Create a new Cheestard Terminal Interactive session. Can directly execute a command and wait for results.',
+      'interact_with_terminal',
+      `与指定名称的终端进行交互操作。如果终端不存在，将自动创建新终端。`,
       {
-        shell: z.string().optional().describe('Shell to use (default: system default)'),
-        cwd: z.string().optional().describe('Working directory (default: current directory)'),
-        env: z.record(z.string()).optional().describe('Environment variables'),
-        command: z.string().optional().describe('Command to execute immediately after creating terminal'),
-        waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.')
+        // 终端创建参数
+        terminalName: z.string().describe('Terminal name for identification. If terminal does not exist, it will be created automatically.'),
+        shell: z.string().optional().describe('Shell to use (default: system default, only used when creating new terminal)'),
+        cwd: z.string().optional().describe('Working directory (default: current directory, only used when creating new terminal)'),
+        env: z.record(z.string()).optional().describe('Environment variables (only used when creating new terminal)'),
+        
+        // 终端操作参数
+        input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
+        appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
+        waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.'),
+        
+        // 读取参数
+        since: z.number().optional().describe('Line number to start reading from (default: 0)'),
+        maxLines: z.number().optional().describe('Maximum number of lines to read (default: 1000)'),
+        mode: z.enum(['full', 'head', 'tail', 'head-tail', 'smart']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), head-tail (first + last N lines), or smart (automatically choose best mode)'),
+        headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
+        tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
+        stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)')
       },
       {
-        title: 'Create Terminal',
+        title: 'Interact with Terminal',
         readOnlyHint: false
       },
-      async ({ shell, cwd, env, command, waitForOutput }): Promise<CallToolResult> => {
+      async ({
+        terminalName, shell, cwd, env,
+        input, appendNewline, waitForOutput,
+        since, maxLines, mode, headLines, tailLines, stripSpinner
+      }): Promise<CallToolResult> => {
         try {
-          const result = await this.createTerminalResponse(
-            {
-              shell: shell || undefined,
-              cwd: cwd || undefined,
-              env: env || undefined
-            },
-            'default'
-          );
-
-          // 如果提供了命令，则执行并等待输出
-          if (command) {
-            const terminalId = result.structuredContent?.terminalId as string;
-            if (terminalId) {
-              // 发送命令到终端
-              await this.terminalManager.writeToTerminal({
-                terminalId,
-                input: command,
-                appendNewline: true
+          let actualTerminalName = terminalName;
+          let terminalCreated = false;
+          
+          // 检查是否提供了终端名称
+          if (!actualTerminalName) {
+            throw new Error('terminalName is required.');
+          }
+          
+          // 检查终端是否存在，如果不存在则创建
+          try {
+            // 尝试读取终端信息来检查是否存在
+            await this.terminalManager.readFromTerminal({ terminalName: actualTerminalName, maxLines: 1 });
+          } catch (error) {
+            // 终端不存在，创建新终端
+            if (error instanceof Error && error.message.includes('不存在')) {
+              await this.terminalManager.createTerminal({
+                terminalName: actualTerminalName,
+                shell,
+                cwd,
+                env
               });
-
-              // 如果指定了等待时间，则等待并读取输出
-              if (waitForOutput && waitForOutput > 0) {
-                const waitTimeMs = Math.round(waitForOutput * 1000);
-                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
-
-                // 读取命令输出
-                const outputResult = await this.terminalManager.readFromTerminal({
-                  terminalId,
-                  mode: 'tail',
-                  tailLines: 50
-                });
-
-                // 更新返回结果，包含命令输出
-                const outputText = (result.content[0]?.type === 'text') ? result.content[0].text : '';
-                const newOutputText = `${outputText}\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
-
-                return {
-                  content: [
-                    {
-                      type: 'text',
-                      text: newOutputText
-                    }
-                  ],
-                  structuredContent: {
-                    ...result.structuredContent,
-                    commandExecuted: command,
-                    commandOutput: outputResult.output,
-                    waitForOutput: waitForOutput
-                  }
-                } as CallToolResult;
+              terminalCreated = true;
+            } else {
+              throw error;
+            }
+          }
+          
+          let responseText = '';
+          let structuredContent: any = {
+            terminalName: actualTerminalName,
+            terminalCreated
+          };
+          
+          // 如果提供了输入，则发送到终端
+          if (input) {
+            const writeOptions: any = {
+              terminalName: actualTerminalName,
+              input
+            };
+            if (appendNewline !== undefined) {
+              writeOptions.appendNewline = appendNewline;
+            }
+            await this.terminalManager.writeToTerminal(writeOptions);
+            
+            structuredContent.input = input;
+            structuredContent.appendNewline = appendNewline;
+            
+            // 如果指定了等待时间，则等待并读取输出
+            if (waitForOutput && waitForOutput > 0) {
+              const waitTimeMs = Math.round(waitForOutput * 1000);
+              await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+              
+              // 使用智能读取模式或指定模式读取输出
+              const readOptions: any = {
+                terminalName: actualTerminalName,
+                since: since || undefined,
+                maxLines: maxLines || undefined,
+                mode: mode || 'smart',
+                headLines: headLines || undefined,
+                tailLines: tailLines || undefined,
+                stripSpinner: stripSpinner
+              };
+              
+              const outputResult = await this.terminalManager.readFromTerminal(readOptions);
+              
+              responseText = `Command executed successfully on terminal ${actualTerminalName}.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
+              
+              structuredContent = {
+                ...structuredContent,
+                waitForOutput,
+                commandOutput: outputResult.output,
+                readMode: readOptions.mode,
+                totalLines: outputResult.totalLines,
+                hasMore: outputResult.hasMore,
+                truncated: outputResult.truncated
+              };
+              
+              // 添加统计信息
+              if (outputResult.stats) {
+                structuredContent.stats = outputResult.stats;
+              }
+              
+              // 添加状态信息
+              if (outputResult.status) {
+                structuredContent.status = outputResult.status;
+              }
+            } else {
+              responseText = `Input sent to terminal ${actualTerminalName} successfully.`;
+            }
+          } else {
+            // 如果没有输入，则只读取终端输出
+            const readOptions: any = {
+              terminalName: actualTerminalName,
+              since: since || undefined,
+              maxLines: maxLines || undefined,
+              mode: mode || 'smart',
+              headLines: headLines || undefined,
+              tailLines: tailLines || undefined,
+              stripSpinner: stripSpinner
+            };
+            
+            const outputResult = await this.terminalManager.readFromTerminal(readOptions);
+            
+            responseText = `Terminal Output (${actualTerminalName}):\n\n${outputResult.output}\n\n--- End of Output ---`;
+            responseText += `\nTotal Lines: ${outputResult.totalLines}\n`;
+            responseText += `Has More: ${outputResult.hasMore}\n`;
+            responseText += `Next Read Cursor: ${outputResult.cursor ?? outputResult.since}`;
+            
+            if (outputResult.truncated) {
+              responseText += `\nTruncated: Yes`;
+            }
+            
+            structuredContent = {
+              ...structuredContent,
+              readMode: readOptions.mode,
+              totalLines: outputResult.totalLines,
+              hasMore: outputResult.hasMore,
+              truncated: outputResult.truncated
+            };
+            
+            // 添加统计信息
+            if (outputResult.stats) {
+              structuredContent.stats = outputResult.stats;
+              responseText += `\n\nStatistics:`;
+              responseText += `\n- Total Bytes: ${outputResult.stats.totalBytes}`;
+              responseText += `\n- Estimated Tokens: ${outputResult.stats.estimatedTokens}`;
+              responseText += `\n- Lines Shown: ${outputResult.stats.linesShown}`;
+              if (outputResult.stats.linesOmitted > 0) {
+                responseText += `\n- Lines Omitted: ${outputResult.stats.linesOmitted}`;
+              }
+            }
+            
+            // 添加状态信息
+            if (outputResult.status) {
+              structuredContent.status = outputResult.status;
+              responseText += `\n\nStatus:`;
+              responseText += `\n- Running: ${outputResult.status.isRunning}`;
+              responseText += `\n- Prompt Visible: ${outputResult.status.hasPrompt}`;
+              responseText += `\n- Last Activity: ${outputResult.status.lastActivity}`;
+              if (outputResult.status.promptLine) {
+                responseText += `\n- Prompt: ${outputResult.status.promptLine}`;
+              }
+              if (outputResult.status.pendingCommand) {
+                responseText += `\n- Pending Command: ${outputResult.status.pendingCommand.command} (started ${outputResult.status.pendingCommand.startedAt})`;
+              }
+              if (outputResult.status.lastCommand) {
+                responseText += `\n- Last Command: ${outputResult.status.lastCommand.command}`;
+                if (outputResult.status.lastCommand.completedAt) {
+                  responseText += ` (completed ${outputResult.status.lastCommand.completedAt})`;
+                }
               }
             }
           }
-
-          return result;
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Error creating terminal: ${error instanceof Error ? error.message : String(error)}`
-              }
-            ],
-            isError: true
-          };
-        }
-      }
-    );
-    // 写入终端工具
-    this.server.tool(
-      'write_terminal',
-      'Write input to a terminal session. Can wait for command output and return results directly.',
-      {
-        terminalId: z.string().describe('Terminal session ID'),
-        input: z.string().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
-        appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences like Ctrl+U or backspace.'),
-        waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.')
-      },
-      {
-        title: 'Write to Terminal',
-        readOnlyHint: false
-      },
-      async ({ terminalId, input, appendNewline, waitForOutput }): Promise<CallToolResult> => {
-        try {
-          const writeOptions: any = {
-            terminalId,
-            input
-          };
-          if (appendNewline !== undefined) {
-            writeOptions.appendNewline = appendNewline;
+          
+          // 如果创建了新终端，添加相关信息
+          if (terminalCreated) {
+            responseText = terminalCreated
+              ? `Terminal "${actualTerminalName}" created and ready.\n\n${responseText}`
+              : responseText;
           }
-          await this.terminalManager.writeToTerminal(writeOptions);
-
-          let responseText = `Input sent to terminal ${terminalId} successfully.`;
-          let structuredContent: any = {
-            terminalId,
-            input,
-            appendNewline
-          };
-
-          // 如果指定了等待时间，则等待并读取输出
-          if (waitForOutput && waitForOutput > 0) {
-            const waitTimeMs = Math.round(waitForOutput * 1000);
-            await new Promise(resolve => setTimeout(resolve, waitTimeMs));
-
-            // 读取命令输出
-            const outputResult = await this.terminalManager.readFromTerminal({
-              terminalId,
-              mode: 'tail',
-              tailLines: 50
-            });
-
-            // 更新返回结果，包含命令输出
-            responseText = `Input sent to terminal ${terminalId} successfully.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
-
-            structuredContent = {
-              ...structuredContent,
-              waitForOutput,
-              commandOutput: outputResult.output
-            };
-          }
-
+          
           return {
             content: [
               {
@@ -532,260 +589,21 @@ Fix tool: OpenAI Codex
                 text: responseText
               }
             ],
-            structuredContent: structuredContent
+            structuredContent
           } as CallToolResult;
         } catch (error) {
           return {
             content: [
               {
                 type: 'text',
-                text: `Error writing to terminal: ${error instanceof Error ? error.message : String(error)}`
+                text: `Error interacting with terminal: ${error instanceof Error ? error.message : String(error)}`
               }
             ],
             isError: true
-          };
+          } as CallToolResult;
         }
       }
     );
-
-    // 读取终端工具（增强版）
-    this.server.tool(
-      'read_terminal',
-      'Read output from a terminal session with smart truncation options',
-      {
-        terminalId: z.string().describe('Terminal session ID'),
-        since: z.number().optional().describe('Line number to start reading from (default: 0)'),
-        maxLines: z.number().optional().describe('Maximum number of lines to read (default: 1000)'),
-        mode: z.enum(['full', 'head', 'tail', 'head-tail']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), or head-tail (first + last N lines)'),
-        headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
-        tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
-        stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)')
-      },
-      {
-        title: 'Read Terminal Output',
-        readOnlyHint: true
-      },
-      async ({ terminalId, since, maxLines, mode, headLines, tailLines, stripSpinner }): Promise<CallToolResult> => {
-        try {
-          const result = await this.terminalManager.readFromTerminal({
-            terminalId,
-            since: since || undefined,
-            maxLines: maxLines || undefined,
-            mode: mode || undefined,
-            headLines: headLines || undefined,
-            tailLines: tailLines || undefined,
-            stripSpinner: stripSpinner
-          });
-
-          let outputText = `Terminal Output (${terminalId}):\n\n${result.output}\n\n--- End of Output ---\n`;
-          outputText += `Total Lines: ${result.totalLines}\n`;
-          outputText += `Has More: ${result.hasMore}\n`;
-          outputText += `Next Read Cursor: ${result.cursor ?? result.since}`;
-
-          if (result.truncated) {
-            outputText += `\nTruncated: Yes`;
-          }
-
-          if (result.stats) {
-            outputText += `\n\nStatistics:`;
-            outputText += `\n- Total Bytes: ${result.stats.totalBytes}`;
-            outputText += `\n- Estimated Tokens: ${result.stats.estimatedTokens}`;
-            outputText += `\n- Lines Shown: ${result.stats.linesShown}`;
-            if (result.stats.linesOmitted > 0) {
-              outputText += `\n- Lines Omitted: ${result.stats.linesOmitted}`;
-            }
-          }
-
-          if (result.status) {
-            outputText += `\n\nStatus:`;
-            outputText += `\n- Running: ${result.status.isRunning}`;
-            outputText += `\n- Prompt Visible: ${result.status.hasPrompt}`;
-            outputText += `\n- Last Activity: ${result.status.lastActivity}`;
-            if (result.status.promptLine) {
-              outputText += `\n- Prompt: ${result.status.promptLine}`;
-            }
-            if (result.status.pendingCommand) {
-              outputText += `\n- Pending Command: ${result.status.pendingCommand.command} (started ${result.status.pendingCommand.startedAt})`;
-            }
-            if (result.status.lastCommand) {
-              outputText += `\n- Last Command: ${result.status.lastCommand.command}`;
-              if (result.status.lastCommand.completedAt) {
-                outputText += ` (completed ${result.status.lastCommand.completedAt})`;
-              }
-            }
-          }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: outputText
-              }
-            ]
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Error reading from terminal: ${error instanceof Error ? error.message : String(error)}`
-              }
-            ],
-            isError: true
-          };
-        }
-      }
-    );
-
-    // 列出终端工具
-    this.server.tool(
-      'list_terminals',
-      'List all active terminal sessions',
-      {},
-      {
-        title: 'List Terminals',
-        readOnlyHint: true
-      },
-      async (): Promise<CallToolResult> => {
-        try {
-          const result = await this.terminalManager.listTerminals();
-          
-          if (result.terminals.length === 0) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: 'No active terminal sessions found.'
-                }
-              ]
-            };
-          }
-
-          const terminalList = result.terminals.map(terminal => 
-            `ID: ${terminal.id}\n` +
-            `PID: ${terminal.pid}\n` +
-            `Shell: ${terminal.shell}\n` +
-            `Working Directory: ${terminal.cwd}\n` +
-            `Created: ${terminal.created}\n` +
-            `Last Activity: ${terminal.lastActivity}\n` +
-            `Status: ${terminal.status}\n`
-          ).join('\n---\n');
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Active Terminal Sessions (${result.terminals.length}):\n\n${terminalList}`
-              }
-            ]
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Error listing terminals: ${error instanceof Error ? error.message : String(error)}`
-              }
-            ],
-            isError: true
-          };
-        }
-      }
-    );
-
-    // 终止终端工具
-    this.server.tool(
-      'kill_terminal',
-      'Terminate a terminal session',
-      {
-        terminalId: z.string().describe('Terminal session ID'),
-        signal: z.string().optional().describe('Signal to send (default: SIGTERM)')
-      },
-      {
-        title: 'Kill Terminal',
-        readOnlyHint: false
-      },
-      async ({ terminalId, signal }): Promise<CallToolResult> => {
-        try {
-          await this.terminalManager.killTerminal(terminalId, signal);
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Terminal ${terminalId} terminated successfully.`
-              }
-            ]
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Error terminating terminal: ${error instanceof Error ? error.message : String(error)}`
-              }
-            ],
-            isError: true
-          };
-        }
-      }
-    );
-
-    // 获取终端统计信息工具
-    this.server.tool(
-      'get_terminal_stats',
-      'Get detailed statistics about a terminal session including size, tokens, etc.',
-      {
-        terminalId: z.string().describe('Terminal session ID')
-      },
-      {
-        title: 'Get Terminal Statistics',
-        readOnlyHint: true
-      },
-      async ({ terminalId }): Promise<CallToolResult> => {
-        try {
-          const result = await this.terminalManager.getTerminalStats(terminalId);
-
-          let statsText = `Terminal Statistics (${terminalId}):\n\n`;
-          statsText += `Total Lines: ${result.totalLines}\n`;
-          statsText += `Total Bytes: ${result.totalBytes}\n`;
-          statsText += `Estimated Tokens: ${result.estimatedTokens}\n`;
-          statsText += `Buffer Size: ${result.bufferSize} lines\n`;
-          statsText += `Oldest Line: ${result.oldestLine}\n`;
-          statsText += `Newest Line: ${result.newestLine}\n`;
-          statsText += `Status: ${result.isActive ? 'Active' : 'Inactive'}\n`;
-
-          // 添加一些有用的建议
-          if (result.estimatedTokens > 8000) {
-            statsText += `\n⚠️  Large output detected! Consider using read_terminal with mode="head-tail" to avoid token limits.`;
-          }
-
-          if (result.totalBytes > 1024 * 1024) { // 1MB
-            statsText += `\n⚠️  Output size is ${Math.round(result.totalBytes / 1024 / 1024 * 100) / 100}MB. Consider using truncation options.`;
-          }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: statsText
-              }
-            ]
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Error getting terminal stats: ${error instanceof Error ? error.message : String(error)}`
-              }
-            ],
-            isError: true
-          };
-        }
-      }
-    );
-
 
     // Codex Bug Fix Tool
     this.server.tool(
@@ -966,7 +784,7 @@ The more detailed, the better the fix!`),
           if (!actualTerminalId) {
             throw new Error('Terminal ID is required');
           }
-          const result = await this.terminalManager.readFromTerminal({ terminalId: actualTerminalId });
+          const result = await this.terminalManager.readFromTerminal({ terminalName: actualTerminalId });
           return {
             contents: [
               {

@@ -73,7 +73,12 @@ export class RestApiServer {
     this.app.post('/api/terminals', async (req: Request, res: Response): Promise<void> => {
       try {
         const input: CreateTerminalInput = req.body;
-        const terminalId = await this.terminalManager.createTerminal(input);
+        // 确保 terminalName 存在，如果不存在则使用 undefined
+        const createOptions: any = {
+          ...input,
+          terminalName: input.terminalName || undefined
+        };
+        const terminalId = await this.terminalManager.createTerminal(createOptions);
         const session = this.terminalManager.getTerminalInfo(terminalId);
 
         if (!session) {
@@ -166,7 +171,7 @@ export class RestApiServer {
         }
 
         const writeOptions: any = {
-          terminalId,
+          terminalName: terminalId,
           input
         };
         if (appendNewline !== undefined) {
@@ -197,7 +202,7 @@ export class RestApiServer {
         const tailLines = req.query.tailLines ? parseInt(req.query.tailLines as string) : undefined;
 
         const result = await this.terminalManager.readFromTerminal({
-          terminalId: terminalId!,
+          terminalName: terminalId!,
           since: since || undefined,
           maxLines: maxLines || undefined,
           mode: mode as any || undefined,

@@ -169,7 +169,7 @@ export class WebUIServer {
         const { since, maxLines, mode } = req.query;
 
         const result = await this.terminalManager.readFromTerminal({
-          terminalId: id,
+          terminalName: id,
           since: since ? parseInt(since as string) : undefined,
           maxLines: maxLines ? parseInt(maxLines as string) : undefined,
           mode: mode as any
@@ -195,7 +195,7 @@ export class WebUIServer {
         const { input, appendNewline } = req.body;
 
         await this.terminalManager.writeToTerminal({
-          terminalId: id,
+          terminalName: id,
           input,
           appendNewline
         });

@@ -30,19 +30,20 @@ export interface TerminalCreateOptions {
   env?: Record<string, string> | undefined;
   cols?: number | undefined;
   rows?: number | undefined;
+  terminalName?: string | undefined;
 }
 
 export interface TerminalWriteOptions {
-  terminalId: string;
+  terminalName: string;
   input: string;
   appendNewline?: boolean;
 }
 
 export interface TerminalReadOptions {
-  terminalId: string;
+  terminalName: string;
   since?: number | undefined;
   maxLines?: number | undefined;
-  mode?: 'full' | 'head-tail' | 'head' | 'tail' | undefined;
+  mode?: 'full' | 'head-tail' | 'head' | 'tail' | 'auto' | 'smart' | undefined;
   headLines?: number | undefined;
   tailLines?: number | undefined;
   stripSpinner?: boolean | undefined;
@@ -122,7 +123,7 @@ export interface TerminalManagerConfig {
 
 export interface TerminalError extends Error {
   code: string;
-  terminalId?: string;
+  terminalName?: string;
 }
 
 // MCP 相关类型
@@ -130,9 +131,11 @@ export interface CreateTerminalInput {
   shell?: string | undefined;
   cwd?: string | undefined;
   env?: Record<string, string> | undefined;
+  terminalName?: string | undefined;
 }
 
 export interface CreateTerminalResult {
+  terminalName: string;
   terminalId: string;
   status: string;
   pid: number;
@@ -141,7 +144,7 @@ export interface CreateTerminalResult {
 }
 
 export interface WriteTerminalInput {
-  terminalId: string;
+  terminalName: string;
   input: string;
   appendNewline?: boolean;
 }
@@ -152,7 +155,7 @@ export interface WriteTerminalResult {
 }
 
 export interface ReadTerminalInput {
-  terminalId: string;
+  terminalName: string;
   since?: number;
   maxLines?: number;
   mode?: 'full' | 'head-tail' | 'head' | 'tail';
@@ -162,10 +165,11 @@ export interface ReadTerminalInput {
 }
 
 export interface TerminalStatsInput {
-  terminalId: string;
+  terminalName: string;
 }
 
 export interface TerminalStatsResult {
+  terminalName: string;
   terminalId: string;
   totalLines: number;
   totalBytes: number;
@@ -189,7 +193,7 @@ export interface ListTerminalsResult {
 }
 
 export interface KillTerminalInput {
-  terminalId: string;
+  terminalName: string;
   signal?: string;
 }
 
@@ -228,4 +232,64 @@ export interface FixBugWithCodexResult {
   timedOut: boolean;            // 是否超时
   output: string;               // Codex 终端输出
   reportPreview: string | null; // 报告预览（前 500 字符）
+}
+
+// Unified terminal interaction interface
+export interface InteractWithTerminalInput {
+  action: 'create' | 'execute' | 'write' | 'read' | 'list' | 'kill' | 'stats';
+  terminalName?: string;  // Terminal name for identification
+  command?: string;
+  cwd?: string;
+  shell?: string;
+  env?: Record<string, string>;
+  input?: string;
+  readOptions?: {
+    mode?: 'full' | 'head' | 'tail' | 'head-tail' | 'auto' | 'smart';  // auto is default smart mode
+    maxLines?: number;
+    since?: number;
+    headLines?: number;
+    tailLines?: number;
+    stripSpinner?: boolean;
+  };
+  waitForOutput?: number;  // Wait time in seconds for command output
+  signal?: string;  // For kill action
+}
+
+export interface InteractWithTerminalResult {
+  success: boolean;
+  message?: string;
+  // For create action
+  terminalName?: string;
+  terminalId?: string;
+  pid?: number;
+  shell?: string;
+  cwd?: string;
+  status?: string;
+  // For read action
+  output?: string;
+  totalLines?: number;
+  hasMore?: boolean;
+  truncated?: boolean;
+  stats?: {
+    totalBytes: number;
+    estimatedTokens: number;
+    linesShown: number;
+    linesOmitted: number;
+  };
+  // For list action
+  terminals?: Array<{
+    id: string;
+    name?: string;
+    pid: number;
+    shell: string;
+    cwd: string;
+    created: string;
+    lastActivity: string;
+    status: string;
+  }>;
+  // For stats action
+  totalBytes?: number;
+  estimatedTokens?: number;
+  bufferSize?: number;
+  isActive?: boolean;
 }

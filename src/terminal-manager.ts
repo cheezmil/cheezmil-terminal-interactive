@@ -29,6 +29,10 @@ export class TerminalManager extends EventEmitter {
   private exitResolvers = new Map<string, () => void>();
   private config: Required<TerminalManagerConfig>;
   private cleanupTimer: NodeJS.Timeout;
+  
+  // Terminal name mapping - 终端名称映射
+  private terminalNameMap = new Map<string, string>(); // name -> internal UUID
+  private terminalReverseMap = new Map<string, string>(); // internal UUID -> name
 
   constructor(config: TerminalManagerConfig = {}) {
     super();
@@ -51,10 +55,58 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 创建新的终端会话
+   * 解析终端名称 - 支持终端名称和UUID
+   * Resolve terminal name - supports terminal names and UUIDs
    */
-  async createTerminal(options: TerminalCreateOptions = {}): Promise<string> {
-    const terminalId = uuidv4();
+  private resolveTerminalName(terminalName: string): string {
+    // 如果是 UUID 格式，直接返回
+    // If it's UUID format, return directly
+    if (/^[0-9a-f]{8}-/i.test(terminalName)) {
+      return terminalName;
+    }
+    // 如果是终端名称，映射到内部 UUID
+    // If it's a terminal name, map to internal UUID
+    const internalId = this.terminalNameMap.get(terminalName);
+    if (!internalId) {
+      throw new Error(`终端 "${terminalName}" 不存在。可用终端：${Array.from(this.terminalNameMap.keys()).join(', ')}`);
+    }
+    return internalId;
+  }
+
+  /**
+   * 智能选择读取模式
+   * Smart selection of read mode
+   */
+  private selectReadMode(totalLines: number): 'full' | 'head' | 'tail' | 'head-tail' {
+    if (totalLines < 100) {
+      return 'full';
+    } else if (totalLines < 1000) {
+      return 'head-tail';
+    } else {
+      return 'head-tail';  // 更激进的截断
+    }
+  }
+
+  /**
+   * 创建新的终端会话 - 支持终端名称
+   * Create new terminal session - supports terminal names
+   */
+  async createTerminal(options: TerminalCreateOptions & {terminalName?: string} = {}): Promise<string> {
+    const internalId = uuidv4();
+    // 支持终端名称参数
+    // Support terminal name parameter
+    const terminalName = options.terminalName || internalId;
+    
+    // 检查终端名称是否已存在
+    // Check if terminal name already exists
+    if (terminalName !== internalId && this.terminalNameMap.has(terminalName)) {
+      throw new Error(`终端名称 "${terminalName}" 已存在，请选择其他名称`);
+    }
+    
+    // 建立映射关系
+    // Establish mapping relationship
+    this.terminalNameMap.set(terminalName, internalId);
+    this.terminalReverseMap.set(internalId, terminalName);
 
     let { shell } = options;
     // Handle shell parameter conversion for Windows compatibility
@@ -100,14 +152,14 @@ export class TerminalManager extends EventEmitter {
       const exitPromise = new Promise<void>((resolve) => {
         resolveExit = resolve;
       });
-      this.exitPromises.set(terminalId, exitPromise);
+      this.exitPromises.set(internalId, exitPromise);
       if (resolveExit) {
-        this.exitResolvers.set(terminalId, resolveExit);
+        this.exitResolvers.set(internalId, resolveExit);
       }
 
       // 创建会话记录
       const session: TerminalSession = {
-        id: terminalId,
+        id: internalId,
         pid: ptyProcess.pid,
         shell: resolvedShell,
         cwd,
@@ -123,7 +175,7 @@ export class TerminalManager extends EventEmitter {
       };
 
       // 创建输出缓冲器
-      const outputBuffer = new OutputBuffer(terminalId, this.config.maxBufferSize, {
+      const outputBuffer = new OutputBuffer(internalId, this.config.maxBufferSize, {
         compactAnimations: this.config.compactAnimations,
         animationThrottleMs: this.config.animationThrottleMs
       });
@@ -140,7 +192,7 @@ export class TerminalManager extends EventEmitter {
           const now = new Date();
           session.lastActivity = now;
           outputBuffer.append(data);
-          this.emit('terminalOutput', terminalId, data);
+          this.emit('terminalOutput', internalId, data);
         });
       });
 
@@ -148,17 +200,17 @@ export class TerminalManager extends EventEmitter {
       ptyProcess.onExit((e: { exitCode: number; signal?: number }) => {
         session.status = 'terminated';
         session.lastActivity = new Date();
-        this.emit('terminalExit', terminalId, e.exitCode, e.signal);
+        this.emit('terminalExit', internalId, e.exitCode, e.signal);
 
-        const resolver = this.exitResolvers.get(terminalId);
+        const resolver = this.exitResolvers.get(internalId);
         if (resolver) {
           resolver();
-          this.exitResolvers.delete(terminalId);
+          this.exitResolvers.delete(internalId);
         }
 
         // 清理资源
         const cleanupTimer = setTimeout(() => {
-          this.cleanupSession(terminalId);
+          this.cleanupSession(internalId);
         }, 5000); // 5秒后清理
         if (typeof cleanupTimer.unref === 'function') {
           cleanupTimer.unref();
@@ -166,41 +218,46 @@ export class TerminalManager extends EventEmitter {
       });
 
       // 存储会话信息
-      this.sessions.set(terminalId, session);
-      this.ptyProcesses.set(terminalId, ptyProcess);
-      this.outputBuffers.set(terminalId, outputBuffer);
+      this.sessions.set(internalId, session);
+      this.ptyProcesses.set(internalId, ptyProcess);
+      this.outputBuffers.set(internalId, outputBuffer);
 
-      this.emit('terminalCreated', terminalId, session);
+      this.emit('terminalCreated', internalId, session);
       
-      return terminalId;
+     return terminalName;  // 返回终端名称
     } catch (error) {
-      const terminalError: TerminalError = new Error(`Failed to create terminal: ${error}`) as TerminalError;
-      terminalError.code = 'CREATE_FAILED';
-      terminalError.terminalId = terminalId;
-      throw terminalError;
-    }
+     const terminalError: TerminalError = new Error(`Failed to create terminal: ${error}`) as TerminalError;
+     terminalError.code = 'CREATE_FAILED';
+     terminalError.terminalName = terminalName;
+     throw terminalError;
+   }
   }
 
   /**
-   * 向终端写入数据
+   * 向终端写入数据 - 支持终端名称
+   * Write data to terminal - supports terminal names
    */
   async writeToTerminal(options: TerminalWriteOptions): Promise<void> {
-    const { terminalId, input, appendNewline } = options;
+    const { terminalName, input, appendNewline } = options;
+    
+    // 解析终端名称
+    // Resolve terminal name
+    const resolvedId = this.resolveTerminalName(terminalName);
 
-    const ptyProcess = this.ptyProcesses.get(terminalId);
-    const session = this.sessions.get(terminalId);
+    const ptyProcess = this.ptyProcesses.get(resolvedId);
+    const session = this.sessions.get(resolvedId);
 
     if (!ptyProcess || !session) {
-      const error: TerminalError = new Error(`Terminal ${terminalId} not found`) as TerminalError;
+      const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
       error.code = 'TERMINAL_NOT_FOUND';
-      error.terminalId = terminalId;
+      error.terminalName = terminalName;
       throw error;
     }
 
     if (session.status !== 'active') {
-      const error: TerminalError = new Error(`Terminal ${terminalId} is not active`) as TerminalError;
+      const error: TerminalError = new Error(`Terminal ${terminalName} is not active`) as TerminalError;
       error.code = 'TERMINAL_INACTIVE';
-      error.terminalId = terminalId;
+      error.terminalName = terminalName;
       throw error;
     }
 
@@ -234,7 +291,7 @@ export class TerminalManager extends EventEmitter {
       }
 
       session.lastActivity = new Date();
-      this.emit('terminalInput', terminalId, inputToWrite);
+      this.emit('terminalInput', terminalName, inputToWrite);
 
       const executed = /[\n\r]$/.test(inputToWrite);
       this.trackCommand(session, inputToWrite, executed);
@@ -245,7 +302,7 @@ export class TerminalManager extends EventEmitter {
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to write to terminal: ${error}`) as TerminalError;
       terminalError.code = 'WRITE_FAILED';
-      terminalError.terminalId = terminalId;
+      terminalError.terminalName = terminalName;
       throw terminalError;
     }
   }
@@ -281,18 +338,23 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 从终端读取输出
+   * 从终端读取输出 - 支持终端名称和智能模式
+   * Read output from terminal - supports terminal names and smart mode
    */
   async readFromTerminal(options: TerminalReadOptions): Promise<TerminalReadResult> {
-    const { terminalId, since = 0, maxLines = 1000, mode, headLines, tailLines } = options;
+    const { terminalName, since = 0, maxLines = 1000, mode, headLines, tailLines } = options;
+    
+    // 解析终端名称
+    // Resolve terminal name
+    const resolvedId = this.resolveTerminalName(terminalName);
 
-    const outputBuffer = this.outputBuffers.get(terminalId);
-    const session = this.sessions.get(terminalId);
+    const outputBuffer = this.outputBuffers.get(resolvedId);
+    const session = this.sessions.get(resolvedId);
 
     if (!outputBuffer || !session) {
-      const error: TerminalError = new Error(`Terminal ${terminalId} not found`) as TerminalError;
+      const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
       error.code = 'TERMINAL_NOT_FOUND';
-      error.terminalId = terminalId;
+      error.terminalName = terminalName;
       throw error;
     }
 
@@ -302,11 +364,19 @@ export class TerminalManager extends EventEmitter {
       await new Promise(resolve => setImmediate(resolve));
       // 如果指定了智能读取模式，使用新的 readSmart 方法
       const cursorPosition = since ?? 0;
+      
+      // 智能模式：自动选择最佳读取方式
+      // Smart mode: automatically select best reading method
+      let selectedMode = mode;
+      if (mode === 'auto' || mode === 'smart') {
+        const stats = outputBuffer.getStats();
+        selectedMode = this.selectReadMode(stats.totalLines);
+      }
 
-      if (mode && mode !== 'full') {
+      if (selectedMode && selectedMode !== 'full') {
         const smartOptions: any = {
           since: cursorPosition,
-          mode,
+          mode: selectedMode,
           maxLines
         };
         if (headLines !== undefined) smartOptions.headLines = headLines;
@@ -357,22 +427,27 @@ export class TerminalManager extends EventEmitter {
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to read from terminal: ${error}`) as TerminalError;
       terminalError.code = 'READ_FAILED';
-      terminalError.terminalId = terminalId;
+      terminalError.terminalName = terminalName;
       throw terminalError;
     }
   }
 
   /**
-   * 获取终端统计信息
+   * 获取终端统计信息 - 支持终端名称
+   * Get terminal statistics - supports terminal names
    */
-  async getTerminalStats(terminalId: string): Promise<TerminalStatsResult> {
-    const outputBuffer = this.outputBuffers.get(terminalId);
-    const session = this.sessions.get(terminalId);
+  async getTerminalStats(terminalName: string): Promise<TerminalStatsResult> {
+    // 解析终端名称
+    // Resolve terminal name
+    const resolvedId = this.resolveTerminalName(terminalName);
+    
+    const outputBuffer = this.outputBuffers.get(resolvedId);
+    const session = this.sessions.get(resolvedId);
 
     if (!outputBuffer || !session) {
-      const error: TerminalError = new Error(`Terminal ${terminalId} not found`) as TerminalError;
+      const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
       error.code = 'TERMINAL_NOT_FOUND';
-      error.terminalId = terminalId;
+      error.terminalName = terminalName;
       throw error;
     }
 
@@ -383,7 +458,8 @@ export class TerminalManager extends EventEmitter {
     const estimatedTokens = Math.ceil(totalText.length / 4);
 
     return {
-      terminalId,
+      terminalName,
+      terminalId: resolvedId,
       totalLines: stats.totalLines,
       totalBytes,
       estimatedTokens,
@@ -395,11 +471,15 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 检查终端是否正在运行命令
+   * 检查终端是否正在运行命令 - 支持终端名称
+   * Check if terminal is running command - supports terminal names
    * 通过检查最后一次活动时间来判断
    */
-  isTerminalBusy(terminalId: string): boolean {
-    const session = this.sessions.get(terminalId);
+  isTerminalBusy(terminalName: string): boolean {
+    // 解析终端名称
+    // Resolve terminal name
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
     if (!session) {
       return false;
     }
@@ -414,13 +494,17 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 等待终端输出稳定
+   * 等待终端输出稳定 - 支持终端名称
+   * Wait for terminal output to stabilize - supports terminal names
    * 用于确保命令执行完成后再读取输出
    */
-  async waitForOutputStable(terminalId: string, timeout: number = 5000, stableTime: number = 500): Promise<void> {
-    const session = this.sessions.get(terminalId);
+  async waitForOutputStable(terminalName: string, timeout: number = 5000, stableTime: number = 500): Promise<void> {
+    // 解析终端名称
+    // Resolve terminal name
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
     if (!session) {
-      throw new Error(`Terminal ${terminalId} not found`);
+      throw new Error(`Terminal ${terminalName} not found`);
     }
 
     const startTime = Date.now();
@@ -464,17 +548,22 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 终止终端会话
+   * 终止终端会话 - 支持终端名称
+   * Kill terminal session - supports terminal names
    */
-  async killTerminal(terminalId: string, signal = 'SIGTERM'): Promise<void> {
-    const ptyProcess = this.ptyProcesses.get(terminalId);
-    const session = this.sessions.get(terminalId);
-    const exitPromise = this.exitPromises.get(terminalId);
+  async killTerminal(terminalName: string, signal = 'SIGTERM'): Promise<void> {
+    // 解析终端名称
+    // Resolve terminal name
+    const resolvedId = this.resolveTerminalName(terminalName);
+    
+    const ptyProcess = this.ptyProcesses.get(resolvedId);
+    const session = this.sessions.get(resolvedId);
+    const exitPromise = this.exitPromises.get(resolvedId);
 
     if (!ptyProcess || !session) {
-      const error: TerminalError = new Error(`Terminal ${terminalId} not found`) as TerminalError;
+      const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
       error.code = 'TERMINAL_NOT_FOUND';
-      error.terminalId = terminalId;
+      error.terminalName = terminalName;
       throw error;
     }
 
@@ -491,25 +580,29 @@ export class TerminalManager extends EventEmitter {
       
       session.status = 'terminated';
       session.lastActivity = new Date();
-      this.emit('terminalKilled', terminalId, signal);
+      this.emit('terminalKilled', terminalName, signal);
 
-      await this.waitForPtyExit(terminalId, ptyProcess, exitPromise);
+      await this.waitForPtyExit(resolvedId, ptyProcess, exitPromise);
 
-      const buffer = this.outputBuffers.get(terminalId);
+      const buffer = this.outputBuffers.get(resolvedId);
       if (buffer) {
         buffer.removeAllListeners();
       }
 
       // 清理资源：从 Map 中删除已终止的终端
-      this.ptyProcesses.delete(terminalId);
-      this.outputBuffers.delete(terminalId);
-      this.sessions.delete(terminalId);
-      this.exitPromises.delete(terminalId);
-      this.exitResolvers.delete(terminalId);
+      this.ptyProcesses.delete(resolvedId);
+      this.outputBuffers.delete(resolvedId);
+      this.sessions.delete(resolvedId);
+      this.exitPromises.delete(resolvedId);
+      this.exitResolvers.delete(resolvedId);
+      
+      // 清理名称映射
+      this.terminalNameMap.delete(terminalName);
+      this.terminalReverseMap.delete(resolvedId);
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to kill terminal: ${error}`) as TerminalError;
       terminalError.code = 'KILL_FAILED';
-      terminalError.terminalId = terminalId;
+      terminalError.terminalName = terminalName;
       throw terminalError;
     }
   }
@@ -539,7 +632,7 @@ export class TerminalManager extends EventEmitter {
     if (!ptyProcess || !session) {
       const error: TerminalError = new Error(`Terminal ${terminalId} not found`) as TerminalError;
       error.code = 'TERMINAL_NOT_FOUND';
-      error.terminalId = terminalId;
+      error.terminalName = terminalId;
       throw error;
     }
 
@@ -550,7 +643,7 @@ export class TerminalManager extends EventEmitter {
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to resize terminal: ${error}`) as TerminalError;
       terminalError.code = 'RESIZE_FAILED';
-      terminalError.terminalId = terminalId;
+      terminalError.terminalName = terminalId;
       throw terminalError;
     }
   }
@@ -841,5 +934,291 @@ export class TerminalManager extends EventEmitter {
       promptLine: session.lastPromptLine ?? null,
       lastActivity: session.lastActivity.toISOString()
     };
+  }
+
+  /**
+   * 统一的终端交互方法 - 整合创建、写入和读取功能
+   * Unified terminal interaction method - integrates create, write and read functionality
+   */
+  async interactWithTerminal(options: {
+    // 创建选项 - Create options
+    terminalName?: string;
+    shell?: string;
+    cwd?: string;
+    env?: Record<string, string>;
+    cols?: number;
+    rows?: number;
+    
+    // 写入选项 - Write options
+    input?: string;
+    appendNewline?: boolean;
+    waitForOutput?: boolean;
+    outputTimeout?: number;
+    stableTime?: number;
+    
+    // 读取选项 - Read options
+    since?: number;
+    maxLines?: number;
+    mode?: 'full' | 'head' | 'tail' | 'head-tail' | 'auto' | 'smart';
+    headLines?: number;
+    tailLines?: number;
+    stripSpinner?: boolean;
+    
+    // 操作模式 - Operation mode
+    operation?: 'create' | 'write' | 'read' | 'write_and_read' | 'create_and_execute';
+  }): Promise<{
+    // 创建结果 - Create result
+    terminalName?: string;
+    terminalId?: string;
+    
+    // 写入结果 - Write result
+    written?: boolean;
+    
+    // 读取结果 - Read result
+    output?: string;
+    totalLines?: number;
+    hasMore?: boolean;
+    since?: number;
+    cursor?: number;
+    truncated?: boolean;
+    stats?: any;
+    status?: any;
+    
+    // 统计信息 - Statistics
+    terminalStats?: any;
+  }> {
+    const {
+      // 操作模式，默认为创建并执行
+      operation = 'create_and_execute',
+      
+      // 创建参数
+      terminalName,
+      shell,
+      cwd,
+      env,
+      cols,
+      rows,
+      
+      // 写入参数
+      input,
+      appendNewline,
+      waitForOutput = true,
+      outputTimeout = 5000,
+      stableTime = 500,
+      
+      // 读取参数
+      since = 0,
+      maxLines = 1000,
+      mode = 'smart',
+      headLines,
+      tailLines,
+      stripSpinner = true
+    } = options;
+
+    const result: any = {};
+
+    try {
+      // 根据操作模式执行相应的操作
+      // Execute corresponding operations based on operation mode
+      switch (operation) {
+        case 'create':
+        case 'create_and_execute': {
+          // 创建终端 - Create terminal
+          const createOptions: any = {};
+          if (terminalName) createOptions.terminalName = terminalName;
+          if (shell) createOptions.shell = shell;
+          if (cwd) createOptions.cwd = cwd;
+          if (env) createOptions.env = env;
+          if (cols) createOptions.cols = cols;
+          if (rows) createOptions.rows = rows;
+
+          const createdTerminalName = await this.createTerminal(createOptions);
+          result.terminalName = createdTerminalName;
+          result.terminalId = this.terminalNameMap.get(createdTerminalName);
+          
+          // 如果只是创建终端，直接返回
+          // If only creating terminal, return directly
+          if (operation === 'create') {
+            break;
+          }
+          
+          // 继续执行写入和读取操作
+          // Continue with write and read operations
+          if (input) {
+            // 写入输入 - Write input
+            await this.writeToTerminal({
+              terminalName: createdTerminalName,
+              input,
+              ...(appendNewline !== undefined && { appendNewline })
+            });
+            result.written = true;
+            
+            // 等待输出稳定 - Wait for output to stabilize
+            if (waitForOutput) {
+              await this.waitForOutputStable(createdTerminalName, outputTimeout, stableTime);
+            }
+            
+            // 读取输出 - Read output
+            const readResult = await this.readFromTerminal({
+              terminalName: createdTerminalName,
+              since,
+              maxLines,
+              mode,
+              headLines,
+              tailLines
+            });
+            
+            // 处理输出结果 - Process output result
+            let processedOutput = readResult.output;
+            if (stripSpinner && processedOutput) {
+              // 移除旋转动画字符 - Remove spinner animation characters
+              processedOutput = processedOutput.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, '');
+              // 移除其他常见的动画字符 - Remove other common animation characters
+              processedOutput = processedOutput.replace(/[|\/\\-]/g, (match, offset, string) => {
+                // 简单的启发式方法：如果这些字符连续出现，可能是动画
+                // Simple heuristic: if these characters appear consecutively, it might be animation
+                const prevChar = offset > 0 ? string[offset - 1] : '';
+                const nextChar = offset < string.length - 1 ? string[offset + 1] : '';
+                if (/[|\/\\-]/.test(prevChar) || /[|\/\\-]/.test(nextChar)) {
+                  return '';
+                }
+                return match;
+              });
+            }
+            
+            result.output = processedOutput;
+            result.totalLines = readResult.totalLines;
+            result.hasMore = readResult.hasMore;
+            result.since = readResult.since;
+            result.cursor = readResult.cursor;
+            result.truncated = readResult.truncated;
+            result.stats = readResult.stats;
+            result.status = readResult.status;
+          }
+          
+          // 获取终端统计信息 - Get terminal statistics
+          result.terminalStats = await this.getTerminalStats(createdTerminalName);
+          break;
+        }
+        
+        case 'write':
+        case 'write_and_read': {
+          if (!terminalName) {
+            throw new Error('对于写入操作，必须提供 terminalName');
+          }
+          
+          // 写入输入 - Write input
+          if (input) {
+            await this.writeToTerminal({
+              terminalName,
+              input,
+              ...(appendNewline !== undefined && { appendNewline })
+            });
+            result.written = true;
+            
+            // 如果只是写入，直接返回
+            // If only writing, return directly
+            if (operation === 'write') {
+              break;
+            }
+            
+            // 等待输出稳定 - Wait for output to stabilize
+            if (waitForOutput) {
+              await this.waitForOutputStable(terminalName, outputTimeout, stableTime);
+            }
+            
+            // 读取输出 - Read output
+            const readResult = await this.readFromTerminal({
+              terminalName,
+              since,
+              maxLines,
+              mode,
+              headLines,
+              tailLines
+            });
+            
+            // 处理输出结果 - Process output result
+            let processedOutput = readResult.output;
+            if (stripSpinner && processedOutput) {
+              processedOutput = processedOutput.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, '');
+              processedOutput = processedOutput.replace(/[|\/\\-]/g, (match, offset, string) => {
+                const prevChar = offset > 0 ? string[offset - 1] : '';
+                const nextChar = offset < string.length - 1 ? string[offset + 1] : '';
+                if (/[|\/\\-]/.test(prevChar) || /[|\/\\-]/.test(nextChar)) {
+                  return '';
+                }
+                return match;
+              });
+            }
+            
+            result.output = processedOutput;
+            result.totalLines = readResult.totalLines;
+            result.hasMore = readResult.hasMore;
+            result.since = readResult.since;
+            result.cursor = readResult.cursor;
+            result.truncated = readResult.truncated;
+            result.stats = readResult.stats;
+            result.status = readResult.status;
+          }
+          
+          // 获取终端统计信息 - Get terminal statistics
+          result.terminalStats = await this.getTerminalStats(terminalName);
+          break;
+        }
+        
+        case 'read': {
+          if (!terminalName) {
+            throw new Error('对于读取操作，必须提供 terminalName');
+          }
+          
+          // 读取输出 - Read output
+          const readResult = await this.readFromTerminal({
+            terminalName,
+            since,
+            maxLines,
+            mode,
+            headLines,
+            tailLines
+          });
+          
+          // 处理输出结果 - Process output result
+          let processedOutput = readResult.output;
+          if (stripSpinner && processedOutput) {
+            processedOutput = processedOutput.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, '');
+            processedOutput = processedOutput.replace(/[|\/\\-]/g, (match, offset, string) => {
+              const prevChar = offset > 0 ? string[offset - 1] : '';
+              const nextChar = offset < string.length - 1 ? string[offset + 1] : '';
+              if (/[|\/\\-]/.test(prevChar) || /[|\/\\-]/.test(nextChar)) {
+                return '';
+              }
+              return match;
+            });
+          }
+          
+          result.output = processedOutput;
+          result.totalLines = readResult.totalLines;
+          result.hasMore = readResult.hasMore;
+          result.since = readResult.since;
+          result.cursor = readResult.cursor;
+          result.truncated = readResult.truncated;
+          result.stats = readResult.stats;
+          result.status = readResult.status;
+          
+          // 获取终端统计信息 - Get terminal statistics
+          result.terminalStats = await this.getTerminalStats(terminalName);
+          break;
+        }
+        
+        default:
+          throw new Error(`不支持的操作模式: ${operation}`);
+      }
+      
+      return result;
+    } catch (error) {
+      const terminalError: TerminalError = new Error(`统一终端交互失败: ${error}`) as TerminalError;
+      terminalError.code = 'INTERACT_FAILED';
+      terminalError.terminalName = terminalName || 'unknown';
+      throw terminalError;
+    }
   }
 }

@@ -136,15 +136,17 @@ async function killBackendProcesses() {
                 const processId = parts[2].trim();
                 
                 // Find backend-related processes, but exclude current process
-                if (commandLine && parseInt(processId) !== currentPid && (
-                    (commandLine.includes('dist/index.js') && !commandLine.includes('start_be_dev_cheestard-terminal-interactive.mjs')) ||
-                    (commandLine.includes('dist/http-server.js') && !commandLine.includes('start_be_dev_cheestard-terminal-interactive.mjs')) ||
-                    (commandLine.includes(`:${PORT}`) && commandLine.includes('node') && !commandLine.includes('start_be_dev_cheestard-terminal-interactive.mjs'))
-                )) {
-                    processes.push({
-                        pid: parseInt(processId),
-                        commandLine: commandLine
-                    });
+                if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_be_dev_cheestard-terminal-interactive.mjs')) {
+                    const isRelatedProcess = commandLine.includes('dist/index.js') ||
+                                           commandLine.includes('dist/http-server.js');
+                    const isCurrentProject = commandLine.includes('cheestard-terminal-interactive');
+                    
+                    if (isRelatedProcess && isCurrentProject) {
+                        processes.push({
+                            pid: parseInt(processId),
+                            commandLine: commandLine
+                        });
+                    }
                 }
             }
         }

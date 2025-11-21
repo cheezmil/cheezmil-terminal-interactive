@@ -178,7 +178,7 @@ class InteractiveDemo {
     }
 
     await this.terminalManager.writeToTerminal({
-      terminalId: this.currentTerminalId,
+      terminalName: this.currentTerminalId,
       input
     });
     
@@ -192,7 +192,7 @@ class InteractiveDemo {
     }
 
     const result = await this.terminalManager.readFromTerminal({
-      terminalId: this.currentTerminalId,
+      terminalName: this.currentTerminalId,
       since: since || undefined,
       maxLines: maxLines || undefined
     });

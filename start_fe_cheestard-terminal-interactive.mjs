@@ -214,16 +214,19 @@ async function killFrontendProcesses() {
                         const processId = parts[2].trim();
                         
                         // 更具体 - 只针对与我们的项目明显相关的进程
-                        if (commandLine && parseInt(processId) !== currentPid && (
-                            (commandLine.includes('vite') && commandLine.includes('frontend')) ||
-                            (commandLine.includes('npm') && commandLine.includes('dev') && commandLine.includes('frontend')) ||
-                            commandLine.includes('start_fe_cheestard-terminal-interactive.mjs') ||
-                            (commandLine.includes(`:${PORT}`) && (commandLine.includes('vite') || commandLine.includes('frontend')))
-                        )) {
-                            processes.push({
-                                pid: parseInt(processId),
-                                commandLine: commandLine
-                            });
+                        if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_fe_cheestard-terminal-interactive.mjs')) {
+                            const isFrontendProcess = commandLine.includes('vite') ||
+                                                    commandLine.includes('npm') && commandLine.includes('dev') ||
+                                                    commandLine.includes(`:${PORT}`);
+                            const isCurrentProject = commandLine.includes('cheestard-terminal-interactive') ||
+                                                   commandLine.includes('frontend');
+                            
+                            if (isFrontendProcess && isCurrentProject) {
+                                processes.push({
+                                    pid: parseInt(processId),
+                                    commandLine: commandLine
+                                });
+                            }
                         }
                     }
                 }

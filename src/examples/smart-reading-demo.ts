@@ -30,7 +30,7 @@ async function smartReadingDemo() {
       : 'find . -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | head -100';
     
     await terminalManager.writeToTerminal({
-      terminalId,
+      terminalName: terminalId,
       input: longCommand + '\n'
     });
 
@@ -53,7 +53,7 @@ async function smartReadingDemo() {
     if (stats.totalLines <= 50) {
       console.log('4a. Full output (small output):');
       const fullResult = await terminalManager.readFromTerminal({
-        terminalId,
+        terminalName: terminalId,
         mode: 'full'
       });
       console.log('--- Full Output ---');
@@ -66,7 +66,7 @@ async function smartReadingDemo() {
     // 4b. 只显示开头
     console.log('4b. Head mode (first 10 lines):');
     const headResult = await terminalManager.readFromTerminal({
-      terminalId,
+      terminalName: terminalId,
       mode: 'head',
       headLines: 10
     });
@@ -80,7 +80,7 @@ async function smartReadingDemo() {
     // 4c. 只显示结尾
     console.log('4c. Tail mode (last 10 lines):');
     const tailResult = await terminalManager.readFromTerminal({
-      terminalId,
+      terminalName: terminalId,
       mode: 'tail',
       tailLines: 10
     });
@@ -94,7 +94,7 @@ async function smartReadingDemo() {
     // 4d. 头尾模式（最有用的模式）
     console.log('4d. Head-Tail mode (first 5 + last 5 lines):');
     const headTailResult = await terminalManager.readFromTerminal({
-      terminalId,
+      terminalName: terminalId,
       mode: 'head-tail',
       headLines: 5,
       tailLines: 5
@@ -109,21 +109,21 @@ async function smartReadingDemo() {
     // 5. 演示实际使用场景
     console.log('5. Real-world scenario: Running npm install...');
     await terminalManager.writeToTerminal({
-      terminalId,
+      terminalName: terminalId,
       input: 'echo "Simulating npm install..."\n'
     });
 
     // 模拟长时间运行的命令
     for (let i = 1; i <= 20; i++) {
       await terminalManager.writeToTerminal({
-        terminalId,
+        terminalName: terminalId,
         input: `echo "Installing package ${i}/20..."\n`
       });
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     await terminalManager.writeToTerminal({
-      terminalId,
+      terminalName: terminalId,
       input: 'echo "Installation complete!"\n'
     });
 
@@ -136,7 +136,7 @@ async function smartReadingDemo() {
     // 使用智能读取获取安装过程的摘要
     console.log('6. Getting installation summary with head-tail mode:');
     const summaryResult = await terminalManager.readFromTerminal({
-      terminalId,
+      terminalName: terminalId,
       mode: 'head-tail',
       headLines: 10,
       tailLines: 5

@@ -59,7 +59,6 @@ function checkAndSetNodeVersion() {
       console.log(`⚠️  检测到Node.js版本: ${currentVersion} (推荐使用v${requiredVersion}或更高版本)`);
       console.log('💡 提示: 如需切换版本，可以使用以下命令:');
       console.log('   - 使用fnm: fnm use 20.19.5');
-      console.log('   - 使用nvm: nvm use 20.19.5');
       console.log('   - 继续使用当前版本可能会遇到兼容性问题\n');
     } else {
       console.log(`✅ Node.js版本检查通过: ${currentVersion}`);
@@ -176,17 +175,19 @@ async function killFrontendProcesses() {
                     const processId = parts[2].trim();
                     
                     // 查找前端相关进程，但排除当前进程
-                    if (commandLine && parseInt(processId) !== currentPid && (
-                        commandLine.includes('vite') ||
-                        commandLine.includes('dev') ||
-                        commandLine.includes('frontend') ||
-                        commandLine.includes(`:${PORT}`) ||
-                        commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')
-                    )) {
-                        processes.push({
-                            pid: parseInt(processId),
-                            commandLine: commandLine
-                        });
+                    if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')) {
+                        const isFrontendProcess = commandLine.includes('vite') ||
+                                                commandLine.includes('dev') ||
+                                                commandLine.includes('frontend') ||
+                                                commandLine.includes(`:${PORT}`);
+                        const isCurrentProject = commandLine.includes('cheestard-terminal-interactive');
+                        
+                        if (isFrontendProcess && isCurrentProject) {
+                            processes.push({
+                                pid: parseInt(processId),
+                                commandLine: commandLine
+                            });
+                        }
                     }
                 }
             }
