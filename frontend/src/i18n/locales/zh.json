@@ -17,7 +17,9 @@
     "terminal": "终端",
     "terminals": "终端",
     "status": "状态",
-    "actions": "操作"
+    "actions": "操作",
+    "expand": "展开",
+    "collapse": "收缩"
   },
   "home": {
     "title": "Cheestard Terminal Interactive",
@@ -65,7 +67,8 @@
     "daysAgo": "{count}天前",
     "minutesAgo": "分钟前",
     "hoursAgo": "小时前",
-    "justNow": "刚刚"
+    "justNow": "刚刚",
+    "useCtiTool": "请使用CTI工具创建终端"
   },
   "terminal": {
     "backToList": "返回终端列表",

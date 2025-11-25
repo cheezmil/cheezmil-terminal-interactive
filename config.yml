@@ -25,7 +25,7 @@ mcp:
     - localhost:1106
 logging:
   level: info
-  enableConsole: true
+  enableConsole: false
   enableFile: false
   filePath: ./logs/app.log
-language: zh
+language: en

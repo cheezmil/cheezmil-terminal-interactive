@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
@@ -102,6 +102,7 @@ const saveConfiguration = async () => {
     await settingsStore.saveFullConfig(configData.value)
     // 更新语言设置 / Update language setting
     if (configData.value.language) {
+      // 避免页面重新加载，直接更新locale
       locale.value = configData.value.language
       localStorage.setItem('language', configData.value.language)
     }
@@ -172,11 +173,22 @@ watch(configData, () => {
 // 初始化 / Initialize
 onMounted(async () => {
   await loadConfiguration()
+  
+  // 添加鼠标滚轮事件监听器以修复滚动问题 / Add mouse wheel event listener to fix scrolling issue
+  nextTick(() => {
+    const scrollContainer = document.querySelector('.overflow-y-auto') as HTMLElement
+    if (scrollContainer) {
+      scrollContainer.addEventListener('wheel', function(e: WheelEvent) {
+        e.preventDefault()
+        scrollContainer.scrollTop += e.deltaY
+      }, { passive: false })
+    }
+  })
 })
 </script>
 
 <template>
-  <div class="settings-page min-h-screen bg-jet-black text-text-primary relative overflow-y-auto luxury-settings-container">
+  <div class="settings-page h-screen bg-jet-black text-text-primary relative luxury-settings-container flex flex-col">
     <Toast />
     <ConfirmationDialog
       :visible="showResetDialog"
@@ -188,8 +200,8 @@ onMounted(async () => {
     />
     
     <!-- 奢华页面头部 / Luxury page header -->
-    <div class="luxury-header sticky top-0 z-10 animate-slide-up">
-      <div class="max-w-6xl mx-auto px-6 py-4">
+    <div class="luxury-header animate-slide-up">
+      <div class="w-full px-6 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
             <Button
@@ -197,7 +209,7 @@ onMounted(async () => {
               :label="t('settings.backToHome')"
               text
               severity="secondary"
-              class="text-text-secondary hover:text-luxury-gold hover:bg-luxury-glass transition-all duration-200 hover:shadow-luxury luxury-back-button"
+              class="luxury-back-button"
               @click="goBack"
             />
             <h1 class="text-2xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent">{{ t('settings.title') }}</h1>
@@ -209,7 +221,7 @@ onMounted(async () => {
               :label="t('settings.reset')"
               icon="pi pi-refresh"
               severity="secondary"
-              class="text-text-secondary hover:text-rose-gold hover:bg-rose-gold-glass transition-all duration-200 hover:shadow-luxury luxury-reset-button"
+              class="luxury-reset-button"
               @click="confirmReset"
               :disabled="isLoading"
             />
@@ -217,7 +229,7 @@ onMounted(async () => {
               :label="t('settings.save')"
               icon="pi pi-save"
               severity="primary"
-              class="bg-luxury-gold hover:bg-rose-gold text-jet-black font-semibold transition-all duration-200 hover:shadow-luxury hover:scale-105 luxury-save-button"
+              class="luxury-save-button"
               @click="saveConfiguration"
               :disabled="!hasChanges || isLoading"
               :loading="isLoading"
@@ -228,7 +240,7 @@ onMounted(async () => {
     </div>
 
     <!-- 设置内容 / Settings content -->
-    <div class="max-w-5xl mx-auto px-8 py-10" v-if="!isLoading">
+    <div class="w-full px-4 py-10 overflow-y-auto flex-1" v-if="!isLoading">
       <div class="space-y-8">
         <!-- 奢华应用配置 / Luxury application configuration -->
         <Card class="luxury-card border border-luxury-gold hover:shadow-luxury hover:border-rose-gold transition-all duration-300 animate-fade-in group">
@@ -249,7 +261,8 @@ onMounted(async () => {
                   <div
                     v-for="option in languageOptions"
                     :key="option.value"
-                    class="flex items-center space-x-3 p-3 rounded-lg bg-charcoal border border-luxury-gold hover:bg-luxury-glass transition-colors duration-200 luxury-language-option"
+                    class="flex items-center space-x-3 p-3 rounded-lg bg-charcoal border border-luxury-gold hover:bg-luxury-glass transition-colors duration-200 luxury-language-option cursor-pointer"
+                    @click="selectedLanguage = option.value"
                   >
                     <RadioButton
                       v-model="selectedLanguage"
@@ -324,7 +337,7 @@ onMounted(async () => {
                       severity="danger"
                       size="small"
                       text
-                      class="text-text-muted hover:text-red-500"
+                      class="luxury-delete-button"
                       @click="configData.server.cors.origin.splice(index, 1)"
                     />
                   </div>
@@ -333,7 +346,7 @@ onMounted(async () => {
                     :label="t('common.create')"
                     severity="secondary"
                     size="small"
-                    class="text-rose-gold hover:bg-luxury-glass luxury-add-button"
+                    class="luxury-add-button"
                     @click="configData.server.cors.origin.push('')"
                   />
                 </div>
@@ -486,7 +499,7 @@ onMounted(async () => {
                       severity="danger"
                       size="small"
                       text
-                      class="text-text-muted hover:text-red-500"
+                      class="luxury-delete-button"
                       @click="configData.mcp.allowedHosts.splice(index, 1)"
                     />
                   </div>
@@ -495,7 +508,7 @@ onMounted(async () => {
                     :label="t('common.create')"
                     severity="secondary"
                     size="small"
-                    class="text-accent-cyan hover:bg-slate-dark"
+                    class="luxury-add-button-cyan"
                     @click="configData.mcp.allowedHosts.push('')"
                   />
                 </div>
@@ -624,43 +637,212 @@ onMounted(async () => {
 }
 
 /* 奢华按钮样式 / Luxury button styles */
+.luxury-back-button {
+  width: auto !important;
+  height: 2.5rem !important;
+  background: rgba(212, 175, 55, 0.05) !important;
+  border: 1px solid rgba(212, 175, 55, 0.2) !important;
+  color: var(--text-secondary) !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
 .luxury-back-button:hover {
-  color: var(--luxury-gold);
-  background: var(--luxury-glass);
-  box-shadow: var(--luxury-shadow);
+  background: rgba(212, 175, 55, 0.1) !important;
+  border-color: var(--luxury-gold) !important;
+  color: var(--luxury-gold) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3) !important;
+}
+
+.luxury-back-button .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+/* 确保按钮图标和文字之间有适当的间距 */
+.luxury-back-button .p-button-label {
+  margin-left: 0.75rem !important;
+}
+
+/* 针对所有文本按钮的通用样式 */
+.p-button.p-button-text .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+.p-button.p-button-text .p-button-label {
+  margin-left: 0.75rem !important;
+}
+
+.luxury-back-button.p-button .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+.luxury-back-button.p-button .p-button-label {
+  margin-left: 0.75rem !important;
+}
+
+/* 修复所有按钮的图标和文字间距 / Fix icon and text spacing for all buttons */
+.p-button .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.p-button .p-button-label {
+  margin-left: 0.5rem !important;
+}
+
+/* 确保按钮在有图标和文字时有适当的间距 / Ensure proper spacing for buttons with icons and text */
+.p-button.p-button-icon-only .p-button-icon {
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+.p-button.p-button-text .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.p-button.p-button-text .p-button-label {
+  margin-left: 0.5rem !important;
+}
+
+/* 修复标题的间距问题 / Fix title spacing issues */
+.font-serif-luxury {
+  margin-left: 0.5rem !important;
+}
+
+.luxury-reset-button {
+  width: auto !important;
+  height: 2.5rem !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: var(--text-secondary) !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .luxury-reset-button:hover {
-  color: var(--rose-gold);
-  background: var(--rose-gold-glass);
-  box-shadow: var(--luxury-shadow);
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: var(--rose-gold) !important;
+  color: var(--rose-gold) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+}
+
+.luxury-reset-button .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+.luxury-reset-button.p-button .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+.luxury-reset-button.p-button .p-button-label {
+  margin-left: 0.75rem !important;
 }
 
 .luxury-save-button {
-  background: var(--luxury-gold);
-  color: var(--jet-black);
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: var(--luxury-shadow);
+  width: auto !important;
+  height: 2.5rem !important;
+  background: var(--luxury-gold) !important;
+  border: 1px solid var(--luxury-gold) !important;
+  color: var(--jet-black) !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .luxury-save-button:hover {
-  background: var(--rose-gold);
-  transform: translateY(-2px);
-  box-shadow: var(--luxury-glow);
+  background: var(--rose-gold) !important;
+  border-color: var(--rose-gold) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3) !important;
+}
+
+.luxury-save-button .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+.luxury-save-button.p-button .p-button-icon {
+  margin-right: 0.75rem !important;
+}
+
+.luxury-save-button.p-button .p-button-label {
+  margin-left: 0.75rem !important;
 }
 
 .luxury-add-button {
-  color: var(--rose-gold);
-  border-color: var(--rose-gold);
-  transition: all 0.3s ease;
+  width: auto !important;
+  height: 2rem !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+  border: 1px solid var(--rose-gold) !important;
+  color: var(--rose-gold) !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .luxury-add-button:hover {
-  background: var(--rose-gold-glass);
-  box-shadow: var(--luxury-shadow);
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: var(--rose-gold) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+}
+
+.luxury-add-button .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.luxury-add-button.p-button .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.luxury-add-button.p-button .p-button-label {
+  margin-left: 0.5rem !important;
+}
+
+.luxury-add-button-cyan {
+  width: auto !important;
+  height: 2rem !important;
+  background: rgba(6, 182, 212, 0.05) !important;
+  border: 1px solid var(--accent-cyan) !important;
+  color: var(--accent-cyan) !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.luxury-add-button-cyan:hover {
+  background: rgba(6, 182, 212, 0.1) !important;
+  border-color: var(--accent-cyan) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
+}
+
+.luxury-add-button-cyan .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.luxury-add-button-cyan.p-button .p-button-icon {
+  margin-right: 0.5rem !important;
+}
+
+.luxury-add-button-cyan.p-button .p-button-label {
+  margin-left: 0.5rem !important;
+}
+
+.luxury-delete-button {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+  color: var(--text-muted) !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.luxury-delete-button:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
 }
 
 /* 奢华语言选项样式 / Luxury language option styles */
@@ -702,5 +884,17 @@ onMounted(async () => {
     animation: none;
     transition: none;
   }
+}
+
+/* 隐藏滚动条但保持滚动功能 / Hide scrollbar but keep scroll functionality */
+.overflow-y-auto::-webkit-scrollbar {
+  display: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.overflow-y-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>

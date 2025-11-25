@@ -1,0 +1,14 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- 终端窗口外框 -->
+  <rect x="2" y="2" width="60" height="60" rx="4" ry="4" fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
+  <!-- 窗口标题栏（简化） -->
+  <rect x="2" y="2" width="60" height="8" rx="2" ry="2" fill="#f0f0f0" stroke="#2d2d2d" stroke-width="1"/>
+  <!-- 标题栏三个小点点 -->
+  <circle cx="10" cy="6" r="2" fill="#ff5f56"/>
+  <circle cx="18" cy="6" r="2" fill="#ffbd2e"/>
+  <circle cx="26" cy="6" r="2" fill="#27c93f"/>
+  <!-- 核心符号 >_< -->
+  <text x="32" y="38" font-family="Consolas, Monaco, monospace" font-size="24" font-weight="bold" text-anchor="middle" fill="#2d2d2d">
+    &gt;_&lt;
+  </text>
+</svg>

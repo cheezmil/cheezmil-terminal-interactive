@@ -355,6 +355,9 @@ html {
   border: 1px solid var(--color-border-dark) !important;
   color: var(--color-text-primary) !important;
   transition: all 0.2s ease;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important; /* 添加图标和文字之间的间距 */
 }
 
 .settings-page .p-togglebutton.p-togglebutton-checked {
@@ -495,6 +498,153 @@ html {
   font-weight: 500 !important;
   border-radius: 2rem !important;
   min-width: 120px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important; /* 添加图标和文字之间的间距 */
+}
+
+/* 修复所有按钮的图标和文字间距 - 应用于全局而非仅设置页面 / Fix icon and text spacing for all buttons - apply globally not just settings page */
+.p-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+.p-button .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important; /* 防止图标收缩 / Prevent icon from shrinking */
+}
+
+.p-button .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important; /* 防止文字收缩 / Prevent text from shrinking */
+}
+
+/* 更具体的PrimeVue按钮样式修复 / More specific PrimeVue button style fixes */
+.p-button.p-button-text {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+.p-button.p-button-text .p-button-icon.p-button-icon-left {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+.p-button.p-button-text .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+/* 强制确保所有PrimeVue按钮都有正确的间距 / Force ensure all PrimeVue buttons have correct spacing */
+.p-button[class*="p-button"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+.p-button[class*="p-button"] .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+.p-button[class*="p-button"] .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+/* 针对特定按钮类型的修复 / Fixes for specific button types */
+.p-button-secondary.p-button-text {
+  gap: 0.5rem !important;
+}
+
+.p-button-secondary.p-button-text .p-button-icon-left {
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+}
+
+.p-button-secondary.p-button-text .p-button-label {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* 最强制性的按钮间距修复 - 使用更高优先级的选择器 / Most aggressive button spacing fix - using higher specificity selectors */
+button.p-button[class*="p-button"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+button.p-button[class*="p-button"] .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+button.p-button[class*="p-button"] .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+/* 特别针对有图标的按钮 / Special fix for buttons with icons */
+button.p-button:has(.p-button-icon) {
+  gap: 0.5rem !important;
+}
+
+button.p-button:has(.p-button-icon) .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+}
+
+button.p-button:has(.p-button-icon) .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+}
+
+/* 使用属性选择器确保覆盖所有PrimeVue按钮 / Using attribute selectors to ensure all PrimeVue buttons are overridden */
+[data-pc-name="button"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+[data-pc-name="button"] .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+[data-pc-name="button"] .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+  flex-shrink: 0 !important;
+}
+
+/* 针对特定的按钮数据属性 / Target specific button data attributes */
+[data-p-severity="secondary"][data-p="text"] {
+  gap: 0.5rem !important;
+}
+
+[data-p-severity="secondary"][data-p="text"] .p-button-icon-left {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+}
+
+[data-p-severity="secondary"][data-p="text"] .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+}
+
+/* 确保按钮在有图标和文字时有适当的间距 / Ensure proper spacing for buttons with icons and text */
+.settings-page .p-button.p-button-icon-only .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+}
+
+.settings-page .p-button.p-button-text .p-button-icon {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
+}
+
+.settings-page .p-button.p-button-text .p-button-label {
+  margin: 0 !important; /* 完全重置margin，使用gap代替 / Completely reset margin, use gap instead */
 }
 
 .settings-page .p-button {
@@ -503,6 +653,9 @@ html {
   font-weight: 600 !important;
   position: relative !important;
   overflow: hidden !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important; /* 添加图标和文字之间的间距 */
 }
 
 /* 奢华主题按钮样式覆盖 / Luxury Theme Button Style Override */
@@ -580,61 +733,91 @@ html {
   opacity: 0.8 !important;
 }
 
-/* 特定按钮类样式覆盖 / Specific Button Class Style Override */
-.settings-page .luxury-back-button {
-  background-color: transparent !important;
-  border: 1px solid var(--color-luxury-gold) !important;
-  color: var(--color-luxury-gold) !important;
-}
+/* 特定按钮类样式覆盖 / Specific Button Class Style Override - 使用CSS层覆盖 */
+@layer utilities {
+  .settings-page .luxury-back-button.p-button {
+    background-color: transparent !important;
+    border: 1px solid var(--color-luxury-gold) !important;
+    color: var(--color-luxury-gold) !important;
+  }
 
-.settings-page .luxury-back-button:hover {
-  background-color: var(--color-luxury-glass) !important;
-  border-color: var(--color-rose-gold) !important;
-  color: var(--color-rose-gold) !important;
-  box-shadow: var(--shadow-luxury) !important;
-  transform: translateY(-2px) !important;
-}
+  .settings-page .luxury-back-button.p-button:hover {
+    background-color: var(--color-luxury-glass) !important;
+    border-color: var(--color-rose-gold) !important;
+    color: var(--color-rose-gold) !important;
+    box-shadow: var(--shadow-luxury) !important;
+    transform: translateY(-2px) !important;
+  }
 
-.settings-page .luxury-reset-button {
-  background-color: transparent !important;
-  border: 1px solid var(--color-rose-gold) !important;
-  color: var(--color-rose-gold) !important;
-}
+  .settings-page .luxury-reset-button.p-button {
+    background-color: transparent !important;
+    border: 1px solid var(--color-rose-gold) !important;
+    color: var(--color-rose-gold) !important;
+  }
 
-.settings-page .luxury-reset-button:hover {
-  background-color: var(--color-rose-gold-glass) !important;
-  border-color: var(--color-bronze-gold) !important;
-  color: var(--color-bronze-gold) !important;
-  box-shadow: var(--shadow-rose-gold) !important;
-  transform: translateY(-2px) !important;
-}
+  .settings-page .luxury-reset-button.p-button:hover {
+    background-color: var(--color-rose-gold-glass) !important;
+    border-color: var(--color-bronze-gold) !important;
+    color: var(--color-bronze-gold) !important;
+    box-shadow: var(--shadow-rose-gold) !important;
+    transform: translateY(-2px) !important;
+  }
 
-.settings-page .luxury-save-button {
-  background-color: var(--color-luxury-gold) !important;
-  border: 1px solid var(--color-luxury-gold) !important;
-  color: var(--color-jet-black) !important;
-}
+  .settings-page .luxury-save-button.p-button {
+    background-color: var(--color-luxury-gold) !important;
+    border: 1px solid var(--color-luxury-gold) !important;
+    color: var(--color-jet-black) !important;
+  }
 
-.settings-page .luxury-save-button:hover {
-  background-color: var(--color-rose-gold) !important;
-  border-color: var(--color-rose-gold) !important;
-  color: var(--color-jet-black) !important;
-  box-shadow: var(--shadow-luxury-glow) !important;
-  transform: translateY(-2px) !important;
-}
+  .settings-page .luxury-save-button.p-button:hover {
+    background-color: var(--color-rose-gold) !important;
+    border-color: var(--color-rose-gold) !important;
+    color: var(--color-jet-black) !important;
+    box-shadow: var(--shadow-luxury-glow) !important;
+    transform: translateY(-2px) !important;
+  }
 
-.settings-page .luxury-add-button {
-  background-color: transparent !important;
-  border: 1px solid var(--color-rose-gold) !important;
-  color: var(--color-rose-gold) !important;
-}
+  .settings-page .luxury-add-button.p-button {
+    background-color: transparent !important;
+    border: 1px solid var(--color-rose-gold) !important;
+    color: var(--color-rose-gold) !important;
+  }
 
-.settings-page .luxury-add-button:hover {
-  background-color: var(--color-rose-gold-glass) !important;
-  border-color: var(--color-bronze-gold) !important;
-  color: var(--color-bronze-gold) !important;
-  box-shadow: var(--shadow-rose-gold) !important;
-  transform: translateY(-2px) !important;
+  .settings-page .luxury-add-button.p-button:hover {
+    background-color: var(--color-rose-gold-glass) !important;
+    border-color: var(--color-bronze-gold) !important;
+    color: var(--color-bronze-gold) !important;
+    box-shadow: var(--shadow-rose-gold) !important;
+    transform: translateY(-2px) !important;
+  }
+
+  .settings-page .luxury-add-button-cyan.p-button {
+    background-color: transparent !important;
+    border: 1px solid var(--color-accent-cyan) !important;
+    color: var(--color-accent-cyan) !important;
+  }
+
+  .settings-page .luxury-add-button-cyan.p-button:hover {
+    background-color: rgba(6, 182, 212, 0.1) !important;
+    border-color: var(--color-accent-cyan) !important;
+    color: var(--color-accent-cyan) !important;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
+    transform: translateY(-2px) !important;
+  }
+
+  .settings-page .luxury-delete-button.p-button {
+    background-color: rgba(239, 68, 68, 0.05) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+    color: var(--color-text-muted) !important;
+  }
+
+  .settings-page .luxury-delete-button.p-button:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+  }
 }
 
 .neon-text-green {

@@ -17,7 +17,9 @@
     "terminal": "Terminal",
     "terminals": "Terminals",
     "status": "Status",
-    "actions": "Actions"
+    "actions": "Actions",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "home": {
     "title": "Cheestard Terminal Interactive",
@@ -65,7 +67,8 @@
     "daysAgo": "{count} days ago",
     "minutesAgo": "minutes ago",
     "hoursAgo": "hours ago",
-    "justNow": "just now"
+    "justNow": "just now",
+    "useCtiTool": "Please use CTI tool to create terminal"
   },
   "terminal": {
     "backToList": "Back to Terminal List",

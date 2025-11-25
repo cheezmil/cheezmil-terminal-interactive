@@ -47,11 +47,8 @@ onMounted(() => {
         <div class="w-full h-16 flex items-center justify-between px-4">
           <!-- 左侧：Logo和标题 -->
           <div class="flex items-center space-x-4 flex-shrink-0">
-            <div class="w-10 h-10 luxury-logo-container rounded-lg flex items-center justify-center text-jet-black hover:scale-105 transition-transform duration-200 shadow-luxury">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 4h16v16H4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M4 9h16M9 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+            <div class="luxury-logo-container rounded-lg flex items-center justify-center text-jet-black hover:scale-105 transition-transform duration-200 shadow-luxury">
+              <img src="/CTI.svg" alt="CTI Logo" class="w-6 h-6" />
             </div>
             <h1 class="text-xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent">Cheestard Terminal Interactive</h1>
           </div>
@@ -91,7 +88,7 @@ onMounted(() => {
       </header>
 
       <!-- 页面内容 -->
-      <main class="flex-1 overflow-hidden">
+      <main class="flex-1">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
             <component :is="Component" />
@@ -106,7 +103,7 @@ onMounted(() => {
 /* 奢华应用容器 */
 .luxury-theme {
   height: 100vh;
-  background: linear-gradient(135deg, var(--jet-black) 0%, var(--charcoal) 40%, var(--onyx) 70%, var(--graphite) 100%);
+  background: var(--jet-black);
   position: relative;
   font-family: var(--font-sans-luxury);
 }
@@ -149,9 +146,13 @@ onMounted(() => {
   
   /* 奢华Logo容器 */
   .luxury-logo-container {
-    background: linear-gradient(145deg, var(--luxury-gold), var(--rose-gold));
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
     position: relative;
     overflow: hidden;
+    display: inline-block;
   }
   
   .luxury-logo-container::before {
@@ -278,7 +279,7 @@ onMounted(() => {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     height: 100%;
-    overflow: hidden;
+    overflow: auto;
   }
   
   /* 奢华自定义滚动条 */

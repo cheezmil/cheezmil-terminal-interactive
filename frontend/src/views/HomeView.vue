@@ -27,6 +27,9 @@ const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
 const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, ws: WebSocket }>>(new Map())
 
+// Sidebar state / 侧边栏状态
+const isSidebarCollapsed = ref(false)
+
 // Computed properties / 计算属性
 const stats = computed(() => terminalStore.stats)
 const activeTerminal = computed(() => 
@@ -265,6 +268,11 @@ const reconnectTerminal = (terminalId: string) => {
   initializeTerminal(terminalId)
 }
 
+// Toggle sidebar / 切换侧边栏
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+}
+
 // Helper functions / 辅助函数
 const getStatusSeverity = (status: string) => {
   switch (status) {
@@ -376,25 +384,34 @@ watch(terminals, (newTerminals) => {
     <!-- Luxury main workspace / 奢华主工作区 - 全屏终端布局 -->
     <div v-else class="flex-1 flex overflow-hidden">
       <!-- Luxury left sidebar with terminal tabs / 奢华左侧边栏带终端标签 -->
-      <aside class="w-80 luxury-sidebar flex flex-col flex-shrink-0">
+      <aside :class="['luxury-sidebar flex flex-col flex-shrink-0 transition-all duration-300',
+                     { 'w-80': !isSidebarCollapsed, 'w-16': isSidebarCollapsed }]">
         <div class="luxury-sidebar-header">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <i class="pi pi-terminal text-luxury-gold luxury-icon"></i>
-              <span class="font-semibold text-text-primary font-serif-luxury">{{ t('home.terminals') }}</span>
-              <Badge :value="stats.total" severity="info" class="luxury-badge" />
+              <span v-if="!isSidebarCollapsed" class="font-semibold text-text-primary font-serif-luxury">{{ t('home.terminals') }}</span>
             </div>
+            <Button
+              :icon="isSidebarCollapsed ? 'pi pi-angle-right' : 'pi pi-angle-left'"
+              severity="secondary"
+              size="small"
+              text
+              class="luxury-sidebar-toggle"
+              @click="toggleSidebar"
+              v-tooltip="isSidebarCollapsed ? t('common.expand') : t('common.collapse')"
+            />
           </div>
         </div>
 
         <!-- Luxury terminal tabs / 奢华终端标签 -->
-        <div class="flex-1 overflow-y-auto p-2 luxury-terminal-list">
+        <div v-if="!isSidebarCollapsed" class="flex-1 overflow-y-auto p-2 luxury-terminal-list">
           <div v-if="terminals.length === 0" class="luxury-empty-state">
             <div class="text-5xl text-platinum mb-4">
               <i class="pi pi-inbox"></i>
             </div>
             <p class="text-text-secondary mb-2 font-serif-luxury">{{ t('home.noTerminals') }}</p>
-            <p class="text-text-muted text-sm">请使用CTI工具创建终端</p>
+            <p class="text-text-muted text-sm">{{ t('home.useCtiTool') }}</p>
           </div>
           
           <div v-else class="space-y-2">
@@ -544,13 +561,12 @@ watch(terminals, (newTerminals) => {
 <style scoped>
 /* Luxury home container / 奢华主容器 */
 .luxury-home-container {
-  background: linear-gradient(135deg, var(--jet-black) 0%, var(--charcoal) 40%, var(--onyx) 70%, var(--graphite) 100%);
+  background: var(--jet-black);
 }
 
 /* Luxury sidebar / 奢华侧边栏 */
 .luxury-sidebar {
-  background: var(--luxury-glass);
-  backdrop-filter: blur(20px);
+  background: var(--jet-black);
   border-right: 1px solid var(--luxury-gold);
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3), inset -1px 0 0 rgba(212, 175, 55, 0.1);
 }
@@ -558,7 +574,7 @@ watch(terminals, (newTerminals) => {
 .luxury-sidebar-header {
   padding: 1rem;
   border-bottom: 1px solid var(--luxury-gold);
-  background: linear-gradient(145deg, rgba(212, 175, 55, 0.05), rgba(232, 180, 184, 0.05));
+  background: var(--jet-black);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
@@ -577,6 +593,7 @@ watch(terminals, (newTerminals) => {
 /* Luxury terminal list / 奢华终端列表 */
 .luxury-terminal-list {
   padding: 0.5rem;
+  background: var(--jet-black);
 }
 
 .luxury-empty-state {
@@ -599,21 +616,11 @@ watch(terminals, (newTerminals) => {
 }
 
 .luxury-terminal-active {
-  background: var(--luxury-glass);
+  background: rgba(26, 26, 26, 0.8);
   border-color: var(--luxury-gold);
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.luxury-terminal-active::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--luxury-gold), var(--rose-gold), var(--platinum));
-  animation: luxury-shimmer 3s ease-in-out infinite;
-}
 
 .luxury-terminal-inactive {
   background: rgba(26, 26, 26, 0.6);
@@ -622,7 +629,7 @@ watch(terminals, (newTerminals) => {
 }
 
 .luxury-terminal-inactive:hover {
-  background: rgba(212, 175, 55, 0.05);
+  background: rgba(26, 26, 26, 0.8);
   border-color: var(--luxury-gold);
   transform: translateY(-1px);
   box-shadow: 0 2px 10px rgba(212, 175, 55, 0.2);
@@ -704,19 +711,6 @@ watch(terminals, (newTerminals) => {
   position: relative;
 }
 
-.luxury-main-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-    radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.02) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(232, 180, 184, 0.02) 0%, transparent 50%);
-  pointer-events: none;
-}
-
 /* Luxury terminal header / 奢华终端头部 */
 .luxury-terminal-header {
   padding: 0.75rem 1rem;
@@ -772,17 +766,6 @@ watch(terminals, (newTerminals) => {
   background: var(--jet-black);
   border: 1px solid rgba(212, 175, 55, 0.1);
   position: relative;
-}
-
-.luxury-terminal-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--luxury-gold), transparent);
-  opacity: 0.3;
 }
 
 .luxury-terminal-viewport {
@@ -873,6 +856,23 @@ watch(terminals, (newTerminals) => {
     opacity: 1;
     transform: scale(1.05);
   }
+}
+/* Luxury sidebar toggle button / 奢华侧边栏切换按钮 */
+.luxury-sidebar-toggle {
+  width: 2rem !important;
+  height: 2rem !important;
+  background: rgba(212, 175, 55, 0.05) !important;
+  border: 1px solid rgba(212, 175, 55, 0.2) !important;
+  color: var(--luxury-gold) !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.luxury-sidebar-toggle:hover {
+  background: rgba(212, 175, 55, 0.1) !important;
+  border-color: var(--luxury-gold) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3) !important;
 }
 
 /* Responsive design / 响应式设计 */
