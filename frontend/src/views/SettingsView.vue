@@ -6,7 +6,6 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
-import ToggleButton from 'primevue/togglebutton'
 import RadioButton from 'primevue/radiobutton'
 import Toast from 'primevue/toast'
 import ConfirmationDialog from 'primevue/confirmdialog'
@@ -358,13 +357,15 @@ onMounted(async () => {
                   <span>{{ t('settings.corsCredentials') }}</span>
                 </label>
                 <div class="flex items-center">
-                  <ToggleButton
-                    v-model="configData.server.cors.credentials"
-                    onLabel="Enabled"
-                    offLabel="Disabled"
-                    onIcon="pi pi-check"
-                    offIcon="pi pi-times"
-                  />
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.server.cors.credentials"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">{{ configData.server.cors.credentials ? 'Enabled' : 'Disabled' }}</span>
                 </div>
               </div>
             </div>
@@ -468,13 +469,15 @@ onMounted(async () => {
                   <span>{{ t('settings.enableDnsRebindingProtection') }}</span>
                 </label>
                 <div class="flex items-center">
-                  <ToggleButton
-                    v-model="configData.mcp.enableDnsRebindingProtection"
-                    onLabel="Enabled"
-                    offLabel="Disabled"
-                    onIcon="pi pi-check"
-                    offIcon="pi pi-times"
-                  />
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.mcp.enableDnsRebindingProtection"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">{{ configData.mcp.enableDnsRebindingProtection ? 'Enabled' : 'Disabled' }}</span>
                 </div>
               </div>
               
@@ -546,13 +549,15 @@ onMounted(async () => {
                   <span>{{ t('settings.enableConsole') }}</span>
                 </label>
                 <div class="flex items-center">
-                  <ToggleButton
-                    v-model="configData.logging.enableConsole"
-                    onLabel="Enabled"
-                    offLabel="Disabled"
-                    onIcon="pi pi-check"
-                    offIcon="pi pi-times"
-                  />
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.logging.enableConsole"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">{{ configData.logging.enableConsole ? 'Enabled' : 'Disabled' }}</span>
                 </div>
               </div>
               
@@ -562,13 +567,15 @@ onMounted(async () => {
                   <span>{{ t('settings.enableFile') }}</span>
                 </label>
                 <div class="flex items-center">
-                  <ToggleButton
-                    v-model="configData.logging.enableFile"
-                    onLabel="Enabled"
-                    offLabel="Disabled"
-                    onIcon="pi pi-check"
-                    offIcon="pi pi-times"
-                  />
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.logging.enableFile"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">{{ configData.logging.enableFile ? 'Enabled' : 'Disabled' }}</span>
                 </div>
               </div>
               
@@ -896,5 +903,69 @@ onMounted(async () => {
 .overflow-y-auto {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* 奢华自定义checkbox样式 / Luxury custom checkbox styles */
+.luxury-checkbox-container {
+  position: relative;
+  display: inline-block;
+  width: 3rem;
+  height: 1.5rem;
+  cursor: pointer;
+}
+
+.luxury-checkbox {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.luxury-checkbox-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f8f8f8;
+  border: 2px solid var(--luxury-gold);
+  border-radius: 1.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.luxury-checkbox-slider:before {
+  position: absolute;
+  content: "";
+  height: 1rem;
+  width: 1rem;
+  left: 0.25rem;
+  bottom: 0.25rem;
+  background-color: var(--luxury-gold);
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.luxury-checkbox:checked + .luxury-checkbox-slider {
+  background-color: var(--luxury-gold);
+  border-color: var(--luxury-gold);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+
+.luxury-checkbox:checked + .luxury-checkbox-slider:before {
+  transform: translateX(1.5rem);
+  background-color: #ffffff;
+}
+
+.luxury-checkbox-slider:hover {
+  border-color: var(--rose-gold);
+  box-shadow: 0 0 5px rgba(232, 180, 184, 0.2);
+}
+
+.luxury-checkbox:checked + .luxury-checkbox-slider:hover {
+  background-color: var(--rose-gold);
+  border-color: var(--rose-gold);
+  box-shadow: 0 0 15px rgba(232, 180, 184, 0.4);
 }
 </style>

@@ -46,8 +46,8 @@ onMounted(() => {
       <header v-if="route.name === 'home'" class="luxury-header sticky top-0 z-50 animate-slide-up">
         <div class="w-full h-16 flex items-center justify-between px-4">
           <!-- 左侧：Logo和标题 -->
-          <div class="flex items-center space-x-4 flex-shrink-0">
-            <div class="luxury-logo-container rounded-lg flex items-center justify-center text-jet-black hover:scale-105 transition-transform duration-200 shadow-luxury">
+          <div class="flex items-center flex-shrink-0">
+            <div class="luxury-logo-container rounded-lg flex items-center justify-center text-jet-black hover:scale-105 transition-transform duration-200 shadow-luxury" style="margin-right: 1rem;">
               <img src="/CTI.svg" alt="CTI Logo" class="w-6 h-6" />
             </div>
             <h1 class="text-xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent">Cheestard Terminal Interactive</h1>
@@ -149,7 +149,9 @@ onMounted(() => {
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
     position: relative;
     overflow: hidden;
     display: inline-block;
