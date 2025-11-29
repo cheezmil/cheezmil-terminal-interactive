@@ -92,8 +92,8 @@ const setupTerminal = () => {
 // WebSocket连接 / WebSocket connection
 const connectWebSocket = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  // Connect to backend port 1106, not frontend port 1107 / 连接到后端端口1106，而不是前端端口1107
-  const wsUrl = `${protocol}//127.0.0.1:1106`
+  // Connect to backend port 1106 with /ws endpoint, not frontend port 1107 / 连接到后端端口1106的/ws端点，而不是前端端口1107
+  const wsUrl = `${protocol}//localhost:1106/ws`
 
   ws = new WebSocket(wsUrl)
 

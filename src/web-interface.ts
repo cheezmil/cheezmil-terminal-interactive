@@ -1,6 +1,5 @@
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { WebSocketServer } from 'ws';
-import { createServer } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -19,7 +18,6 @@ const __dirname = path.dirname(__filename);
  */
 export class WebInterfaceServer {
   private fastify: FastifyInstance;
-  private httpServer: any = null;
   private wss: WebSocketServer | null = null;
   private terminalManager: TerminalManager;
   private clients: Set<any> = new Set();
@@ -398,22 +396,24 @@ export class WebInterfaceServer {
    * 设置 WebSocket
    * Setup WebSocket
    */
-  private setupWebSocket(): void {
-    if (!this.httpServer) return;
+  private async setupWebSocket(): Promise<void> {
+    // 注册 Fastify WebSocket 插件
+    // Register Fastify WebSocket plugin
+    await this.fastify.register(import('@fastify/websocket'));
 
-    this.wss = new WebSocketServer({ server: this.httpServer });
-
-    this.wss.on('connection', (ws: any) => {
-      this.clients.add(ws);
+    // 设置 WebSocket 路由
+    // Setup WebSocket route
+    this.fastify.get('/ws', { websocket: true }, (connection /* WebSocket */, req /* FastifyRequest */) => {
+      this.clients.add(connection);
 
       process.stderr.write('[WEB-UI] WebSocket client connected\n');
 
-      ws.on('close', () => {
-        this.clients.delete(ws);
+      connection.on('close', () => {
+        this.clients.delete(connection);
         process.stderr.write('[WEB-UI] WebSocket client disconnected\n');
       });
 
-      ws.on('error', (error: any) => {
+      connection.on('error', (error: any) => {
         process.stderr.write(`[WEB-UI] WebSocket error: ${error}\n`);
       });
     });
@@ -447,62 +447,48 @@ export class WebInterfaceServer {
       }
     });
   }
-
-  /**
-   * 启动服务器
-   * Start server
-   */
-  async start(port: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.httpServer = createServer();
+/**
+ * 启动服务器
+ * Start server
+ */
+async start(port: number): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // 先设置 WebSocket
+      // Setup WebSocket first
+      await this.setupWebSocket();
       
-      // 将 Fastify 实例绑定到 HTTP 服务器
-      // Bind Fastify instance to HTTP server
-      this.fastify.server = this.httpServer;
+      // 启动 Fastify 服务器
+      // Start Fastify server
+      await this.fastify.listen({ port, host: '0.0.0.0' });
       
-      this.httpServer.listen(port, '127.0.0.1', () => {
-        process.stderr.write(`[WEB-UI] Server started on http://localhost:${port}\n`);
-        
-        // 启动 WebSocket / Start WebSocket
-        this.setupWebSocket();
-        
-        resolve();
-      });
+      process.stderr.write(`[WEB-UI] Server started on http://localhost:${port}\n`);
+      process.stderr.write(`[WEB-UI] WebSocket available at ws://localhost:${port}/ws\n`);
+      
+      resolve();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
-      this.httpServer.on('error', (error: any) => {
-        reject(error);
-      });
+/**
+ * 停止服务器
+ * Stop server
+ */
+async stop(): Promise<void> {
+  return new Promise(async (resolve) => {
+    // 关闭所有 WebSocket 连接 / Close all WebSocket connections
+    this.clients.forEach((client) => {
+      client.close();
     });
-  }
+    this.clients.clear();
 
-  /**
-   * 停止服务器
-   * Stop server
-   */
-  async stop(): Promise<void> {
-    return new Promise((resolve) => {
-      // 关闭所有 WebSocket 连接 / Close all WebSocket connections
-      this.clients.forEach((client) => {
-        client.close();
-      });
-      this.clients.clear();
-
-      // 关闭 WebSocket 服务器 / Close WebSocket server
-      if (this.wss) {
-        this.wss.close();
-        this.wss = null;
-      }
-
-      // 关闭 HTTP 服务器 / Close HTTP server
-      if (this.httpServer) {
-        this.httpServer.close(() => {
-          process.stderr.write('[WEB-UI] Server stopped\n');
-          resolve();
-        });
-        this.httpServer = null;
-      } else {
-        resolve();
-      }
-    });
-  }
+    // 关闭 Fastify 服务器 / Close Fastify server
+    await this.fastify.close();
+    process.stderr.write('[WEB-UI] Server stopped\n');
+    
+    resolve();
+  });
+}
 }
