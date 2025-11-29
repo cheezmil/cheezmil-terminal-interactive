@@ -59,13 +59,21 @@ export class CheestardTerminalInteractiveServer {
       }
     );
 
-    // 创建终端管理器
-    this.terminalManager = new TerminalManager({
-      maxBufferSize: parseInt(process.env.MAX_BUFFER_SIZE || '10000'),
-      sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '86400000'), // 24 hours
-      compactAnimations: process.env.COMPACT_ANIMATIONS !== 'false', // Default true
-      animationThrottleMs: parseInt(process.env.ANIMATION_THROTTLE_MS || '100')
-    });
+    // 尝试使用共享的TerminalManager实例，如果没有则创建新的
+    // Try to use shared TerminalManager instance, create new if not available
+    if ((global as any).sharedTerminalManager) {
+      this.terminalManager = (global as any).sharedTerminalManager;
+      console.log('[MCP-INFO] Using shared TerminalManager instance');
+    } else {
+      // 创建终端管理器
+      this.terminalManager = new TerminalManager({
+        maxBufferSize: parseInt(process.env.MAX_BUFFER_SIZE || '10000'),
+        sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '86400000'), // 24 hours
+        compactAnimations: process.env.COMPACT_ANIMATIONS !== 'false', // Default true
+        animationThrottleMs: parseInt(process.env.ANIMATION_THROTTLE_MS || '100')
+      });
+      console.log('[MCP-INFO] Created new TerminalManager instance (no shared instance found)');
+    }
 
     // 创建 Web UI 管理器
     this.webUiManager = new WebUIManager();

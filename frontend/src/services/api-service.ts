@@ -9,7 +9,7 @@ let apiEndpoints: Record<string, any> = {};
 let apiDocsCache: any = null;
 
 // 后端API文档端点 / Backend API documentation endpoint
-const API_DOCS_ENDPOINT = 'http://127.0.0.1:1106/api/docs';
+const API_DOCS_ENDPOINT = 'http://localhost:1106/api/docs';
 
 /**
  * 获取API文档 / Get API documentation
@@ -124,7 +124,7 @@ export async function apiRequest(
   options: RequestInit = {}
 ): Promise<Response> {
   const endpoint = getEndpoint(category, action);
-  const url = endpoint.startsWith('http') ? endpoint : `http://127.0.0.1:1106${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
   
   const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -155,7 +155,7 @@ export const terminalApi = {
   }),
   get: (id: string) => {
     const endpoint = getEndpoint('terminals', 'get').replace(':id', id);
-    const url = endpoint.startsWith('http') ? endpoint : `http://127.0.0.1:1106${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     return fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
@@ -163,7 +163,7 @@ export const terminalApi = {
   },
   delete: (id: string, signal?: string) => {
     const endpoint = getEndpoint('terminals', 'kill').replace(':id', id);
-    const url = endpoint.startsWith('http') ? endpoint : `http://127.0.0.1:1106${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     const params = new URLSearchParams();
     if (signal) params.append('signal', signal);
     const finalUrl = params.toString() ? `${url}?${params.toString()}` : url;
@@ -174,7 +174,7 @@ export const terminalApi = {
   },
   readOutput: (id: string, options?: any) => {
     const endpoint = getEndpoint('terminals', 'read').replace(':id', id);
-    const url = endpoint.startsWith('http') ? endpoint : `http://127.0.0.1:1106${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     const params = new URLSearchParams();
     if (options?.since) params.append('since', options.since.toString());
     if (options?.maxLines) params.append('maxLines', options.maxLines.toString());
@@ -191,7 +191,7 @@ export const terminalApi = {
   },
   writeInput: (id: string, input: string, appendNewline = true) => {
     const endpoint = getEndpoint('terminals', 'write').replace(':id', id);
-    const url = endpoint.startsWith('http') ? endpoint : `http://127.0.0.1:1106${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -200,7 +200,7 @@ export const terminalApi = {
   },
   getStats: (id: string) => {
     const endpoint = getEndpoint('terminals', 'stats').replace(':id', id);
-    const url = endpoint.startsWith('http') ? endpoint : `http://127.0.0.1:1106${endpoint}`;
+    const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     return fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }

@@ -91,6 +91,10 @@ async function main() {
   // 创建终端API路由实例 / Create terminal API routes instance
   const terminalApiRoutes = new TerminalApiRoutes(terminalManager);
 
+  // 将TerminalManager实例存储到全局变量，以便MCP服务器可以访问
+  // Store TerminalManager instance in global variable for MCP server access
+  (global as any).sharedTerminalManager = terminalManager;
+
   // 将终端API路由集成到主应用中 / Integrate terminal API routes into main application
   await fastify.register(async (fastifyInstance: FastifyInstance) => {
     await terminalApiRoutes.registerRoutes(fastifyInstance);
