@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Toaster } from '@/components/ui/sonner'
-import { toast } from 'sonner'
+import { toast } from 'vue-sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
+import { CanvasAddon } from 'xterm-addon-canvas'
 import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import SvgIcon from '@/components/ui/svg-icon.vue'
@@ -27,7 +28,7 @@ const terminalStore = useTerminalStore()
 const terminals = ref<any[]>([])
 const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
-const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, ws: WebSocket }>>(new Map())
+const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon, ws: WebSocket }>>(new Map())
 
 // Sidebar state / 侧边栏状态
 const isSidebarCollapsed = ref(false)
@@ -113,25 +114,107 @@ const initializeTerminal = async (terminalId: string) => {
   }
 
   try {
-    // Create xterm instance / 创建xterm实例
+    console.log(`Initializing terminal ${terminalId}...`)
+    
+    // Wait for DOM update and ensure element is attached / 等待DOM更新并确保元素已附加
+    await nextTick()
+    
+    // Wait additional time to ensure DOM is fully ready / 额外等待确保DOM完全准备好
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    const container = document.getElementById(`terminal-${terminalId}`)
+    console.log(`Looking for container with ID: terminal-${terminalId}`)
+    console.log(`Container found:`, container)
+    console.log(`Container attached to DOM:`, container && document.body.contains(container))
+    
+    if (!container) {
+      console.error(`Container not found for terminal ${terminalId}`)
+      return
+    }
+
+    // Verify container is in DOM / 验证容器在DOM中
+    if (!document.body.contains(container)) {
+      console.error(`Container not attached to DOM for terminal ${terminalId}`)
+      return
+    }
+
+    // Clear container completely / 完全清空容器
+    container.innerHTML = ''
+    container.style.display = 'block'
+    container.style.width = '100%'
+    container.style.height = '100%'
+    container.style.backgroundColor = '#000000'
+    
+    console.log('Container cleared and styled')
+
+    // Create xterm instance with simpler config / 使用更简单的配置创建xterm实例
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: 'Consolas, Monaco, "Courier New", monospace',
       theme: {
         background: '#000000',
-        foreground: '#ffffff',
-        cursor: '#ffffff',
-        selectionBackground: '#ffffff40'
+        foreground: '#ffffff'
       },
+      rows: 24,
+      cols: 80,
+      scrollback: 1000,
       convertEol: true,
-      rows: 30,
-      cols: 100
+      rendererType: 'canvas', // Force canvas renderer / 强制使用canvas渲染器
+      allowProposedApi: true
     })
+
+    console.log('Terminal instance created:', term)
 
     // Add FitAddon / 添加FitAddon
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
+    console.log('FitAddon loaded')
+
+    // Add CanvasAddon for better rendering / 添加CanvasAddon以获得更好的渲染效果
+    const canvasAddon = new CanvasAddon()
+    term.loadAddon(canvasAddon)
+    console.log('CanvasAddon loaded')
+
+    // Open terminal with delay to ensure DOM is ready / 延迟打开终端确保DOM准备好
+    await new Promise(resolve => setTimeout(resolve, 50))
+    term.open(container)
+    console.log('Terminal opened in container')
+    
+    // Fit terminal to container / 适配终端到容器
+    setTimeout(() => {
+      fitAddon.fit()
+      console.log('Terminal fitted to container')
+    }, 100)
+
+    // Write test content immediately / 立即写入测试内容
+    setTimeout(() => {
+      console.log('Writing test content...')
+      try {
+        term.clear()
+        term.writeln('=== TERMINAL TEST ===')
+        term.writeln('Line 1: Terminal initialized successfully!')
+        term.writeln('Line 2: XTerm.js is working!')
+        term.writeln('Line 3: 中文测试')
+        term.writeln('')
+        term.write('$ Ready for input... ')
+        
+        // Force refresh / 强制刷新
+        term.refresh(0, term.rows - 1)
+        console.log('Test content written and terminal refreshed')
+        
+        // Verify content was written by checking the buffer
+        setTimeout(() => {
+          const buffer = term.buffer.active
+          console.log('Terminal buffer lines:', buffer.length)
+          console.log('First line content:', buffer.getLine(0)?.translateToString())
+          console.log('Second line content:', buffer.getLine(1)?.translateToString())
+        }, 50)
+        
+      } catch (error) {
+        console.error('Error writing test content:', error)
+      }
+    }, 200)
 
     // Create WebSocket connection / 创建WebSocket连接
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -165,27 +248,40 @@ const initializeTerminal = async (terminalId: string) => {
     })
 
     // Save instance / 保存实例
-    terminalInstances.value.set(terminalId, { term, fitAddon, ws })
-
-    // Wait for DOM update then open terminal / 等待DOM更新后打开终端
-    await nextTick()
-    const container = document.getElementById(`terminal-${terminalId}`)
-    if (container) {
-      term.open(container)
-      fitAddon.fit()
-      
-      // Load historical output / 加载历史输出
-      loadTerminalOutput(terminalId)
+    terminalInstances.value.set(terminalId, { term, fitAddon, canvasAddon, ws })
+    
+    // Also store reference on DOM element for debugging / 也在DOM元素上存储引用以便调试
+    container._xterm = term
+    container._terminalInstance = { term, fitAddon, canvasAddon, ws }
+    
+    // Store in global window object for easier access / 存储在全局window对象中以便更容易访问
+    if (!window.terminalDebugInstances) {
+      window.terminalDebugInstances = new Map()
     }
+    window.terminalDebugInstances.set(terminalId, { term, fitAddon, canvasAddon, ws })
+    
+    console.log(`Terminal instance saved for ${terminalId}`)
+    console.log('Global terminal instances:', window.terminalDebugInstances)
+
+    // Load historical output after a delay / 延迟加载历史输出
+    setTimeout(async () => {
+      await loadTerminalOutput(terminalId)
+    }, 1000)
 
     // Listen for window resize / 监听窗口大小变化
     const resizeHandler = () => {
       const instance = terminalInstances.value.get(terminalId)
       if (instance) {
         instance.fitAddon.fit()
+        // Also refresh canvas addon on resize / 在调整大小时也刷新canvas addon
+        if (instance.canvasAddon) {
+          instance.term.refresh(0, instance.term.rows - 1)
+        }
       }
     }
     window.addEventListener('resize', resizeHandler)
+
+    console.log(`Terminal initialization completed for ${terminalId}`)
 
   } catch (error) {
     console.error(`Failed to initialize terminal ${terminalId}:`, error)
@@ -195,16 +291,58 @@ const initializeTerminal = async (terminalId: string) => {
 // Load terminal historical output / 加载终端历史输出
 const loadTerminalOutput = async (terminalId: string) => {
   try {
+    console.log(`Loading output for terminal ${terminalId}...`)
+    
+    // Wait a bit for terminal instance to be fully initialized
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
     // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.readOutput(terminalId)
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
       throw new Error('Failed to load output')
     }
     const data = await response.json()
+    console.log(`Output data for terminal ${terminalId}:`, data)
     
-    const instance = terminalInstances.value.get(terminalId)
-    if (instance && data.output) {
+    // Get terminal instance and check if it's ready
+    let retries = 0
+    const maxRetries = 10
+    let instance = terminalInstances.value.get(terminalId)
+    
+    while ((!instance || !instance.term) && retries < maxRetries) {
+      console.log(`Waiting for terminal instance to be ready... (${retries + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      instance = terminalInstances.value.get(terminalId)
+      retries++
+    }
+    
+    if (instance && instance.term && data.output) {
+      console.log(`Writing ${data.output.length} characters to terminal ${terminalId}`)
+      
+      // Clear terminal first and then write content
+      instance.term.clear()
       instance.term.write(data.output)
+      
+      // Force terminal to refresh
+      instance.term.refresh(0, instance.term.rows - 1)
+      
+      console.log(`Terminal content written successfully`)
+    } else {
+      console.log(`No output available for terminal ${terminalId} or instance not ready`)
+      console.log(`Instance:`, !!instance)
+      console.log(`Term:`, !!(instance && instance.term))
+      console.log(`Output:`, !!(data && data.output))
+      
+      // If we have instance but no output, write a test message
+      if (instance && instance.term) {
+        console.log('Writing test message to terminal...')
+        instance.term.clear()
+        instance.term.write('Terminal initialized successfully\\n')
+        instance.term.write('Waiting for output...\\n')
+        instance.term.refresh(0, instance.term.rows - 1)
+      }
     }
   } catch (error) {
     console.error(`Failed to load output for terminal ${terminalId}:`, error)
@@ -771,6 +909,7 @@ watch(terminals, (newTerminals) => {
   background: var(--jet-black) !important;
   border-radius: 0.75rem !important;
   font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace !important;
+  color: #ffffff !important;
 }
 
 :deep(.xterm-viewport) {
@@ -786,6 +925,20 @@ watch(terminals, (newTerminals) => {
 :deep(.xterm-selection) {
   background: var(--luxury-gold) !important;
   opacity: 0.3 !important;
+}
+
+/* Ensure xterm-rows is visible / 确保xterm-rows可见 */
+:deep(.xterm-rows) {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+:deep(.xterm-rows > div) {
+  display: block !important;
+  height: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #ffffff !important;
 }
 
 /* Hide xterm.js helper elements / 隐藏xterm.js辅助元素 */

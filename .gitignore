@@ -12,7 +12,6 @@ test/
 .codex/
 test-codex-fix/
 cheestard-terminal-interactive-intro.html
-
-
-
 dist/
+
+config.yml
