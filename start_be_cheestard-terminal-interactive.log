@@ -10,7 +10,6 @@ Searching for backend processes occupying the port...
   PID 20200: "C:\Users\xdx\AppData\Local\fnm_multishells\17284_1765136715396\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\17284_1765136715396\node_modules\npm\bin\npm-cli.js" run dev
   PID 24784: "node"   "D:\CodeRelated\ElectronProjects\xdx_toolbox\FE\node_modules\.bin\\..\vite\bin\vite.js" 
   PID 27056: "node" dist/index.js
-  PID 26340: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
   PID 20124: "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
   PID 9592: "node"   "D:\CodeRelated\Public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d
   PID 13104: node  "D:\CodeRelated\gpt-load\start_be_gpt-load.mjs"        
@@ -20,12 +19,13 @@ Searching for backend processes occupying the port...
   PID 50552: "C:\Users\xdx\AppData\Local\fnm_multishells\43940_1765359650127\node.exe" D:\CodeRelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs
   PID 7332: node  dist/src/index.js
   PID 52668: "C:\Users\xdx\AppData\Local\fnm_multishells\47704_1765369707976\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
-  PID 26784: "C:\Users\xdx\AppData\Local\fnm_multishells\36372_1765374923084\node.exe" start_be_cheestard-terminal-interactive.mjs
-  PID 16596: node  dist/http-server.js
-  PID 42844: "C:\Users\xdx\AppData\Local\fnm_multishells\50968_1765374945919\node.exe" start_fe_cheestard-terminal-interactive.mjs
-  PID 29836: "C:\Users\xdx\AppData\Local\fnm_multishells\50968_1765374945919\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\50968_1765374945919\node_modules\npm\bin\npm-cli.js" run preview
-  PID 50860: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
-  PID 38700: "C:\Users\xdx\AppData\Local\fnm_multishells\19984_1765375254326\node.exe" start_be_cheestard-terminal-interactive.mjs
+  PID 30316: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+  PID 33688: "C:\Users\xdx\AppData\Local\fnm_multishells\15544_1765403838424\node.exe" start_be_cheestard-terminal-interactive.mjs
+  PID 35024: node  dist/http-server.js
+  PID 3004: "C:\Users\xdx\AppData\Local\fnm_multishells\29448_1765403865189\node.exe" start_fe_cheestard-terminal-interactive.mjs
+  PID 26324: "C:\Users\xdx\AppData\Local\fnm_multishells\29448_1765403865189\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\29448_1765403865189\node_modules\npm\bin\npm-cli.js" run preview
+  PID 50288: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+  PID 38292: "C:\Users\xdx\AppData\Local\fnm_multishells\34776_1765404546180\node.exe" start_be_cheestard-terminal-interactive.mjs
 
 检查进程 13388: node  "d:\coderelated\frp\frps_12100\start_frps_12100.mjs"        
   -> 匹配相关文件: false
@@ -48,9 +48,6 @@ Searching for backend processes occupying the port...
 检查进程 27056: "node" dist/index.js
   -> 匹配相关文件: true
   -> 缺少项目关键词，跳过
-
-检查进程 26340: "node" d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
-  -> 跳过系统进程
 
 检查进程 20124: "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
   -> 跳过系统进程
@@ -80,44 +77,47 @@ Searching for backend processes occupying the port...
 检查进程 52668: "c:\users\xdx\appdata\local\fnm_multishells\47704_1765369707976\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
   -> 跳过系统进程
 
-检查进程 26784: "c:\users\xdx\appdata\local\fnm_multishells\36372_1765374923084\node.exe" start_be_cheestard-terminal-interactive.mjs
+检查进程 30316: "node" d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+  -> 跳过系统进程
+
+检查进程 33688: "c:\users\xdx\appdata\local\fnm_multishells\15544_1765403838424\node.exe" start_be_cheestard-terminal-interactive.mjs
   -> 匹配相关文件: true
   -> 将被标记为目标进程进行清理
 
-检查进程 16596: node  dist/http-server.js
+检查进程 35024: node  dist/http-server.js
   -> 匹配相关文件: true
   -> 缺少项目关键词，跳过
 
-检查进程 42844: "c:\users\xdx\appdata\local\fnm_multishells\50968_1765374945919\node.exe" start_fe_cheestard-terminal-interactive.mjs
+检查进程 3004: "c:\users\xdx\appdata\local\fnm_multishells\29448_1765403865189\node.exe" start_fe_cheestard-terminal-interactive.mjs
   -> 匹配相关文件: false
 
-检查进程 29836: "c:\users\xdx\appdata\local\fnm_multishells\50968_1765374945919\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\50968_1765374945919\node_modules\npm\bin\npm-cli.js" run preview
+检查进程 26324: "c:\users\xdx\appdata\local\fnm_multishells\29448_1765403865189\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\29448_1765403865189\node_modules\npm\bin\npm-cli.js" run preview
   -> 跳过系统进程
 
-检查进程 50860: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+检查进程 50288: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
   -> 跳过系统进程
 Found 1 related processes, terminating...
-Terminating process PID: 26784 (attempt 1/3)
-Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\36372_1765374923084\node.exe" start_be_cheestard-termina...
-Warning: Failed to terminate process 26784: Command execution failed, exit code: 128
-Error: ERROR: The process with PID 16596 (child process of PID 43188) could not be terminated.
+Terminating process PID: 33688 (attempt 1/3)
+Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\15544_1765403838424\node.exe" start_be_cheestard-termina...
+Warning: Failed to terminate process 33688: Command execution failed, exit code: 128
+Error: ERROR: The process with PID 35024 (child process of PID 8372) could not be terminated.
 Reason: This process can only be terminated forcefully (with /F option).
-ERROR: The process with PID 43188 (child process of PID 26784) could not be terminated.
+ERROR: The process with PID 8372 (child process of PID 33688) could not be terminated.
 Reason: One or more child processes of this process were still running.
-ERROR: The process with PID 26784 (child process of PID 44868) could not be terminated.
+ERROR: The process with PID 33688 (child process of PID 15592) could not be terminated.
 Reason: One or more child processes of this process were still running.
 System.Management.Automation.RemoteException
-Attempt 1 failed for process 26784: Command execution failed, exit code: 128
-Error: ERROR: The process with PID 16596 (child process of PID 43188) could not be terminated.
+Attempt 1 failed for process 33688: Command execution failed, exit code: 128
+Error: ERROR: The process with PID 35024 (child process of PID 8372) could not be terminated.
 Reason: This process can only be terminated forcefully (with /F option).
-ERROR: The process with PID 43188 (child process of PID 26784) could not be terminated.
+ERROR: The process with PID 8372 (child process of PID 33688) could not be terminated.
 Reason: One or more child processes of this process were still running.
-ERROR: The process with PID 26784 (child process of PID 44868) could not be terminated.
+ERROR: The process with PID 33688 (child process of PID 15592) could not be terminated.
 Reason: One or more child processes of this process were still running.
 System.Management.Automation.RemoteException
-Terminating process PID: 26784 (attempt 2/3)
-Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\36372_1765374923084\node.exe" start_be_cheestard-termina...
-Process 26784 terminated successfully
+Terminating process PID: 33688 (attempt 2/3)
+Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\15544_1765403838424\node.exe" start_be_cheestard-termina...
+Process 33688 terminated successfully
 Process termination completed: 1 successful, 0 failed
 Starting backend server...
 [HTTP-MCP-INFO] Starting Cheestard Terminal Interactive Streamable HTTP MCP Server...
@@ -142,297 +142,7 @@ __dirname: D:\CodeRelated\cheestard-terminal-interactive\dist
 [HTTP-MCP-INFO] No prompts available
 [HTTP-MCP-INFO] 
 [HTTP-MCP-INFO] Health check available at: http://0.0.0.0:1106/health
-[HTTP-MCP-INFO] Creating new session and MCP server
-[MCP-INFO] Using shared TerminalManager instance
-[MCP-DEBUG] Checking if tool "interact_with_terminal" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
-[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
-[MCP-DEBUG] Tool "interact_with_terminal" is ENABLED
-[MCP-DEBUG] Checking if tool "fix_bug_with_codex" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
-[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
-[MCP-DEBUG] Tool "fix_bug_with_codex" is DISABLED
-[MCP-INFO] Tool "fix_bug_with_codex" is disabled
-[MCP-INFO] Services auto-start disabled to prevent recursion
-[HTTP-MCP-INFO] MCP server connected to transport
-[HTTP-MCP-INFO] Session initialized: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
 Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 3b1859d4-4106-43ed-859f-481e5e2f8950 (PID: 27520)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 592c6cf6-98dd-4cb5-a2c7-caea707b91d8 (PID: 39456)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 41f79b6c-109b-499e-9fb7-9aa5b840c93e (PID: 43484)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 0f0fb477-99bf-4c95-9b4f-6c314d276818 (PID: 35676)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
 [WEB-UI] WebSocket client connected
 [WEB-UI] WebSocket client disconnected
 [WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 30f5b5ce-f5d9-45aa-b91f-d8b059945a78 (PID: 28156)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: eab11d6e-5718-4e28-9b04-66652bf13100 (PID: 8464)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 05004142-3b4a-4199-a76f-bfcfd3e9d03b (PID: 44060)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 25006b34-68a4-4e57-aad1-50e022b8a16a (PID: 4604)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: 1478e9f4-aa99-4181-8ed2-a625f776c96f (PID: 29544)
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1
-[HTTP-MCP-INFO] Reusing existing session: 50af7a2f-43cb-4172-b49c-2aaf80f601c1

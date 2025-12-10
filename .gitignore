@@ -14,4 +14,9 @@ test-codex-fix/
 cheestard-terminal-interactive-intro.html
 dist/
 
+# custom
 config.yml
+start_fe_cheestard-terminal-interactive.log
+start_be_cheestard-terminal-interactive.pid
+start_be_cheestard-terminal-interactive.log
+start_fe_cheestard-terminal-interactive.pid

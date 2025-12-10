@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ const _unusedCanvasAddonStub: any = CanvasAddonStub
 const router = useRouter()
 const { t } = useI18n()
 const terminalStore = useTerminalStoreReal()
+const { refreshTrigger } = storeToRefs(terminalStore)
 
 // Terminal management state / 终端管理状态
 const terminals = ref<any[]>([])
@@ -162,11 +164,15 @@ const initializeTerminal = async (terminalId: string) => {
     
     console.log('Container cleared and styled')
 
-    // Create xterm instance with simpler config / 使用更简单的配置创建xterm实例
+    // Create xterm instance with VS Code-like fonts / 使用更接近 VS Code 的字体配置创建 xterm 实例
     const term = new Terminal({
       cursorBlink: true,
+      // Prefer JetBrains Mono & Microsoft YaHei for better CJK rendering
+      // 优先使用 JetBrains Mono 和微软雅黑，提升中英文混排效果
       fontSize: 14,
-      fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+      fontFamily: 'JetBrains Mono, Consolas, "Courier New", "Microsoft YaHei", monospace',
+      lineHeight: 1.2,
+      letterSpacing: 0,
       theme: {
         background: '#000000',
         foreground: '#ffffff'
@@ -327,15 +333,13 @@ const loadTerminalOutput = async (terminalId: string) => {
     const data = await response.json() as { output?: string }
     console.log(`Output data for terminal ${terminalId}:`, data)
 
-    // Keep only the latest 200 lines so that the user sees recent real terminal content
-    // 只保留最近 200 行输出，确保用户看到的是最新的真实终端内容
-    const rawOutput = data.output || ''
-    const lines = rawOutput.split(/\r?\n/)
-    const slicedOutput = lines.slice(-200).join('\r\n')
+    // 使用后端返回的完整输出内容，避免再次截断导致看不到真实历史
+    // Use full backend output directly to avoid over-truncation hiding real history
+    const output = data.output ?? ''
 
     // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
-    if (!slicedOutput || slicedOutput.length === 0) {
-      console.log(`No historical output for terminal ${terminalId}, skip writing to terminal`)
+    if (!output || output.length === 0) {
+      console.log(`No historical output for terminal ${terminalId}, keep current content`)
       return
     }
 
@@ -351,12 +355,12 @@ const loadTerminalOutput = async (terminalId: string) => {
       retries++
     }
     
-    if (instance && instance.term && slicedOutput && slicedOutput.length > 0) {
-      console.log(`Writing ${slicedOutput.length} characters to terminal ${terminalId}`)
+    if (instance && instance.term && output && output.length > 0) {
+      console.log(`Writing ${output.length} characters to terminal ${terminalId}`)
       
       // Clear terminal first and then write content
       instance.term.clear()
-      instance.term.write(slicedOutput)
+      instance.term.write(output)
       
       // Force terminal to refresh
       instance.term.refresh(0, instance.term.rows - 1)
@@ -469,7 +473,7 @@ const formatDate = (dateString: string) => {
 }
 
 // Watchers / 监听器
-watch(() => terminalStore.refreshTrigger, () => {
+watch(refreshTrigger, () => {
   fetchTerminals()
 })
 

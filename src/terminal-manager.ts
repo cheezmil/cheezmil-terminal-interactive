@@ -196,22 +196,27 @@ export class TerminalManager extends EventEmitter {
         this.processBufferEntries(session, entries);
       });
 
-      // 监听 PTY 输出
-      // 使用 setImmediate 确保数据立即被处理，避免缓冲延迟
+      // 监听 PTY 输出 - 始终使用用户可见的终端名称进行事件广播
+      // Listen PTY output - always use human-readable terminal name when emitting events
       ptyProcess.onData((data: string) => {
         setImmediate(() => {
           const now = new Date();
           session.lastActivity = now;
           outputBuffer.append(data);
-          this.emit('terminalOutput', internalId, data);
+          // 使用终端名称而不是内部 UUID，保证 WebSocket 与前端使用的 ID 对齐
+          // Use terminal name instead of internal UUID so WebSocket IDs match frontend IDs
+          const publicTerminalId = this.terminalReverseMap.get(internalId) || terminalName;
+          this.emit('terminalOutput', publicTerminalId, data);
         });
       });
 
-      // 监听 PTY 退出
+      // 监听 PTY 退出 - 统一使用终端名称进行事件广播
+      // Listen PTY exit - consistently emit events with terminal name
       ptyProcess.onExit((e: { exitCode: number; signal?: number }) => {
         session.status = 'terminated';
         session.lastActivity = new Date();
-        this.emit('terminalExit', internalId, e.exitCode, e.signal);
+        const publicTerminalId = this.terminalReverseMap.get(internalId) || terminalName;
+        this.emit('terminalExit', publicTerminalId, e.exitCode, e.signal);
 
         const resolver = this.exitResolvers.get(internalId);
         if (resolver) {
@@ -228,12 +233,14 @@ export class TerminalManager extends EventEmitter {
         }
       });
 
-      // 存储会话信息
+      // 存储会话信息 / Store session info
       this.sessions.set(internalId, session);
       this.ptyProcesses.set(internalId, ptyProcess);
       this.outputBuffers.set(internalId, outputBuffer);
 
-      this.emit('terminalCreated', internalId, session);
+      // 事件中也使用终端名称，方便日志与前端调试
+      // Also emit terminalCreated with terminal name for easier logging & debugging
+      this.emit('terminalCreated', terminalName, session);
       
      return terminalName;  // 返回终端名称
     } catch (error) {

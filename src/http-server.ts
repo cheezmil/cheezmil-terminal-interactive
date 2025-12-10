@@ -395,20 +395,31 @@ async function setupFrontendApiRoutes(fastify: FastifyInstance): Promise<void> {
     }
   });
 
-  // 创建终端 / Create terminal
+  // 创建终端（前端使用的简化接口）/ Create terminal (simplified endpoint for frontend)
   fastify.post('/api/terminals', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { shell, cwd, env } = request.body as any;
-      const terminalId = await terminalManager.createTerminal({
+      const { shell, cwd, env, terminalName } = request.body as any;
+
+      // 前端必须显式提供终端名称，避免使用 UUID / Frontend must provide explicit terminal name, avoid using UUID
+      if (!terminalName || typeof terminalName !== 'string' || !terminalName.trim()) {
+        reply.status(400).send({
+          error: 'Terminal name is required',
+          message: 'terminalName is required and must be a non-empty string'
+        });
+        return;
+      }
+
+      const createdName = await terminalManager.createTerminal({
+        terminalName: terminalName.trim(),
         shell,
         cwd,
         env
       });
 
-      const session = terminalManager.getTerminalInfo(terminalId);
+      const session = terminalManager.getTerminalInfo(createdName);
       
       reply.status(201).send({
-        terminalId,
+        terminalId: createdName,
         status: session?.status,
         pid: session?.pid,
         shell: session?.shell,
