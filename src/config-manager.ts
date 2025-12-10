@@ -44,6 +44,11 @@ export class ConfigManager {
       // MCP配置 / MCP configuration
       mcp: {
         enableDnsRebindingProtection: false,
+        // 是否启用 MCP 服务器选择工具 / Whether to enable MCP server selection tool
+        enableServerSelectionTool: true,
+        // 通过配置禁用指定的 MCP 工具（对应 DISABLED_TOOLS 环境变量）
+        // Disable specific MCP tools via config (mapped to DISABLED_TOOLS environment variable)
+        disabledTools: [] as string[],
         allowedHosts: ['127.0.0.1', 'localhost', 'localhost:1106']
       },
       
@@ -216,7 +221,10 @@ export class ConfigManager {
    * Get complete configuration
    */
   public getAll(): any {
-    return { ...this.config };
+    // 始终将当前配置与默认配置深度合并，确保结构完整
+    // Always deep-merge current config with default config to ensure full structure
+    const mergedConfig = this.deepMerge(this.defaultConfig, this.config || {});
+    return { ...mergedConfig };
   }
 
   /**

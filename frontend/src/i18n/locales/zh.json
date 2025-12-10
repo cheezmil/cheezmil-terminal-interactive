@@ -142,6 +142,8 @@
     "sessionTimeout": "会话超时",
     "defaultEnv": "默认环境变量",
     "enableDnsRebindingProtection": "启用DNS重绑定保护",
+    "disabledTools": "禁用的MCP工具",
+    "enableServerSelectionTool": "启用MCP服务器选择工具",
     "allowedHosts": "允许的主机",
     "logLevel": "日志级别",
     "enableConsole": "启用控制台",

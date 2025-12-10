@@ -1,1 +1,0 @@
-const WebSocket = require('ws'); const ws = new WebSocket('ws://localhost:1106'); ws.on('open', () => { console.log('WebSocket connected'); ws.close(); }); ws.on('error', (err) => { console.error('WebSocket error:', err.message); });

@@ -113,6 +113,9 @@ function loadEnvConfig() {
 const config = loadEnvConfig();
 const PORT = parseInt(config.MCP_PORT) || 1106;
 
+// 为 MCP 工具禁用配置提供环境变量支持 / Provide environment variable support for disabling specific MCP tools
+// 当前仅用于控制「选择 MCP 服务器」相关工具是否启用 / Currently used only to control whether MCP server selection tools are enabled
+
 // Execute command helper function
 function execCommand(command) {
     return new Promise((resolve, reject) => {

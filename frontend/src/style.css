@@ -924,17 +924,17 @@ button.p-button:has(.p-button-icon) .p-button-label {
   position: absolute !important;
   left: -99999px !important;
   top: -99999px !important;
-  width: 0 !important;
-  height: 0 !important;
+    width: auto !important;
+    height: auto !important;
   opacity: 0 !important;
   pointer-events: none !important;
-  visibility: hidden !important;
-  display: none !important;
-  font-size: 0 !important;
-  line-height: 0 !important;
-  z-index: -9999 !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
+    visibility: hidden !important;
+    display: block !important;
+    font-size: inherit !important;
+    line-height: normal !important;
+    z-index: -9999 !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
 }
 
 /* 动画定义 */

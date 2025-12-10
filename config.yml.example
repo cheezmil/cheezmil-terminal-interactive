@@ -24,6 +24,12 @@ terminal:
 # MCP配置 / MCP Configuration
 mcp:
   enableDnsRebindingProtection: false
+  # 是否启用 MCP 服务器选择工具 / Whether to enable MCP server selection tool
+  enableServerSelectionTool: true
+  # 通过名称禁用 MCP 工具，例如要禁用 fix_bug_with_codex 工具（默认不需要这个工具）：
+  # Disable MCP tools by name, e.g. to disable fix_bug_with_codex tool:
+  disabledTools:
+    - 'fix_bug_with_codex'
   allowedHosts: 
     - '127.0.0.1'
     - 'localhost'

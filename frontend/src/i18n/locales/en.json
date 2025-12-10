@@ -142,6 +142,8 @@
     "sessionTimeout": "Session Timeout",
     "defaultEnv": "Default Environment Variables",
     "enableDnsRebindingProtection": "Enable DNS Rebinding Protection",
+    "disabledTools": "Disabled MCP Tools",
+    "enableServerSelectionTool": "Enable MCP Server Selection Tool",
     "allowedHosts": "Allowed Hosts",
     "logLevel": "Log Level",
     "enableConsole": "Enable Console",

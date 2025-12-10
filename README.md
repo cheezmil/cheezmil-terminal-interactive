@@ -6,17 +6,17 @@
 
 
 ## Why use this project
-- At present, most mainstream AI coding tools block the terminal when running certain commands such as `npm run dev`. In this case, the AI cannot receive new messages for a long time. Some AI tools hard-code a 2-minute timeout; some can still see terminal output after timing out; some just completely hang. This project helps you avoid wasting time when things get stuck.
+- At present, most mainstream AI coding tools block the terminal when running certain commands such as `npm run dev`. In this case, the AI cannot receive new messages for a long time. Some AI tools hard‑code a 2‑minute timeout; some can still see terminal output after timing out; some just completely hang. This project helps you avoid wasting time when things get stuck.
 - If you are using different AI coding tools at the same time, this project allows different AIs to view the same running terminals.
 - You might let one Codex control another Claude Code.
-- You might say, “I can just redirect all terminal output to a file and let the AI read that.” But that costs an extra API call. Also, the AI does not know which commands need to be written to a file or where that file is, and you must spell all of this out in the prompt; otherwise things still block. That is a bit troublesome.
-
+- You might say, “I can just redirect all terminal output to a file and let the AI read that.” But that costs an extra API call. Also, the AI does not know which commands need to be written to a file or where that file is, and you must clearly describe all of this in the prompt; otherwise things will still get blocked. That is a bit troublesome.
+- In some cases, you may need to restart codex cli or Claude Code to apply some settings, and at this time you do not want to lose the terminal tasks that are still running.
 
 ## Usage
 ### Run backend
 > ⚠️ Due to `node-pty`, Windows users currently need to use a Node.js version no greater than 20 in order to use this project properly. For convenience, the install, build and run scripts all use 20.19.5. Please be sure to install `https://github.com/Schniz/fnm`, otherwise it will not work, unless you use the same Node.js version for every project, which is unlikely because one of the AI coding tools or popular MCP tools mentioned in this document uses Node.js 22+.
 
-First fork this project so it is convenient for you to submit PRs, and then:
+First fork this project so it is convenient for you to submit PR contributions, and then:
 ```bash
 git clone https://github.com/<your-github-username>/cheestard-terminal-interactive.git
 ```

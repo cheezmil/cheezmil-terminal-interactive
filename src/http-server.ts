@@ -73,6 +73,18 @@ async function main() {
   const terminalConfig = configManager.getTerminalConfig();
   const mcpConfig = configManager.getMcpConfig();
 
+  // 根据配置设置 MCP 工具禁用列表（映射到 DISABLED_TOOLS 环境变量）
+  // Configure MCP disabled tools from config (mapped to DISABLED_TOOLS environment variable)
+  if (mcpConfig?.disabledTools && Array.isArray(mcpConfig.disabledTools) && mcpConfig.disabledTools.length > 0) {
+    process.env.DISABLED_TOOLS = mcpConfig.disabledTools.join(',');
+    log(`Disabled MCP tools via config: ${process.env.DISABLED_TOOLS}`);
+  } else {
+    // 如果配置中未指定，则清空该环境变量，使用默认行为
+    // If not specified in config, clear the env var and use default behavior
+    delete process.env.DISABLED_TOOLS;
+    log('No MCP tools disabled via config');
+  }
+
   // 创建 Fastify 实例 / Create Fastify instance
   const fastify: FastifyInstance = Fastify({
     logger: false, // 使用自定义日志记录器 / Use custom logger
@@ -515,28 +527,12 @@ async function setupFrontendApiRoutes(fastify: FastifyInstance): Promise<void> {
  * Setup settings related API routes
  */
 async function setupSettingsRoutes(fastify: FastifyInstance): Promise<void> {
-  const configPath = path.resolve(process.cwd(), 'config.yml');
-
   // 获取设置 / Get settings
   fastify.get('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      // 检查配置文件是否存在 / Check if config file exists
-      try {
-        await fs.access(configPath);
-      } catch {
-        // 文件不存在，返回默认设置 / File doesn't exist, return default settings
-        return {
-          language: 'zh'
-        };
-      }
-
-      // 读取配置文件 / Read config file
-      const configContent = await fs.readFile(configPath, 'utf-8');
-      const config = yaml.load(configContent) as any;
-      
-      return {
-        language: config.language || 'zh'
-      };
+      // 使用配置管理器返回完整配置 / Use config manager to return full configuration
+      const config = configManager.getAll();
+      return config;
     } catch (error) {
       console.error('Failed to read settings:', error);
       reply.status(500).send({
@@ -550,40 +546,34 @@ async function setupSettingsRoutes(fastify: FastifyInstance): Promise<void> {
   // 保存设置 / Save settings
   fastify.post('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { language } = request.body as any;
+      const newConfig = request.body as any;
 
-      if (!language || (language !== 'zh' && language !== 'en')) {
+      // 验证配置数据 / Validate configuration data
+      if (!newConfig || typeof newConfig !== 'object') {
         reply.status(400).send({
-          error: 'Invalid language setting'
+          error: 'Invalid configuration data'
         });
         return;
       }
 
-      // 读取现有配置 / Read existing configuration
-      let config: any = {};
-      try {
-        const configContent = await fs.readFile(configPath, 'utf-8');
-        config = yaml.load(configContent) as any || {};
-      } catch {
-        // 文件不存在或读取失败，使用空配置
-        // File doesn't exist or read failed, use empty config
+      // 读取现有配置以保留其他设置 / Read existing config to preserve other settings
+      const existingConfig = configManager.getAll();
+
+      // 合并配置，只更新提供的字段 / Merge config, only update provided fields
+      const mergedConfig = {
+        ...existingConfig,
+        ...newConfig
+      };
+
+      // 保存配置 / Save configuration
+      for (const [key, value] of Object.entries(newConfig)) {
+        await configManager.set(key, value);
       }
-
-      // 更新语言设置 / Update language setting
-      config.language = language;
-
-      // 写入配置文件 / Write config file
-      const yamlContent = yaml.dump(config, {
-        indent: 2,
-        lineWidth: 120
-      });
-      
-      await fs.writeFile(configPath, yamlContent, 'utf-8');
 
       return {
         success: true,
-        message: 'Settings saved successfully',
-        language
+        message: 'Configuration saved successfully',
+        config: mergedConfig
       };
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -595,19 +585,38 @@ async function setupSettingsRoutes(fastify: FastifyInstance): Promise<void> {
     }
   });
 
-  // 重置设置 / Reset settings
-  fastify.delete('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+  // 重置设置（兼容 API 文档和前端约定，使用 POST /api/settings/reset）
+  // Reset settings (compatible with API docs and frontend contract, using POST /api/settings/reset)
+  fastify.post('/api/settings/reset', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      // 删除配置文件 / Delete config file
-      try {
-        await fs.unlink(configPath);
-      } catch {
-        // 文件不存在，忽略错误 / File doesn't exist, ignore error
-      }
+      await configManager.reset();
+      const defaultConfig = configManager.getAll();
 
       return {
         success: true,
-        message: 'Settings reset successfully'
+        message: 'Configuration reset to defaults successfully',
+        config: defaultConfig
+      };
+    } catch (error) {
+      console.error('Failed to reset settings:', error);
+      reply.status(500).send({
+        error: 'Failed to reset settings',
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return;
+    }
+  });
+
+  // 兼容旧的 DELETE /api/settings 重置行为 / Backwards-compatible DELETE /api/settings reset behavior
+  fastify.delete('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await configManager.reset();
+      const defaultConfig = configManager.getAll();
+
+      return {
+        success: true,
+        message: 'Configuration reset to defaults successfully',
+        config: defaultConfig
       };
     } catch (error) {
       console.error('Failed to reset settings:', error);

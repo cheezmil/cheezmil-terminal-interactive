@@ -42,6 +42,10 @@ const configData = ref<any>({
   },
   mcp: {
     enableDnsRebindingProtection: false,
+    // 是否启用 MCP 服务器选择工具 / Whether to enable MCP server selection tool
+    enableServerSelectionTool: true,
+    // 被禁用的 MCP 工具名称列表 / Disabled MCP tool names list
+    disabledTools: [],
     allowedHosts: ['127.0.0.1', 'localhost', 'localhost:1106']
   },
   logging: {
@@ -51,6 +55,10 @@ const configData = ref<any>({
     filePath: './logs/app.log'
   }
 })
+
+// 默认配置模板，用于在后端返回不完整或空配置时填充缺失字段
+// Default configuration template, used to fill missing fields when backend returns partial or empty config
+const defaultConfigTemplate = JSON.parse(JSON.stringify(configData.value))
 const originalConfigData = ref<any>({})
 const isLoading = ref(false)
 const hasChanges = ref(false)
@@ -77,8 +85,33 @@ const loadConfiguration = async () => {
   try {
     isLoading.value = true
     await settingsStore.loadFullConfig()
-    configData.value = JSON.parse(JSON.stringify(settingsStore.configData))
-    originalConfigData.value = JSON.parse(JSON.stringify(settingsStore.configData))
+
+    // 使用前端默认模板与后端返回配置深度合并，确保嵌套对象始终存在
+    // Deep-merge frontend default template with backend config to ensure nested objects always exist
+    const backendConfig = JSON.parse(JSON.stringify(settingsStore.configData || {}))
+    const mergedConfig: any = {
+      ...defaultConfigTemplate,
+      ...backendConfig,
+      server: {
+        ...defaultConfigTemplate.server,
+        ...(backendConfig.server || {})
+      },
+      terminal: {
+        ...defaultConfigTemplate.terminal,
+        ...(backendConfig.terminal || {})
+      },
+      mcp: {
+        ...defaultConfigTemplate.mcp,
+        ...(backendConfig.mcp || {})
+      },
+      logging: {
+        ...defaultConfigTemplate.logging,
+        ...(backendConfig.logging || {})
+      }
+    }
+
+    configData.value = mergedConfig
+    originalConfigData.value = JSON.parse(JSON.stringify(mergedConfig))
     hasChanges.value = false
   } catch (error) {
     console.error('Failed to load configuration:', error)
@@ -449,6 +482,69 @@ onMounted(async () => {
                     <span class="luxury-checkbox-slider"></span>
                   </label>
                   <span class="ml-3 text-text-primary select-none">{{ configData.mcp.enableDnsRebindingProtection ? 'Enabled' : 'Disabled' }}</span>
+                </div>
+              </div>
+
+              <div class="flex flex-col space-y-2">
+                <Label class="flex items-center space-x-2 text-text-primary font-medium">
+                  <svg class="w-4 h-4 text-accent-cyan" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span class="font-serif-luxury">{{ t('settings.enableServerSelectionTool') }}</span>
+                </Label>
+                <div class="flex items-center">
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.mcp.enableServerSelectionTool"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">{{ configData.mcp.enableServerSelectionTool ? 'Enabled' : 'Disabled' }}</span>
+                </div>
+              </div>
+              
+              <div class="flex flex-col space-y-2">
+                <Label class="flex items-center space-x-2 text-text-primary font-medium">
+                  <svg class="w-4 h-4 text-accent-cyan" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <span class="font-serif-luxury">{{ t('settings.disabledTools') }}</span>
+                </Label>
+                <div class="space-y-2">
+                  <div
+                    v-for="(tool, index) in configData.mcp.disabledTools"
+                    :key="index"
+                    class="flex items-center space-x-2"
+                  >
+                    <Input
+                      v-model="configData.mcp.disabledTools[index]"
+                      class="flex-1 bg-charcoal border-border-dark text-text-primary focus:border-accent-cyan luxury-input"
+                      placeholder="fix_bug_with_codex"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="luxury-delete-button"
+                      @click="configData.mcp.disabledTools.splice(index, 1)"
+                    >
+                      <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="luxury-add-button-cyan"
+                    @click="configData.mcp.disabledTools.push('')"
+                  >
+                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    {{ t('common.create') }}
+                  </Button>
                 </div>
               </div>
               

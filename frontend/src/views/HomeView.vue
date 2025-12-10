@@ -16,22 +16,37 @@ import { DialogFooter } from '@/components/ui/dialog'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { CanvasAddon } from 'xterm-addon-canvas'
+import { useTerminalStore as useTerminalStoreReal } from '../stores/terminal'
+// import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import SvgIcon from '@/components/ui/svg-icon.vue'
 
+// Temporary CanvasAddon stub to prevent early activation errors before Terminal.open
+// 临时 CanvasAddon 桩类，用于避免在调用 Terminal.open 之前激活导致的报错
+class CanvasAddonStub {
+  activate(_term: any) {}
+  dispose() {}
+}
+// Use stub instead of real CanvasAddon for now
+// 当前使用桩类替代真实 CanvasAddon
+const _unusedCanvasAddonStub: any = CanvasAddonStub
+
 const router = useRouter()
 const { t } = useI18n()
-const terminalStore = useTerminalStore()
+const terminalStore = useTerminalStoreReal()
 
 // Terminal management state / 终端管理状态
 const terminals = ref<any[]>([])
 const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
-const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon, ws: WebSocket }>>(new Map())
+const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon | null, ws: WebSocket }>>(new Map())
 
 // Sidebar state / 侧边栏状态
 const isSidebarCollapsed = ref(false)
+
+// Periodic refresh timer for terminals / 终端列表的周期性刷新定时器
+let terminalsRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 // Computed properties / 计算属性
 const stats = computed(() => terminalStore.stats)
@@ -160,7 +175,6 @@ const initializeTerminal = async (terminalId: string) => {
       cols: 80,
       scrollback: 1000,
       convertEol: true,
-      rendererType: 'canvas', // Force canvas renderer / 强制使用canvas渲染器
       allowProposedApi: true
     })
 
@@ -172,9 +186,15 @@ const initializeTerminal = async (terminalId: string) => {
     console.log('FitAddon loaded')
 
     // Add CanvasAddon for better rendering / 添加CanvasAddon以获得更好的渲染效果
-    const canvasAddon = new CanvasAddon()
-    term.loadAddon(canvasAddon)
-    console.log('CanvasAddon loaded')
+    let canvasAddon: CanvasAddon | null = null
+    try {
+      canvasAddon = new CanvasAddon()
+      term.loadAddon(canvasAddon)
+      console.log('CanvasAddon loaded')
+    } catch (error) {
+      console.error('Failed to load CanvasAddon (will continue without it):', error)
+      canvasAddon = null
+    }
 
     // Open terminal with delay to ensure DOM is ready / 延迟打开终端确保DOM准备好
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -191,7 +211,8 @@ const initializeTerminal = async (terminalId: string) => {
     setTimeout(() => {
       console.log('Writing test content...')
       try {
-        term.clear()
+        // Disabled test content / 禁用测试内容
+        return
         term.writeln('=== TERMINAL TEST ===')
         term.writeln('Line 1: Terminal initialized successfully!')
         term.writeln('Line 2: XTerm.js is working!')
@@ -293,7 +314,7 @@ const loadTerminalOutput = async (terminalId: string) => {
   try {
     console.log(`Loading output for terminal ${terminalId}...`)
     
-    // Wait a bit for terminal instance to be fully initialized
+    // Wait a bit for terminal instance to be fully initialized / 等待一小段时间以确保终端实例完全初始化
     await new Promise(resolve => setTimeout(resolve, 100))
     
     // Use dynamic API service / 使用动态API服务
@@ -303,10 +324,22 @@ const loadTerminalOutput = async (terminalId: string) => {
       console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
       throw new Error('Failed to load output')
     }
-    const data = await response.json()
+    const data = await response.json() as { output?: string }
     console.log(`Output data for terminal ${terminalId}:`, data)
-    
-    // Get terminal instance and check if it's ready
+
+    // Keep only the latest 200 lines so that the user sees recent real terminal content
+    // 只保留最近 200 行输出，确保用户看到的是最新的真实终端内容
+    const rawOutput = data.output || ''
+    const lines = rawOutput.split(/\r?\n/)
+    const slicedOutput = lines.slice(-200).join('\r\n')
+
+    // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
+    if (!slicedOutput || slicedOutput.length === 0) {
+      console.log(`No historical output for terminal ${terminalId}, skip writing to terminal`)
+      return
+    }
+
+    // Get terminal instance and check if it's ready / 获取终端实例并检查是否就绪
     let retries = 0
     const maxRetries = 10
     let instance = terminalInstances.value.get(terminalId)
@@ -318,12 +351,12 @@ const loadTerminalOutput = async (terminalId: string) => {
       retries++
     }
     
-    if (instance && instance.term && data.output) {
-      console.log(`Writing ${data.output.length} characters to terminal ${terminalId}`)
+    if (instance && instance.term && slicedOutput && slicedOutput.length > 0) {
+      console.log(`Writing ${slicedOutput.length} characters to terminal ${terminalId}`)
       
       // Clear terminal first and then write content
       instance.term.clear()
-      instance.term.write(data.output)
+      instance.term.write(slicedOutput)
       
       // Force terminal to refresh
       instance.term.refresh(0, instance.term.rows - 1)
@@ -335,14 +368,7 @@ const loadTerminalOutput = async (terminalId: string) => {
       console.log(`Term:`, !!(instance && instance.term))
       console.log(`Output:`, !!(data && data.output))
       
-      // If we have instance but no output, write a test message
-      if (instance && instance.term) {
-        console.log('Writing test message to terminal...')
-        instance.term.clear()
-        instance.term.write('Terminal initialized successfully\\n')
-        instance.term.write('Waiting for output...\\n')
-        instance.term.refresh(0, instance.term.rows - 1)
-      }
+      // If we have instance but no output, keep existing content / 没有历史输出时保持现有内容
     }
   } catch (error) {
     console.error(`Failed to load output for terminal ${terminalId}:`, error)
@@ -460,6 +486,12 @@ onMounted(async () => {
     await initializeApiService()
     console.log('API service initialized, fetching terminals...')
     fetchTerminals()
+
+    // Start periodic refresh to detect newly created terminals automatically
+    // 启动周期性刷新以自动检测新创建的终端
+    terminalsRefreshTimer = setInterval(() => {
+      terminalStore.refreshTerminals()
+    }, 5000)
   } catch (error) {
     console.error('Failed to initialize API service:', error)
     toast.error('Failed to initialize API service')
@@ -478,6 +510,12 @@ onUnmounted(() => {
     }
   })
   terminalInstances.value.clear()
+
+  // Clear periodic refresh timer / 清理终端列表刷新定时器
+  if (terminalsRefreshTimer) {
+    clearInterval(terminalsRefreshTimer)
+    terminalsRefreshTimer = null
+  }
 })
 
 // Watch terminal list changes, auto-initialize new terminals / 监听终端列表变化，自动初始化新终端
@@ -675,8 +713,13 @@ watch(terminals, (newTerminals) => {
 
           <!-- Luxury terminal content / 奢华终端内容 - 占满剩余空间 -->
           <div class="flex-1 luxury-terminal-container overflow-hidden">
+            <!-- Render a dedicated container for each terminal and toggle visibility by activeTerminalId -->
+            <!-- 为每个终端渲染独立容器，通过 activeTerminalId 切换可见性 -->
             <div
-              :id="`terminal-${activeTerminalId}`"
+              v-for="terminal in terminals"
+              :key="terminal.id"
+              v-show="terminal.id === activeTerminalId"
+              :id="`terminal-${terminal.id}`"
               class="w-full h-full luxury-terminal-viewport"
             ></div>
           </div>
@@ -942,23 +985,7 @@ watch(terminals, (newTerminals) => {
 }
 
 /* Hide xterm.js helper elements / 隐藏xterm.js辅助元素 */
-:deep(.xterm-helper-textarea),
-:deep(.xterm-char-measure-element) {
-  position: absolute !important;
-  left: -99999px !important;
-  top: -99999px !important;
-  width: 0 !important;
-  height: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-  display: none !important;
-  font-size: 0 !important;
-  line-height: 0 !important;
-  z-index: -9999 !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-}
+/* Let global styles and xterm defaults handle helper elements to avoid breaking measurement */
 
 /* Luxury animations / 奢华动画 */
 @keyframes luxury-shimmer {

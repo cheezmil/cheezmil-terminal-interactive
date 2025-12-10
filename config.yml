@@ -19,6 +19,9 @@ terminal:
   defaultEnv: {}
 mcp:
   enableDnsRebindingProtection: false
+  enableServerSelectionTool: true
+  disabledTools:
+    - fix_bug_with_codex
   allowedHosts:
     - 127.0.0.1
     - localhost

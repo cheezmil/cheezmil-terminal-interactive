@@ -28,6 +28,10 @@ interface ConfigData {
   }
   mcp?: {
     enableDnsRebindingProtection?: boolean
+    // 是否启用 MCP 服务器选择工具 / Whether to enable MCP server selection tool
+    enableServerSelectionTool?: boolean
+    // 被禁用的 MCP 工具名称列表 / Disabled MCP tool names list
+    disabledTools?: string[]
     allowedHosts?: string[]
   }
   logging?: {
@@ -128,8 +132,8 @@ export const useSettingsStore = defineStore('settings', () => {
         }
       } catch (error) {
         console.warn('Failed to load full config from backend:', error)
-        // 如果后端不可用，使用默认配置 / If backend is unavailable, use default config
-        configData.value = {}
+        // 如果后端不可用，则保留现有前端配置结构，避免将其重置为空对象导致界面报错
+        // If backend is unavailable, keep existing frontend config structure instead of resetting to empty object
       }
     } catch (error) {
       console.error('Failed to load full config:', error)
