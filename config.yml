@@ -31,4 +31,4 @@ logging:
   enableConsole: false
   enableFile: false
   filePath: ./logs/app.log
-language: zh
+language: en

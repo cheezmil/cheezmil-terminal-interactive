@@ -2261,3 +2261,12 @@ Setting encoding on Windows is not supported
 [HTTP-MCP-INFO] Session initialized: 15c827c7-08ed-4d34-bef8-79b8320916be
 [HTTP-MCP-INFO] Reusing existing session: 15c827c7-08ed-4d34-bef8-79b8320916be
 [HTTP-MCP-INFO] Reusing existing session: 15c827c7-08ed-4d34-bef8-79b8320916be
+[WEB-UI] GET /
+[WEB-UI] GET /assets/index-Ca1AjVZn.js
+[WEB-UI] GET /assets/rolldown-runtime-CiX8ZqkN.js
+[WEB-UI] GET /assets/index-CILkq5Sh.css
+[WEB-UI] GET /assets/shadcn-vendor-PWxTOLwE.js
+[WEB-UI] GET /assets/vue-vendor-DZ5OH4FM.js
+[WEB-UI] GET /CTI.svg
+[WEB-UI] GET /CTI.svg
+[WEB-UI] GET /

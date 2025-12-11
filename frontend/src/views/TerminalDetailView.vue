@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Terminal as WebTerminal } from 'vue-web-terminal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Terminal } from 'xterm'
+import { FitAddon } from 'xterm-addon-fit'
 import { initializeApiService, terminalApi } from '../services/api-service'
 
 const route = useRoute()
@@ -17,13 +18,12 @@ const terminal = ref<any>(null)
 const isLoading = ref(true)
 const isConnected = ref(false)
 const isFullscreen = ref(false)
-const terminalRef = ref<any>(null)
-const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
-// Track incremental cursor to fetch only new output / 记录游标，仅获取新增输出
-const readCursor = ref(0)
-const isFetching = ref(false)
-const isPageVisible = ref(true)
 
+let ws: WebSocket | null = null
+let term: Terminal | null = null
+let fitAddon: FitAddon | null = null
+
+// 计算属性
 const connectionStatus = computed(() => ({
   text: isConnected.value ? t('terminal.connected') : t('terminal.disconnected'),
   severity: isConnected.value ? 'success' : 'danger',
@@ -35,7 +35,7 @@ const calculateUptime = (created: string) => {
   const createdDate = new Date(created)
   const diffMs = now.getTime() - createdDate.getTime()
   const diffMins = Math.floor(diffMs / 60000)
-
+  
   if (diffMins < 60) return `${diffMins}m`
   const diffHours = Math.floor(diffMins / 60)
   if (diffHours < 24) return `${diffHours}h`
@@ -47,15 +47,99 @@ const terminalStats = computed(() => ({
   uptime: terminal.value ? calculateUptime(terminal.value.created) : '0m'
 }))
 
-const pushOutput = (content: string) => {
-  if (terminalRef.value?.pushMessage) {
-    terminalRef.value.pushMessage({ type: 'ansi', content })
-    terminalRef.value.jumpToBottom?.(true)
+// 初始化终端
+const setupTerminal = () => {
+  try {
+    term = new Terminal({
+      cursorBlink: true,
+      fontSize: 14,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      theme: {
+        background: '#000000',
+        foreground: '#ffffff',
+        cursor: '#ffffff',
+        selectionBackground: '#ffffff40'
+      },
+      convertEol: true,
+      rows: 24,
+      cols: 80
+    })
+
+    // 添加FitAddon
+    fitAddon = new FitAddon()
+    term.loadAddon(fitAddon)
+
+    // 获取容器并打开终端
+    nextTick(() => {
+      const container = document.getElementById('terminal-container')
+      if (container && term) {
+        term.open(container)
+        fitAddon?.fit()
+
+        // 监听窗口大小变化
+        window.addEventListener('resize', () => {
+          fitAddon?.fit()
+        })
+      }
+    })
+
+    console.log('Terminal initialized successfully')
+  } catch (error) {
+    console.error('Failed to setup terminal:', error)
   }
 }
 
+// WebSocket连接 / WebSocket connection
+const connectWebSocket = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  // Connect to backend port 1106 with /ws endpoint, not frontend port 1107 / 连接到后端端口1106的/ws端点，而不是前端端口1107
+  const wsUrl = `${protocol}//localhost:1106/ws`
+
+  ws = new WebSocket(wsUrl)
+
+  ws.onopen = () => {
+    console.log('WebSocket connected')
+    isConnected.value = true
+  }
+
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data)
+    handleWebSocketMessage(message)
+  }
+
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error)
+    isConnected.value = false
+  }
+
+  ws.onclose = () => {
+    console.log('WebSocket disconnected')
+    isConnected.value = false
+  }
+}
+
+// 处理WebSocket消息
+const handleWebSocketMessage = (message: any) => {
+  if (message.terminalId !== terminalId) return
+  
+  switch (message.type) {
+    case 'output':
+      if (term) {
+        term.write(message.data)
+      }
+      break
+    case 'exit':
+      if (term) {
+        term.write('\r\n\x1b[31m[Terminal Exited]\x1b[0m\r\n')
+      }
+      break
+  }
+}
+
+// 获取终端信息 / Fetch terminal details
 const fetchTerminalDetails = async () => {
   try {
+    // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.get(terminalId)
     if (!response.ok) {
       throw new Error(`Terminal not found (${response.status})`)
@@ -69,80 +153,71 @@ const fetchTerminalDetails = async () => {
   }
 }
 
-const loadTerminalOutput = async (options: { reset?: boolean } = {}) => {
+// 加载终端历史输出
+// 加载终端历史输出 / Load terminal historical output
+let currentCursor = 0
+const loadTerminalOutput = async () => {
   try {
-    if (!isPageVisible.value) {
-      return
-    }
-    if (isFetching.value) {
-      return
-    }
-    isFetching.value = true
-    const isReset = options.reset === true
-    const response = await terminalApi.readOutput(terminalId, {
-      mode: 'tail',
-      tailLines: 200,
-      maxLines: 300,
-      since: isReset ? 0 : readCursor.value
-    })
+    console.log('Loading terminal output for:', terminalId)
+    // Use dynamic API service / 使用动态API服务
+    const response = await terminalApi.readOutput(terminalId, currentCursor)
+
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Failed to load output:', errorText)
-      return
-    }
-    const data = await response.json() as { output?: string; cursor?: number; since?: number }
-    const nextCursor = typeof data.cursor === 'number' ? data.cursor : data.since
-    const currentCursor = isReset ? 0 : readCursor.value
-    const hasNewCursor = typeof nextCursor === 'number' && Number.isFinite(nextCursor) && nextCursor > currentCursor
-
-    if (!isReset && !hasNewCursor) {
-      return
+      throw new Error('Failed to load output')
     }
 
-    if (isReset && terminalRef.value?.clearLog) {
-      terminalRef.value.clearLog(true)
+    const data = await response.json()
+    console.log('Output data:', data)
+
+    if (data.output && term) {
+      term.write(data.output)
+      console.log('Wrote output to terminal')
+    } else {
+      console.log('No output to display')
     }
-    if (data.output) {
-      pushOutput(data.output)
-    }
-    if (hasNewCursor) {
-      readCursor.value = nextCursor
-    }
+
+    currentCursor = data.cursor || data.since || 0
+    console.log('Current cursor:', currentCursor)
   } catch (error) {
     console.error('Failed to load terminal output:', error)
-  } finally {
-    isFetching.value = false
   }
 }
-
+// 发送命令
+// 发送命令 / Send command
 const sendCommand = async (command: string) => {
-  if (!command.trim()) return
-  const response = await terminalApi.writeInput(terminalId, command, true)
-  if (!response.ok) {
-    throw new Error(`Failed to send command (${response.status})`)
-  }
-}
+  if (!command.trim() || !ws || ws.readyState !== WebSocket.OPEN) return
 
-const handleExecCommand = async (_key: string, command: string, success: (msg?: any) => void, failed: (msg: string) => void) => {
   try {
-    await sendCommand(command)
-    success({ type: 'cmdLine', content: command })
-  } catch (error: any) {
+    // Use dynamic API service / 使用动态API服务
+    const response = await terminalApi.writeInput(terminalId, command)
+
+    if (!response.ok) {
+      throw new Error(`Failed to send command (${response.status})`)
+    }
+  } catch (error) {
     console.error('Failed to send command:', error)
-    failed(error?.message || 'Failed to send command')
   }
 }
+// 终端输入处理
+const handleTerminalData = (data: string) => {
+  sendCommand(data)
+}
 
+// 清空终端
 const clearTerminal = () => {
-  if (terminalRef.value?.clearLog) {
-    terminalRef.value.clearLog(true)
-    terminalRef.value.pushMessage?.({ type: 'normal', class: 'info', content: 'Terminal cleared / 终端已清空' })
+  if (term) {
+    term.clear()
   }
 }
 
+// 终止终端 / Kill terminal
 const killTerminal = async () => {
   try {
+    // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.delete(terminalId)
+    
     if (response.ok) {
       router.push('/')
     } else {
@@ -153,58 +228,143 @@ const killTerminal = async () => {
   }
 }
 
-const reconnect = async () => {
-  if (pollingTimer.value) {
-    clearInterval(pollingTimer.value)
-    pollingTimer.value = null
+// 重新连接
+const reconnect = () => {
+  if (ws) {
+    ws.close()
   }
-  await nextTick()
-  readCursor.value = 0
-  loadTerminalOutput({ reset: true })
-  // 重启轮询 / restart polling
-  pollingTimer.value = setInterval(() => {
-    loadTerminalOutput()
-  }, 2500)
+  connectWebSocket()
 }
 
+// 切换全屏
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value
   nextTick(() => {
-    terminalRef.value?.focus?.(true)
+    fitAddon?.fit()
   })
 }
 
 onMounted(async () => {
   try {
-    const handleVisibility = () => {
-      isPageVisible.value = !document.hidden
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
+    // Initialize API service first / 首先初始化API服务
     await initializeApiService()
     console.log('API service initialized, fetching terminal details...')
     await fetchTerminalDetails()
-    await nextTick()
-    await loadTerminalOutput({ reset: true })
-    pollingTimer.value = setInterval(() => {
-      loadTerminalOutput()
-    }, 2500)
-    isConnected.value = true
+    setupTerminal()
+    connectWebSocket()
+    await loadTerminalOutput() // 加载历史输出 / Load historical output
 
-    onUnmounted(() => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-    })
+    // 设置终端数据处理器 / Set terminal data handler
+    if (term) {
+      term.onData(handleTerminalData)
+    }
   } catch (error) {
     console.error('Failed to initialize API service:', error)
     isLoading.value = false
   }
+
+  // 强制隐藏xterm.js的辅助元素和页面底部的多余字符
+  nextTick(() => {
+    // 隐藏xterm-char-measure-element
+    const charMeasureElements = document.querySelectorAll('.xterm-char-measure-element')
+    charMeasureElements.forEach(el => {
+      (el as HTMLElement).style.display = 'none'
+      ;(el as HTMLElement).style.visibility = 'hidden'
+      ;(el as HTMLElement).style.opacity = '0'
+      ;(el as HTMLElement).style.position = 'absolute'
+      ;(el as HTMLElement).style.left = '-99999px'
+      ;(el as HTMLElement).style.top = '-99999px'
+      ;(el as HTMLElement).style.width = '0'
+      ;(el as HTMLElement).style.height = '0'
+      ;(el as HTMLElement).style.fontSize = '0'
+      ;(el as HTMLElement).style.lineHeight = '0'
+      ;(el as HTMLElement).style.overflow = 'hidden'
+      ;(el as HTMLElement).style.clip = 'rect(0, 0, 0, 0)'
+      ;(el as HTMLElement).style.clipPath = 'inset(50%)'
+    })
+
+    // 隐藏页面底部的多余字符
+    const removeExtraChars = () => {
+      // 查找包含多余字符的元素
+      const allElements = document.querySelectorAll('*')
+      allElements.forEach(el => {
+        const element = el as HTMLElement
+        if (element.textContent && element.textContent.includes('}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}')) {
+          element.remove()
+        }
+      })
+      
+      // 查找body下的直接子元素（除了#app）
+      const bodyDivs = document.querySelectorAll('body > div:not(#app)')
+      bodyDivs.forEach(el => {
+        (el as HTMLElement).style.display = 'none'
+        ;(el as HTMLElement).style.visibility = 'hidden'
+        ;(el as HTMLElement).style.opacity = '0'
+        ;(el as HTMLElement).style.position = 'absolute'
+        ;(el as HTMLElement).style.left = '-99999px'
+        ;(el as HTMLElement).style.top = '-99999px'
+        ;(el as HTMLElement).style.width = '0'
+        ;(el as HTMLElement).style.height = '0'
+        ;(el as HTMLElement).style.overflow = 'hidden'
+      })
+    }
+
+    // 使用MutationObserver监控DOM变化
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element
+              // 检查新添加的元素是否包含多余字符
+              if (element.textContent && element.textContent.includes('}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}')) {
+                element.remove()
+              }
+            }
+          })
+        }
+      })
+    })
+
+    // 监控body的变化
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    })
+
+    // 定期检查并隐藏这些元素（防止xterm.js重新创建）
+    const hideElements = () => {
+      const charElements = document.querySelectorAll('.xterm-char-measure-element')
+      charElements.forEach(el => {
+        (el as HTMLElement).style.display = 'none'
+        ;(el as HTMLElement).style.visibility = 'hidden'
+        ;(el as HTMLElement).textContent = ''
+      })
+
+      removeExtraChars()
+    }
+
+    // 立即执行一次
+    hideElements()
+    
+    // 每100ms检查一次
+    const intervalId = setInterval(hideElements, 100)
+    
+    // 在组件卸载时清理定时器和观察器
+    onUnmounted(() => {
+      clearInterval(intervalId)
+      observer.disconnect()
+    })
+  })
 })
 
 onUnmounted(() => {
-  if (pollingTimer.value) {
-    clearInterval(pollingTimer.value)
-    pollingTimer.value = null
+  if (ws) {
+    ws.close()
   }
-  readCursor.value = 0
+  if (term) {
+    term.dispose()
+  }
 })
 </script>
 
@@ -375,7 +535,7 @@ onUnmounted(() => {
 
         <!-- 终端输出区域 -->
         <section class="terminal-output-section">
-            <div class="terminal-window">
+          <div class="terminal-window">
             <!-- 终端标题栏 -->
             <div class="terminal-titlebar">
               <div class="window-controls">
@@ -393,19 +553,10 @@ onUnmounted(() => {
             </div>
 
             <!-- 终端容器 -->
-            <WebTerminal
-              ref="terminalRef"
-              :name="`terminal-${terminalId}`"
-              :context="terminal?.cwd || '~'"
-              context-suffix="$"
-              :show-header="false"
-              :enable-help-box="false"
-              :line-space="2"
-              theme="dark"
-              :log-size-limit="800"
+            <div 
+              id="terminal-container"
               class="terminal-container-wrapper"
-              @exec-cmd="(key, command, success, failed) => handleExecCommand(key, command, success, failed)"
-            />
+            ></div>
           </div>
         </section>
       </div>
@@ -665,5 +816,50 @@ onUnmounted(() => {
   flex: 1;
   padding: 1rem;
   background: #000000;
+}
+
+/* xterm.js样式覆盖 */
+:deep(.xterm) {
+  height: 100% !important;
+  background: #000000 !important;
+}
+
+:deep(.xterm-viewport) {
+  background: #000000 !important;
+}
+
+:deep(.xterm-screen) {
+  background: #000000 !important;
+}
+
+/* 隐藏xterm.js的辅助元素 */
+:deep(.xterm-helper-textarea) {
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+:deep(.xterm-char-measure-element) {
+  position: absolute !important;
+  left: -99999px !important;
+  top: -99999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  display: none !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  z-index: -9999 !important;
+}
+
+/* 隐藏页面底部可能的多余字符 */
+body > div:not(#app) {
+  display: none !important;
 }
 </style>

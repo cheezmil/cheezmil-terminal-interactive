@@ -903,13 +903,38 @@ button.p-button:has(.p-button-icon) .p-button-label {
   background: #27c93f;
 }
 
-/* Enable text selection inside vue-web-terminal / 允许在 vue-web-terminal 内选择文本 */
-.web-terminal,
-.web-terminal * {
-  user-select: text !important;
+/* xterm.js 优化样式 */
+.xterm {
+  background: #0a0a0a !important;
+  border-radius: 0 !important;
+  padding: 16px !important;
 }
-.web-terminal__body {
-  cursor: text;
+
+.xterm-viewport {
+  background: #0a0a0a !important;
+}
+
+.xterm-screen {
+  background: #0a0a0a !important;
+}
+
+/* 隐藏 xterm.js 辅助元素 */
+.xterm-helper-textarea,
+.xterm-char-measure-element {
+  position: absolute !important;
+  left: -99999px !important;
+  top: -99999px !important;
+    width: auto !important;
+    height: auto !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+    visibility: hidden !important;
+    display: block !important;
+    font-size: inherit !important;
+    line-height: normal !important;
+    z-index: -9999 !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
 }
 
 /* 动画定义 */
@@ -994,6 +1019,19 @@ button.p-button:has(.p-button-icon) .p-button-label {
     background: rgba(255, 255, 255, 0.1);
     border: 2px solid #ffffff;
   }
+}
+
+/* 隐藏页面底部的多余字符 */
+body > div:not(#app) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -99999px !important;
+  top: -99999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
 
 /* 奢华主题组件类库 / Luxury Theme Component Library */

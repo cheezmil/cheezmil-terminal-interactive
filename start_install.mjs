@@ -90,24 +90,32 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-// 跨平台删除依赖函数
+// 跨平台删除依赖函数 / Cross-platform dependency deletion helper
 async function deleteDependencies() {
     console.log('Deleting node_modules and package-lock.json...');
-    try {
-        const nodeModulesPath = path.join(PROJECT_DIR, 'node_modules');
-        if (fs.existsSync(nodeModulesPath)) {
-            // 使用Node.js内置方法删除目录（跨平台兼容）
+
+    // 尝试删除根目录依赖，如果失败则给出警告但不中断流程 / Try to delete root dependencies; warn on failure but do not abort
+    const nodeModulesPath = path.join(PROJECT_DIR, 'node_modules');
+    if (fs.existsSync(nodeModulesPath)) {
+        try {
             await fs.promises.rm(nodeModulesPath, { recursive: true, force: true });
-            console.log('node_modules has been deleted.');
+            console.log('root node_modules has been deleted.');
+        } catch (error) {
+            console.warn(
+                'Warning: failed to delete root node_modules, will continue to clean frontend dependencies. / 警告：删除根目录 node_modules 失败，将继续清理前端依赖。',
+                error
+            );
         }
-        
+    }
+    
+    try {
         const packageLockPath = path.join(PROJECT_DIR, 'package-lock.json');
         if (fs.existsSync(packageLockPath)) {
             await fs.promises.unlink(packageLockPath);
             console.log('package-lock.json has been deleted.');
         }
         
-        // 同时删除前端的依赖（如果存在）
+        // 同时删除前端的依赖（如果存在） / Also delete frontend dependencies if they exist
         const frontendNodeModulesPath = path.join(PROJECT_DIR, 'frontend', 'node_modules');
         if (fs.existsSync(frontendNodeModulesPath)) {
             await fs.promises.rm(frontendNodeModulesPath, { recursive: true, force: true });
@@ -122,8 +130,10 @@ async function deleteDependencies() {
         
         console.log('Old dependencies have been successfully cleaned up.');
     } catch (error) {
-        console.error('Error deleting dependencies:', error);
-        process.exit(1);
+        console.warn(
+            'Warning: failed to delete some dependencies, will continue installation. / 警告：删除部分依赖失败，将继续执行安装流程。',
+            error
+        );
     }
 }
 
@@ -142,11 +152,11 @@ function installDependencies() {
         if (code === 0) {
             console.log('Main project dependencies installed successfully.');
             
-            // 检查是否存在前端目录并安装前端依赖
+            // 检查是否存在前端目录并安装前端依赖 / Check frontend directory and install its dependencies
             const frontendDir = path.join(PROJECT_DIR, 'frontend');
             if (fs.existsSync(frontendDir)) {
-                console.log('Installing frontend dependencies...');
-                const frontendChild = spawn('npm', ['install'], {
+                console.log('Installing frontend dependencies (using --legacy-peer-deps for peer conflicts)... / 正在安装前端依赖（使用 --legacy-peer-deps 处理 peer 依赖冲突）');
+                const frontendChild = spawn('npm', ['install', '--legacy-peer-deps'], {
                     stdio: 'inherit',
                     shell: true,
                     cwd: frontendDir

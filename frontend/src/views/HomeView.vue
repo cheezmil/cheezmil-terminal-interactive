@@ -1,30 +1,48 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Terminal as WebTerminal } from 'vue-web-terminal'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'vue-sonner'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { DialogFooter } from '@/components/ui/dialog'
+import { Terminal } from 'xterm'
+import { FitAddon } from 'xterm-addon-fit'
+import { CanvasAddon } from 'xterm-addon-canvas'
+import { useTerminalStore as useTerminalStoreReal } from '../stores/terminal'
+// import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import SvgIcon from '@/components/ui/svg-icon.vue'
 
+// Temporary CanvasAddon stub to prevent early activation errors before Terminal.open
+// 临时 CanvasAddon 桩类，用于避免在调用 Terminal.open 之前激活导致的报错
+class CanvasAddonStub {
+  activate(_term: any) {}
+  dispose() {}
+}
+// Use stub instead of real CanvasAddon for now
+// 当前使用桩类替代真实 CanvasAddon
+const _unusedCanvasAddonStub: any = CanvasAddonStub
+
+const router = useRouter()
 const { t } = useI18n()
-const terminalStore = useTerminalStore()
+const terminalStore = useTerminalStoreReal()
+const { refreshTrigger } = storeToRefs(terminalStore)
 
 // Terminal management state / 终端管理状态
 const terminals = ref<any[]>([])
 const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
-const terminalRefs = ref<Map<string, any>>(new Map())
-const initializedTerminals = ref<Set<string>>(new Set())
-// Track incremental cursor per terminal to fetch only new output / 记录每个终端的游标，仅获取新增输出
-const terminalCursors = ref<Map<string, number>>(new Map())
-const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
-// Avoid overlapping fetches per terminal / 避免同一终端并发拉取
-const terminalLoading = ref<Set<string>>(new Set())
-const isPageVisible = ref(true)
+const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon | null, ws: WebSocket }>>(new Map())
 
 // Sidebar state / 侧边栏状态
 const isSidebarCollapsed = ref(false)
@@ -33,43 +51,26 @@ const isSidebarCollapsed = ref(false)
 let terminalsRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 // Computed properties / 计算属性
-const activeTerminal = computed(() =>
+const stats = computed(() => terminalStore.stats)
+const activeTerminal = computed(() => 
   terminals.value.find(t => t.id === activeTerminalId.value)
 )
-
-// Helper: cache terminal component refs / 缓存终端组件引用
-const setTerminalRef = (id: string, instance: any | null) => {
-  if (instance) {
-    terminalRefs.value.set(id, instance)
-  } else {
-    terminalRefs.value.delete(id)
-  }
-}
-
-// Helper: push output to vue-web-terminal / 将输出写入 vue-web-terminal
-const pushOutput = (terminalId: string, content: string) => {
-  const instance = terminalRefs.value.get(terminalId)
-  if (instance?.pushMessage) {
-    instance.pushMessage({ type: 'ansi', content })
-    if (instance.jumpToBottom) {
-      instance.jumpToBottom(true)
-    }
-  }
-}
 
 // Fetch terminals from API / 从API获取终端列表
 const fetchTerminals = async () => {
   try {
+    // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.list()
     if (!response.ok) {
       throw new Error('Failed to fetch terminals')
     }
     const data = await response.json()
-
+    
     const fetchedTerminals = data.terminals || []
     terminals.value = fetchedTerminals
     terminalStore.updateTerminals(fetchedTerminals)
-
+    
+    // Auto-select first terminal if none selected / 如果没有选中终端，自动选择第一个
     if (fetchedTerminals.length > 0 && !activeTerminalId.value) {
       activeTerminalId.value = fetchedTerminals[0].id
     }
@@ -83,137 +84,39 @@ const fetchTerminals = async () => {
   }
 }
 
-// Load terminal historical output / 加载终端历史输出
-const loadTerminalOutput = async (terminalId: string, options: { reset?: boolean } = {}) => {
-  try {
-    if (!isPageVisible.value) {
-      return
-    }
-    if (terminalLoading.value.has(terminalId)) {
-      return
-    }
-    terminalLoading.value.add(terminalId)
-    const isReset = options.reset === true
-    const sinceCursor = isReset ? 0 : (terminalCursors.value.get(terminalId) ?? 0)
-    const response = await terminalApi.readOutput(terminalId, {
-      mode: 'tail',
-      tailLines: 200,
-      maxLines: 300,
-      since: sinceCursor
-    })
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
-      return
-    }
-    const data = await response.json() as { output?: string; cursor?: number; since?: number }
-    const instance = terminalRefs.value.get(terminalId)
-    const nextCursor = typeof data.cursor === 'number' ? data.cursor : data.since
-
-    const hasNewCursor = typeof nextCursor === 'number' && Number.isFinite(nextCursor) && nextCursor > sinceCursor
-
-    if (!isReset && !hasNewCursor) {
-      return
-    }
-
-    if (isReset && instance?.clearLog) {
-      instance.clearLog(true)
-    }
-    if (data.output && data.output.length > 0) {
-      pushOutput(terminalId, data.output)
-    }
-    if (hasNewCursor) {
-      terminalCursors.value.set(terminalId, nextCursor)
-    }
-  } catch (error) {
-    console.error(`Failed to load output for terminal ${terminalId}:`, error)
-  } finally {
-    terminalLoading.value.delete(terminalId)
-  }
-}
-
-// Prepare terminal: load history and start polling / 准备终端：加载历史并开始轮询
-const ensureTerminalReady = async (terminalId: string) => {
-  if (!terminalId) return
-
-  await nextTick()
-  const instance = terminalRefs.value.get(terminalId)
-  if (!instance) return
-
-  const isFirstLoad = !initializedTerminals.value.has(terminalId)
-  if (isFirstLoad) {
-    await loadTerminalOutput(terminalId, { reset: true })
-    initializedTerminals.value.add(terminalId)
-  } else {
-    await loadTerminalOutput(terminalId)
-  }
-
-  // 开始轮询当前终端输出，避免 WS 导致卡死 / start polling current terminal output
-  if (pollingTimer.value) {
-    clearInterval(pollingTimer.value)
-    pollingTimer.value = null
-  }
-  pollingTimer.value = setInterval(() => {
-    if (activeTerminalId.value) {
-      loadTerminalOutput(activeTerminalId.value)
-    }
-  }, 2500)
-
-  if (instance.focus) {
-    instance.focus(true)
-  }
-}
-
-// Send terminal input via HTTP / 通过 HTTP 发送终端输入
-const sendTerminalInput = async (terminalId: string, input: string) => {
-  const response = await terminalApi.writeInput(terminalId, input, true)
-  if (!response.ok) {
-    throw new Error(`Failed to send input (${response.status})`)
-  }
-}
-
-// Handle command execution from vue-web-terminal / 处理 vue-web-terminal 的命令执行
-const handleExecCommand = async (
-  terminalId: string,
-  _key: string,
-  command: string,
-  success: (msg?: any) => void,
-  failed: (msg: string) => void
-) => {
-  try {
-    if (!command || command.trim().length === 0) {
-      success()
-      return
-    }
-    await sendTerminalInput(terminalId, command)
-    success({ type: 'cmdLine', content: command })
-  } catch (error: any) {
-    console.error(`Failed to send input to terminal ${terminalId}:`, error)
-    failed(error?.message || 'Failed to send input')
-  }
-}
 
 // Delete terminal / 删除终端
 const deleteTerminal = async (id: string) => {
   try {
-    initializedTerminals.value.delete(id)
-    terminalRefs.value.delete(id)
-    terminalCursors.value.delete(id)
-
+    // Close terminal instance first / 先关闭终端实例
+    const terminalInstance = terminalInstances.value.get(id)
+    if (terminalInstance) {
+      if (terminalInstance.ws) {
+        terminalInstance.ws.close()
+      }
+      if (terminalInstance.term) {
+        terminalInstance.term.dispose()
+      }
+      terminalInstances.value.delete(id)
+    }
+    
+    // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.delete(id)
+
     if (!response.ok) {
       throw new Error('Failed to delete terminal')
     }
 
     terminals.value = terminals.value.filter(t => t.id !== id)
     terminalStore.updateTerminals(terminals.value)
-
+    
+    // Select another terminal if the deleted one was active / 如果删除的是当前活跃终端，选择另一个
     if (activeTerminalId.value === id && terminals.value.length > 0) {
       activeTerminalId.value = terminals.value[0].id
     } else if (terminals.value.length === 0) {
       activeTerminalId.value = null
     }
-
+    
     toast.success(t('messages.terminalDeleted'))
   } catch (error) {
     console.error('Error deleting terminal:', error)
@@ -221,30 +124,303 @@ const deleteTerminal = async (id: string) => {
   }
 }
 
+// Initialize terminal instance / 初始化终端实例
+const initializeTerminal = async (terminalId: string) => {
+  if (terminalInstances.value.has(terminalId)) {
+    return // Already initialized / 已经初始化过了
+  }
+
+  try {
+    console.log(`Initializing terminal ${terminalId}...`)
+    
+    // Wait for DOM update and ensure element is attached / 等待DOM更新并确保元素已附加
+    await nextTick()
+    
+    // Wait additional time to ensure DOM is fully ready / 额外等待确保DOM完全准备好
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    const container = document.getElementById(`terminal-${terminalId}`)
+    console.log(`Looking for container with ID: terminal-${terminalId}`)
+    console.log(`Container found:`, container)
+    console.log(`Container attached to DOM:`, container && document.body.contains(container))
+    
+    if (!container) {
+      console.error(`Container not found for terminal ${terminalId}`)
+      return
+    }
+
+    // Verify container is in DOM / 验证容器在DOM中
+    if (!document.body.contains(container)) {
+      console.error(`Container not attached to DOM for terminal ${terminalId}`)
+      return
+    }
+
+    // Clear container completely / 完全清空容器
+    container.innerHTML = ''
+    container.style.display = 'block'
+    container.style.width = '100%'
+    container.style.height = '100%'
+    container.style.backgroundColor = '#000000'
+    
+    console.log('Container cleared and styled')
+
+    // Create xterm instance with VS Code-like fonts / 使用更接近 VS Code 的字体配置创建 xterm 实例
+    const term = new Terminal({
+      cursorBlink: true,
+      // Prefer JetBrains Mono & Microsoft YaHei for better CJK rendering
+      // 优先使用 JetBrains Mono 和微软雅黑，提升中英文混排效果
+      fontSize: 14,
+      fontFamily: 'JetBrains Mono, Consolas, "Courier New", "Microsoft YaHei", monospace',
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      theme: {
+        background: '#000000',
+        foreground: '#ffffff'
+      },
+      rows: 24,
+      cols: 80,
+      scrollback: 1000,
+      convertEol: true,
+      allowProposedApi: true
+    })
+
+    console.log('Terminal instance created:', term)
+
+    // Add FitAddon / 添加FitAddon
+    const fitAddon = new FitAddon()
+    term.loadAddon(fitAddon)
+    console.log('FitAddon loaded')
+
+    // Add CanvasAddon for better rendering / 添加CanvasAddon以获得更好的渲染效果
+    let canvasAddon: CanvasAddon | null = null
+    try {
+      canvasAddon = new CanvasAddon()
+      term.loadAddon(canvasAddon)
+      console.log('CanvasAddon loaded')
+    } catch (error) {
+      console.error('Failed to load CanvasAddon (will continue without it):', error)
+      canvasAddon = null
+    }
+
+    // Open terminal with delay to ensure DOM is ready / 延迟打开终端确保DOM准备好
+    await new Promise(resolve => setTimeout(resolve, 50))
+    term.open(container)
+    console.log('Terminal opened in container')
+    
+    // Fit terminal to container / 适配终端到容器
+    setTimeout(() => {
+      fitAddon.fit()
+      console.log('Terminal fitted to container')
+    }, 100)
+
+    // Write test content immediately / 立即写入测试内容
+    setTimeout(() => {
+      console.log('Writing test content...')
+      try {
+        // Disabled test content / 禁用测试内容
+        return
+        term.writeln('=== TERMINAL TEST ===')
+        term.writeln('Line 1: Terminal initialized successfully!')
+        term.writeln('Line 2: XTerm.js is working!')
+        term.writeln('Line 3: 中文测试')
+        term.writeln('')
+        term.write('$ Ready for input... ')
+        
+        // Force refresh / 强制刷新
+        term.refresh(0, term.rows - 1)
+        console.log('Test content written and terminal refreshed')
+        
+        // Verify content was written by checking the buffer
+        setTimeout(() => {
+          const buffer = term.buffer.active
+          console.log('Terminal buffer lines:', buffer.length)
+          console.log('First line content:', buffer.getLine(0)?.translateToString())
+          console.log('Second line content:', buffer.getLine(1)?.translateToString())
+        }, 50)
+        
+      } catch (error) {
+        console.error('Error writing test content:', error)
+      }
+    }, 200)
+
+    // Create WebSocket connection / 创建WebSocket连接
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    // Connect to backend port 1106 with /ws endpoint, not frontend port 1107 / 连接到后端端口1106的/ws端点，而不是前端端口1107
+    const wsUrl = `${protocol}//localhost:1106/ws`
+    const ws = new WebSocket(wsUrl)
+
+    // WebSocket event handlers / WebSocket事件处理
+    ws.onopen = () => {
+      console.log(`WebSocket connected for terminal ${terminalId}`)
+    }
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data)
+      if (message.terminalId === terminalId && message.type === 'output') {
+        term.write(message.data)
+      }
+    }
+
+    ws.onerror = (error) => {
+      console.error(`WebSocket error for terminal ${terminalId}:`, error)
+    }
+
+    ws.onclose = () => {
+      console.log(`WebSocket disconnected for terminal ${terminalId}`)
+    }
+
+    // Terminal data handling / 终端数据处理
+    term.onData((data) => {
+      sendTerminalInput(terminalId, data)
+    })
+
+    // Save instance / 保存实例
+    terminalInstances.value.set(terminalId, { term, fitAddon, canvasAddon, ws })
+    
+    // Also store reference on DOM element for debugging / 也在DOM元素上存储引用以便调试
+    container._xterm = term
+    container._terminalInstance = { term, fitAddon, canvasAddon, ws }
+    
+    // Store in global window object for easier access / 存储在全局window对象中以便更容易访问
+    if (!window.terminalDebugInstances) {
+      window.terminalDebugInstances = new Map()
+    }
+    window.terminalDebugInstances.set(terminalId, { term, fitAddon, canvasAddon, ws })
+    
+    console.log(`Terminal instance saved for ${terminalId}`)
+    console.log('Global terminal instances:', window.terminalDebugInstances)
+
+    // Load historical output after a delay / 延迟加载历史输出
+    setTimeout(async () => {
+      await loadTerminalOutput(terminalId)
+    }, 1000)
+
+    // Listen for window resize / 监听窗口大小变化
+    const resizeHandler = () => {
+      const instance = terminalInstances.value.get(terminalId)
+      if (instance) {
+        instance.fitAddon.fit()
+        // Also refresh canvas addon on resize / 在调整大小时也刷新canvas addon
+        if (instance.canvasAddon) {
+          instance.term.refresh(0, instance.term.rows - 1)
+        }
+      }
+    }
+    window.addEventListener('resize', resizeHandler)
+
+    console.log(`Terminal initialization completed for ${terminalId}`)
+
+  } catch (error) {
+    console.error(`Failed to initialize terminal ${terminalId}:`, error)
+  }
+}
+
+// Load terminal historical output / 加载终端历史输出
+const loadTerminalOutput = async (terminalId: string) => {
+  try {
+    console.log(`Loading output for terminal ${terminalId}...`)
+    
+    // Wait a bit for terminal instance to be fully initialized / 等待一小段时间以确保终端实例完全初始化
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Use dynamic API service / 使用动态API服务
+    const response = await terminalApi.readOutput(terminalId)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
+      throw new Error('Failed to load output')
+    }
+    const data = await response.json() as { output?: string }
+    console.log(`Output data for terminal ${terminalId}:`, data)
+
+    // 使用后端返回的完整输出内容，避免再次截断导致看不到真实历史
+    // Use full backend output directly to avoid over-truncation hiding real history
+    const output = data.output ?? ''
+
+    // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
+    if (!output || output.length === 0) {
+      console.log(`No historical output for terminal ${terminalId}, keep current content`)
+      return
+    }
+
+    // Get terminal instance and check if it's ready / 获取终端实例并检查是否就绪
+    let retries = 0
+    const maxRetries = 10
+    let instance = terminalInstances.value.get(terminalId)
+    
+    while ((!instance || !instance.term) && retries < maxRetries) {
+      console.log(`Waiting for terminal instance to be ready... (${retries + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      instance = terminalInstances.value.get(terminalId)
+      retries++
+    }
+    
+    if (instance && instance.term && output && output.length > 0) {
+      console.log(`Writing ${output.length} characters to terminal ${terminalId}`)
+      
+      // Clear terminal first and then write content
+      instance.term.clear()
+      instance.term.write(output)
+      
+      // Force terminal to refresh
+      instance.term.refresh(0, instance.term.rows - 1)
+      
+      console.log(`Terminal content written successfully`)
+    } else {
+      console.log(`No output available for terminal ${terminalId} or instance not ready`)
+      console.log(`Instance:`, !!instance)
+      console.log(`Term:`, !!(instance && instance.term))
+      console.log(`Output:`, !!(data && data.output))
+      
+      // If we have instance but no output, keep existing content / 没有历史输出时保持现有内容
+    }
+  } catch (error) {
+    console.error(`Failed to load output for terminal ${terminalId}:`, error)
+  }
+}
+
+// Send terminal input / 发送终端输入
+const sendTerminalInput = async (terminalId: string, input: string) => {
+  try {
+    // Use dynamic API service / 使用动态API服务
+    const response = await terminalApi.writeInput(terminalId, input)
+    
+    if (!response.ok) {
+      throw new Error('Failed to send input')
+    }
+  } catch (error) {
+    console.error(`Failed to send input to terminal ${terminalId}:`, error)
+  }
+}
+
 // Switch terminal / 切换终端
 const switchTerminal = (terminalId: string) => {
   activeTerminalId.value = terminalId
-  ensureTerminalReady(terminalId)
+  initializeTerminal(terminalId)
 }
 
-// Clear terminal content / 清空终端内容
+// Clear terminal / 清空终端
 const clearTerminal = (terminalId: string) => {
-  const instance = terminalRefs.value.get(terminalId)
-  if (instance?.clearLog) {
-    instance.clearLog(true)
-    instance.pushMessage?.({ type: 'normal', class: 'info', content: 'Terminal cleared / 终端已清空' })
+  const instance = terminalInstances.value.get(terminalId)
+  if (instance && instance.term) {
+    instance.term.clear()
   }
 }
 
 // Reconnect terminal / 重新连接终端
 const reconnectTerminal = (terminalId: string) => {
-  initializedTerminals.value.delete(terminalId)
-  terminalCursors.value.set(terminalId, 0)
-  if (pollingTimer.value) {
-    clearInterval(pollingTimer.value)
-    pollingTimer.value = null
+  // Close existing connection / 关闭现有连接
+  const instance = terminalInstances.value.get(terminalId)
+  if (instance && instance.ws) {
+    instance.ws.close()
   }
-  ensureTerminalReady(terminalId)
+  if (instance && instance.term) {
+    instance.term.dispose()
+  }
+  terminalInstances.value.delete(terminalId)
+  
+  // Re-initialize / 重新初始化
+  initializeTerminal(terminalId)
 }
 
 // Toggle sidebar / 切换侧边栏
@@ -253,6 +429,19 @@ const toggleSidebar = () => {
 }
 
 // Helper functions / 辅助函数
+const getStatusSeverity = (status: string) => {
+  switch (status) {
+    case 'active':
+      return 'success'
+    case 'inactive':
+      return 'warning'
+    case 'terminated':
+      return 'danger'
+    default:
+      return 'info'
+  }
+}
+
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
     case 'active':
@@ -266,50 +455,47 @@ const getStatusBadgeVariant = (status: string) => {
   }
 }
 
+
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
-
+  
   if (diffMins < 1) return t('home.justNow')
   if (diffMins < 60) return `${diffMins} ${t('home.minutesAgo')}`
-
+  
   const diffHours = Math.floor(diffMins / 60)
   if (diffHours < 24) return `${diffHours} ${t('home.hoursAgo')}`
-
+  
   const diffDays = Math.floor(diffHours / 24)
   return `${diffDays} ${t('home.daysAgo')}`
 }
 
-watch(() => activeTerminalId.value, (newId) => {
-  if (newId) {
-    ensureTerminalReady(newId)
-  }
+// Watchers / 监听器
+watch(refreshTrigger, () => {
+  fetchTerminals()
 })
 
-// Watch terminal list changes, auto-select first / 监听终端列表变化，自动选中首个终端
-watch(terminals, (newTerminals) => {
-  if (newTerminals.length > 0 && !activeTerminalId.value) {
-    activeTerminalId.value = newTerminals[0].id
+watch(() => activeTerminalId.value, (newId) => {
+  if (newId) {
+    initializeTerminal(newId)
   }
-}, { deep: true })
+})
 
 // Lifecycle hooks / 生命周期钩子
 onMounted(async () => {
   try {
-    const handleVisibility = () => {
-      isPageVisible.value = !document.hidden
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
+    // Initialize API service first / 首先初始化API服务
     await initializeApiService()
     console.log('API service initialized, fetching terminals...')
     fetchTerminals()
 
-    // 清理监听器
-    onUnmounted(() => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-    })
+    // Start periodic refresh to detect newly created terminals automatically
+    // 启动周期性刷新以自动检测新创建的终端
+    terminalsRefreshTimer = setInterval(() => {
+      terminalStore.refreshTerminals()
+    }, 5000)
   } catch (error) {
     console.error('Failed to initialize API service:', error)
     toast.error('Failed to initialize API service')
@@ -318,19 +504,30 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (pollingTimer.value) {
-    clearInterval(pollingTimer.value)
-    pollingTimer.value = null
-  }
-  initializedTerminals.value.clear()
-  terminalRefs.value.clear()
-  terminalCursors.value.clear()
+  // Clean up all terminal instances / 清理所有终端实例
+  terminalInstances.value.forEach((instance) => {
+    if (instance.ws) {
+      instance.ws.close()
+    }
+    if (instance.term) {
+      instance.term.dispose()
+    }
+  })
+  terminalInstances.value.clear()
 
+  // Clear periodic refresh timer / 清理终端列表刷新定时器
   if (terminalsRefreshTimer) {
     clearInterval(terminalsRefreshTimer)
     terminalsRefreshTimer = null
   }
 })
+
+// Watch terminal list changes, auto-initialize new terminals / 监听终端列表变化，自动初始化新终端
+watch(terminals, (newTerminals) => {
+  if (newTerminals.length > 0 && !activeTerminalId.value) {
+    activeTerminalId.value = newTerminals[0].id
+  }
+}, { deep: true })
 </script>
 
 <template>
@@ -520,24 +717,15 @@ onUnmounted(() => {
 
           <!-- Luxury terminal content / 奢华终端内容 - 占满剩余空间 -->
           <div class="flex-1 luxury-terminal-container overflow-hidden">
-            <!-- Only render active terminal to reduce resource usage / 仅渲染当前活跃终端以减少资源占用 -->
-            <WebTerminal
-              v-if="activeTerminal"
-              :key="activeTerminal.id"
-              :name="`terminal-${activeTerminal.id}`"
-              :context="activeTerminal.cwd || '~'"
-              context-suffix="$"
-              :show-header="false"
-              :enable-help-box="false"
-              :line-space="2"
-              theme="dark"
-              :log-size-limit="800"
+            <!-- Render a dedicated container for each terminal and toggle visibility by activeTerminalId -->
+            <!-- 为每个终端渲染独立容器，通过 activeTerminalId 切换可见性 -->
+            <div
+              v-for="terminal in terminals"
+              :key="terminal.id"
+              v-show="terminal.id === activeTerminalId"
+              :id="`terminal-${terminal.id}`"
               class="w-full h-full luxury-terminal-viewport"
-              @exec-cmd="(key, command, success, failed) => handleExecCommand(activeTerminal.id, key, command, success, failed)"
-              @on-click="() => switchTerminal(activeTerminal.id)"
-              @on-active="() => switchTerminal(activeTerminal.id)"
-              :ref="(el) => setTerminalRef(activeTerminal.id, el)"
-            />
+            ></div>
           </div>
         </div>
       </main>
@@ -761,6 +949,47 @@ onUnmounted(() => {
   border: 1px solid rgba(212, 175, 55, 0.1) !important;
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5) !important;
 }
+
+/* Luxury xterm.js styles / 奢华xterm.js样式 */
+:deep(.xterm) {
+  height: 100% !important;
+  background: var(--jet-black) !important;
+  border-radius: 0.75rem !important;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace !important;
+  color: #ffffff !important;
+}
+
+:deep(.xterm-viewport) {
+  background: var(--jet-black) !important;
+  border-radius: 0.75rem !important;
+}
+
+:deep(.xterm-screen) {
+  background: var(--jet-black) !important;
+  border-radius: 0.75rem !important;
+}
+
+:deep(.xterm-selection) {
+  background: var(--luxury-gold) !important;
+  opacity: 0.3 !important;
+}
+
+/* Ensure xterm-rows is visible / 确保xterm-rows可见 */
+:deep(.xterm-rows) {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+:deep(.xterm-rows > div) {
+  display: block !important;
+  height: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #ffffff !important;
+}
+
+/* Hide xterm.js helper elements / 隐藏xterm.js辅助元素 */
+/* Let global styles and xterm defaults handle helper elements to avoid breaking measurement */
 
 /* Luxury animations / 奢华动画 */
 @keyframes luxury-shimmer {
