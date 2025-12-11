@@ -195,7 +195,8 @@ onMounted(async () => {
 
 <template>
   <div class="settings-page h-screen bg-jet-black text-text-primary relative luxury-settings-container flex flex-col">
-    <Toaster />
+    <!-- Settings toast container at top center / 设置页顶部居中的消息提示容器 -->
+    <Toaster position="top-center" />
     <AlertDialog :open="showResetDialog" @update:open="showResetDialog = $event">
       <AlertDialogContent>
         <AlertDialogHeader>

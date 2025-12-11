@@ -21,12 +21,7 @@ const initTerminal = (el: HTMLDivElement) => {
   // Use similar font settings as main view / 使用与主界面相同的字体设置
   term = new Terminal({
     cursorBlink: true,
-    // Classic terminal font stack for consistent spacing / 使用经典终端字体栈以获得一致的字符间距
-    fontFamily: 'Monaco, Menlo, Consolas, "Courier New", monospace',
     fontSize: 12,
-    lineHeight: 1.2,
-    // Slightly tighten spacing to avoid “gap” feeling / 略微收紧字符间距以避免“多一个空格”的观感
-    letterSpacing: -1,
     convertEol: true,
     scrollback: 1000,
     theme: {

@@ -2,7 +2,7 @@
 Node.js 版本正确: v20.19.5
 Warning: .env.example file not found
 Searching for backend processes occupying the port...
-找到 23 个node进程:
+找到 21 个node进程:
   PID 13388: node  "D:\CodeRelated\frp\frps_12100\start_frps_12100.mjs"        
   PID 18008: node  syncthing_launcher.js
   PID 7152: node  "D:\CodeRelated\ElectronProjects\xdx_toolbox\start_fe_dev_xdx_toolbox.mjs"        
@@ -20,12 +20,10 @@ Searching for backend processes occupying the port...
   PID 7332: node  dist/src/index.js
   PID 45916: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
   PID 44364: "C:\Users\xdx\AppData\Local\fnm_multishells\8388_1765438279786\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
-  PID 28500: "C:\Users\xdx\AppData\Local\fnm_multishells\16440_1765443778995\node.exe" start_fe_cheestard-terminal-interactive.mjs
-  PID 20324: "C:\Users\xdx\AppData\Local\fnm_multishells\16440_1765443778995\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\16440_1765443778995\node_modules\npm\bin\npm-cli.js" run preview
-  PID 24868: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
-  PID 2592: "C:\Users\xdx\AppData\Local\fnm_multishells\44412_1765444497969\node.exe" start_be_cheestard-terminal-interactive.mjs
-  PID 45312: node  dist/http-server.js
-  PID 13832: "C:\Users\xdx\AppData\Local\fnm_multishells\44412_1765444497969\node.exe" start_be_cheestard-terminal-interactive.mjs
+  PID 29824: "C:\Users\xdx\AppData\Local\fnm_multishells\49548_1765462817256\node.exe" start_fe_cheestard-terminal-interactive.mjs
+  PID 47800: "C:\Users\xdx\AppData\Local\fnm_multishells\49548_1765462817256\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\49548_1765462817256\node_modules\npm\bin\npm-cli.js" run preview
+  PID 47456: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+  PID 15404: "C:\Users\xdx\AppData\Local\fnm_multishells\42736_1765463096357\node.exe" start_be_cheestard-terminal-interactive.mjs
 
 检查进程 13388: node  "d:\coderelated\frp\frps_12100\start_frps_12100.mjs"        
   -> 匹配相关文件: false
@@ -80,45 +78,15 @@ Searching for backend processes occupying the port...
 检查进程 44364: "c:\users\xdx\appdata\local\fnm_multishells\8388_1765438279786\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
   -> 跳过系统进程
 
-检查进程 28500: "c:\users\xdx\appdata\local\fnm_multishells\16440_1765443778995\node.exe" start_fe_cheestard-terminal-interactive.mjs
+检查进程 29824: "c:\users\xdx\appdata\local\fnm_multishells\49548_1765462817256\node.exe" start_fe_cheestard-terminal-interactive.mjs
   -> 匹配相关文件: false
 
-检查进程 20324: "c:\users\xdx\appdata\local\fnm_multishells\16440_1765443778995\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\16440_1765443778995\node_modules\npm\bin\npm-cli.js" run preview
+检查进程 47800: "c:\users\xdx\appdata\local\fnm_multishells\49548_1765462817256\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\49548_1765462817256\node_modules\npm\bin\npm-cli.js" run preview
   -> 跳过系统进程
 
-检查进程 24868: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+检查进程 47456: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
   -> 跳过系统进程
-
-检查进程 2592: "c:\users\xdx\appdata\local\fnm_multishells\44412_1765444497969\node.exe" start_be_cheestard-terminal-interactive.mjs
-  -> 匹配相关文件: true
-  -> 将被标记为目标进程进行清理
-
-检查进程 45312: node  dist/http-server.js
-  -> 匹配相关文件: true
-  -> 缺少项目关键词，跳过
-Found 1 related processes, terminating...
-Terminating process PID: 2592 (attempt 1/3)
-Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\44412_1765444497969\node.exe" start_be_cheestard-termina...
-Warning: Failed to terminate process 2592: Command execution failed, exit code: 128
-Error: ERROR: The process with PID 45312 (child process of PID 28884) could not be terminated.
-Reason: This process can only be terminated forcefully (with /F option).
-ERROR: The process with PID 28884 (child process of PID 2592) could not be terminated.
-Reason: One or more child processes of this process were still running.
-ERROR: The process with PID 2592 (child process of PID 39188) could not be terminated.
-Reason: One or more child processes of this process were still running.
-System.Management.Automation.RemoteException
-Attempt 1 failed for process 2592: Command execution failed, exit code: 128
-Error: ERROR: The process with PID 45312 (child process of PID 28884) could not be terminated.
-Reason: This process can only be terminated forcefully (with /F option).
-ERROR: The process with PID 28884 (child process of PID 2592) could not be terminated.
-Reason: One or more child processes of this process were still running.
-ERROR: The process with PID 2592 (child process of PID 39188) could not be terminated.
-Reason: One or more child processes of this process were still running.
-System.Management.Automation.RemoteException
-Terminating process PID: 2592 (attempt 2/3)
-Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\44412_1765444497969\node.exe" start_be_cheestard-termina...
-Process 2592 terminated successfully
-Process termination completed: 1 successful, 0 failed
+No related processes found occupying the port
 Starting backend server...
 [HTTP-MCP-INFO] Starting Cheestard Terminal Interactive Streamable HTTP MCP Server...
 [HTTP-MCP-INFO] Disabled MCP tools via config: fix_bug_with_codex
@@ -153,45 +121,12 @@ __dirname: D:\CodeRelated\cheestard-terminal-interactive\dist
 [MCP-INFO] Tool "fix_bug_with_codex" is disabled
 [MCP-INFO] Services auto-start disabled to prevent recursion
 [HTTP-MCP-INFO] MCP server connected to transport
-[HTTP-MCP-INFO] Session initialized: c8b207ee-4cba-4b55-ad3f-d9b992e0d5b7
-[HTTP-MCP-INFO] Reusing existing session: c8b207ee-4cba-4b55-ad3f-d9b992e0d5b7
-[HTTP-MCP-INFO] Reusing existing session: c8b207ee-4cba-4b55-ad3f-d9b992e0d5b7
-[HTTP-MCP-INFO] Reusing existing session: c8b207ee-4cba-4b55-ad3f-d9b992e0d5b7
+[HTTP-MCP-INFO] Session initialized: b087b529-f247-4f76-b091-0903314e8b34
+[HTTP-MCP-INFO] Reusing existing session: b087b529-f247-4f76-b091-0903314e8b34
+[HTTP-MCP-INFO] Reusing existing session: b087b529-f247-4f76-b091-0903314e8b34
+[HTTP-MCP-INFO] Reusing existing session: b087b529-f247-4f76-b091-0903314e8b34
 Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: print-terminal (PID: 37052)
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: c8b207ee-4cba-4b55-ad3f-d9b992e0d5b7
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: c8b207ee-4cba-4b55-ad3f-d9b992e0d5b7
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
+[MCP-INFO] Terminal created: print-terminal (PID: 28212)
 [WEB-UI] WebSocket client connected
 [WEB-UI] WebSocket client disconnected
 [WEB-UI] WebSocket client connected

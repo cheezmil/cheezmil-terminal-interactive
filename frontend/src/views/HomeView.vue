@@ -164,15 +164,11 @@ const initializeTerminal = async (terminalId: string) => {
     
     console.log('Container cleared and styled')
 
-    // Create xterm instance with 1Panel-like metrics / 使用接近 1Panel 的字体与度量创建 xterm 实例
+    // Create xterm instance with default monospace metrics / 使用 xterm 默认等宽字体度量创建 xterm 实例
     const term = new Terminal({
       cursorBlink: true,
-      // Use classic terminal font stack for better spacing / 使用经典终端字体栈以获得更自然的字符间距
+      // Keep only basic size and let xterm.js pick its own monospace stack / 只保留字号，让 xterm.js 自己选择等宽字体栈
       fontSize: 12,
-      fontFamily: 'Monaco, Menlo, Consolas, "Courier New", monospace',
-      lineHeight: 1.2,
-      // Slightly tighten spacing to avoid “extra space between letters” / 略微收紧字符间距，避免看起来像是字母间多了一个空格
-      letterSpacing: -1,
       theme: {
         background: '#000000',
         foreground: '#ffffff'
@@ -498,7 +494,8 @@ onMounted(async () => {
     }, 5000)
   } catch (error) {
     console.error('Failed to initialize API service:', error)
-    toast.error('Failed to initialize API service')
+    // Show a clear bilingual toast when API init fails / 当 API 初始化失败时显示清晰的中英文提示
+    toast.error('Failed to initialize API service / 无法初始化后端 API 服务，请确认 1106 端口的后端已启动。')
     isLoading.value = false
   }
 })
@@ -531,8 +528,9 @@ watch(terminals, (newTerminals) => {
 </script>
 
 <template>
-  <div class="h-screen luxury-home-container flex flex-col overflow-hidden">
-    <Toaster />
+  <div class="luxury-home-container flex flex-col overflow-hidden">
+    <!-- Global toast container at top center / 顶部居中的全局消息提示容器 -->
+    <Toaster position="top-center" />
     
     <!-- Luxury loading state / 奢华加载状态 -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">
@@ -737,6 +735,7 @@ watch(terminals, (newTerminals) => {
 /* Luxury home container / 奢华主容器 */
 .luxury-home-container {
   background: var(--jet-black);
+  min-height: 100%;
 }
 
 /* Luxury sidebar / 奢华侧边栏 */
@@ -884,6 +883,9 @@ watch(terminals, (newTerminals) => {
 .luxury-main-content {
   background: var(--jet-black);
   position: relative;
+  /* Add slight padding to keep inner headers visually separated from the global top navigation
+     为内部终端头部增加适当内边距，避免被全局顶部导航在视觉上压住 */
+  padding-top: 0.75rem;
 }
 
 /* Luxury terminal header / 奢华终端头部 */
@@ -974,15 +976,13 @@ watch(terminals, (newTerminals) => {
   opacity: 0.3 !important;
 }
 
-/* Ensure xterm-rows is visible / 确保xterm-rows可见 */
+/* Ensure xterm-rows text remains visible without breaking xterm layout engine
+   在不破坏 xterm 布局引擎的前提下，确保 xterm-rows 文本可见 */
 :deep(.xterm-rows) {
-  position: relative !important;
   z-index: 1 !important;
 }
 
 :deep(.xterm-rows > div) {
-  display: block !important;
-  height: auto !important;
   visibility: visible !important;
   opacity: 1 !important;
   color: #ffffff !important;

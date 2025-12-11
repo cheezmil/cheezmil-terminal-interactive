@@ -53,10 +53,6 @@ const setupTerminal = () => {
     term = new Terminal({
       cursorBlink: true,
       fontSize: 12,
-      fontFamily: 'Monaco, Menlo, Consolas, "Courier New", monospace',
-      lineHeight: 1.2,
-      // Slightly tighten spacing for better readability / 略微收紧字符间距以提升可读性
-      letterSpacing: -1,
       theme: {
         background: '#000000',
         foreground: '#ffffff',

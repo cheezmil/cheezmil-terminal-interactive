@@ -5,23 +5,7 @@
 @source "./src/**/*.{vue,js,ts,jsx,tsx}";
 @source "./index.html";
 
-/* JetBrains Mono webfont for terminal / 终端专用 JetBrains Mono Web 字体 */
-@font-face {
-  font-family: "CTIJetBrainsMono";
-  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* DejaVu Sans Mono webfont for terminal / 终端专用 DejaVu Sans Mono 字体 */
-@font-face {
-  font-family: "CTIDejaVuSansMono";
-  src: url("/fonts/DejaVuSansMono.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* NOTE: Terminal fonts now rely on xterm.js default monospace stack / 说明：终端字体改为使用 xterm.js 默认等宽字体栈 */
 
 /* TailwindCSS v4 自定义颜色定义 / TailwindCSS v4 custom color definitions */
 @theme {
@@ -1292,12 +1276,4 @@ body > div:not(#app) {
 
 .animate-luxury-pulse {
   animation: luxury-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-/* JetBrains Mono webfont for terminal / 终端专用 JetBrains Mono Web 字体 */
-@font-face {
-  font-family: "CTIJetBrainsMono";
-  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
 }
