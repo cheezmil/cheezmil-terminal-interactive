@@ -164,18 +164,40 @@ const initializeTerminal = async (terminalId: string) => {
     
     console.log('Container cleared and styled')
 
-    // Create xterm instance with default monospace metrics / 使用 xterm 默认等宽字体度量创建 xterm 实例
+    // Create xterm instance with VS Code-like defaults / 使用接近 VS Code 的默认配置创建 xterm 实例
     const term = new Terminal({
       cursorBlink: true,
-      // Keep only basic size and let xterm.js pick its own monospace stack / 只保留字号，让 xterm.js 自己选择等宽字体栈
+      // VS Code-like monospace font stack / 类似 VS Code 的等宽字体栈
+      fontFamily: '"Cascadia Code", Menlo, Monaco, Consolas, "Courier New", monospace',
       fontSize: 12,
+      lineHeight: 1.1,
       theme: {
-        background: '#000000',
-        foreground: '#ffffff'
+        // VS Code dark terminal inspired theme / 借鉴 VS Code 深色终端配色
+        background: '#111827',
+        foreground: '#e5e7eb',
+        cursor: '#facc15',
+        cursorAccent: '#111827',
+        selection: '#374151',
+        black: '#000000',
+        red: '#f87171',
+        green: '#34d399',
+        yellow: '#facc15',
+        blue: '#60a5fa',
+        magenta: '#c4b5fd',
+        cyan: '#22d3ee',
+        white: '#e5e7eb',
+        brightBlack: '#6b7280',
+        brightRed: '#fca5a5',
+        brightGreen: '#86efac',
+        brightYellow: '#fde68a',
+        brightBlue: '#93c5fd',
+        brightMagenta: '#e9d5ff',
+        brightCyan: '#67e8f9',
+        brightWhite: '#ffffff'
       },
       rows: 24,
       cols: 80,
-      scrollback: 1000,
+      scrollback: 2000,
       convertEol: true,
       allowProposedApi: true
     })
