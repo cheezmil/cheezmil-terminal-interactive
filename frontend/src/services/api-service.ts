@@ -176,11 +176,12 @@ export const terminalApi = {
     const endpoint = getEndpoint('terminals', 'read').replace(':id', id);
     const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     const params = new URLSearchParams();
-    if (options?.since) params.append('since', options.since.toString());
-    if (options?.maxLines) params.append('maxLines', options.maxLines.toString());
+    // Ensure zero values are not skipped / 确保0值不会被跳过
+    if (options?.since !== undefined) params.append('since', options.since.toString());
+    if (options?.maxLines !== undefined) params.append('maxLines', options.maxLines.toString());
     if (options?.mode) params.append('mode', options.mode);
-    if (options?.headLines) params.append('headLines', options.headLines.toString());
-    if (options?.tailLines) params.append('tailLines', options.tailLines.toString());
+    if (options?.headLines !== undefined) params.append('headLines', options.headLines.toString());
+    if (options?.tailLines !== undefined) params.append('tailLines', options.tailLines.toString());
     if (options?.stripSpinner !== undefined) params.append('stripSpinner', options.stripSpinner.toString());
     
     const finalUrl = params.toString() ? `${url}?${params.toString()}` : url;

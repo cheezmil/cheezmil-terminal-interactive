@@ -42,8 +42,9 @@ export default defineConfig({
               id.includes('node_modules/lucide-vue-next')) {
             return 'shadcn-vendor'
           }
-          // 将xterm相关库分离到单独的块
-          if (id.includes('node_modules/xterm')) {
+          // 将终端相关库分离到单独的块 / Split terminal libs to dedicated chunk
+          if (id.includes('node_modules/vue-web-terminal') ||
+              id.includes('node_modules/vue-json-viewer')) {
             return 'terminal-vendor'
           }
         }
