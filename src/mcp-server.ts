@@ -421,49 +421,56 @@ Fix tool: OpenAI Codex
   private setupTools(): void {
     // 统一终端交互工具
     if (!this.isToolDisabled('interact_with_terminal')) {
-      this.server.tool(
-        'interact_with_terminal',
-        `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。也可以列出所有活跃的终端会话。`,
-      {
-        // 列出终端参数
+      // 由于该工具参数较多，完全类型推导会导致 TypeScript 提示“Type instantiation is excessively deep”错误
+      // Because this tool has many parameters, full type inference can trigger the TypeScript “Type instantiation is excessively deep” error
+      const interactWithTerminalSchema: any = {
+        // 列出终端参数 / Parameters for listing terminals
         listTerminals: z.boolean().optional().describe('List all active terminal sessions. When true, ignores other parameters and returns list of all terminals.'),
         
-        // 终止终端参数
+        // 终止终端参数 / Parameters for terminating terminal
         killTerminal: z.boolean().optional().describe('Terminate the specified terminal session. When true, ignores other parameters except terminalId and kills the terminal.'),
         signal: z.string().optional().describe('Signal to send for termination (default: SIGTERM, only used when killTerminal is true)'),
         
-        // 终端创建参数
+        // 终端创建参数 / Parameters for creating terminal
         terminalId: z.string().optional().describe('Terminal ID for identification. If terminal does not exist, it will be created automatically.'),
         shell: z.string().optional().describe('Shell to use (default: system default, only used when creating new terminal)'),
         cwd: z.string().optional().describe('Working directory (default: current directory, only used when creating new terminal)'),
         env: z.record(z.string()).optional().describe('Environment variables (only used when creating new terminal)'),
         
-        // 终端操作参数
+        // 终端操作参数 / Parameters for writing to terminal
         input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
         appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
         waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.'),
         
-        // 特殊操作参数 - Special operation parameters
-        specialOperation: z.enum(['ctrl_c', 'ctrl_z', 'ctrl_d']).optional().describe('Special operation to send to terminal (e.g., ctrl_c for interrupt). Use this instead of typing "Ctrl+C" in input field.'),
+        // 特殊操作参数 / Special operation parameters
+        specialOperation: z.enum(['ctrl_c', 'ctrl_z', 'ctrl_d']).optional().describe('Special operation to send to terminal (e.g., ctrl_c for interrupt). Use this instead of typing \"Ctrl+C\" in input field.'),
         
-        // 读取参数
+        // 读取参数 / Parameters for reading from terminal
         since: z.number().optional().describe('Line number to start reading from (default: 0)'),
         maxLines: z.number().optional().describe('Maximum number of lines to read (default: 1000)'),
         mode: z.enum(['full', 'head', 'tail', 'head-tail', 'smart']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), head-tail (first + last N lines), or smart (automatically choose best mode)'),
         headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
         tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
         stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)')
-      },
+      };
+
+      // 这里将 server 强制为 any，以避免复杂泛型导致的深度类型实例化问题
+      // Here we cast server to any to avoid deep generic instantiation issues
+      (this.server as any).tool(
+        'interact_with_terminal',
+        `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。也可以列出所有活跃的终端会话。`,
+        interactWithTerminalSchema,
       {
         title: 'Interact with Terminal',
         readOnlyHint: false
       },
-      async ({
-        listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
-        input, appendNewline, waitForOutput,
-        since, maxLines, mode, headLines, tailLines, stripSpinner,
-        specialOperation
-      }): Promise<CallToolResult> => {
+      async (args: any): Promise<CallToolResult> => {
+        const {
+          listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
+          input, appendNewline, waitForOutput,
+          since, maxLines, mode, headLines, tailLines, stripSpinner,
+          specialOperation
+        } = args;
         try {
           // 如果请求列出所有终端，则执行list操作并返回
           if (listTerminals) {
@@ -803,7 +810,29 @@ Fix tool: OpenAI Codex
 
     // Codex Bug Fix Tool
     if (!this.isToolDisabled('fix_bug_with_codex')) {
-      this.server.tool(
+      // 同样对 Codex 修复工具减少类型推导复杂度，避免深度类型实例化问题
+      // Similarly, reduce type inference complexity for Codex fix tool to avoid deep type instantiation issues
+      const fixBugWithCodexSchema: any = {
+        description: z.string().describe(`DETAILED bug description for Codex.
+
+MUST INCLUDE:
+- Problem symptoms (what's broken)
+- Expected behavior (what should happen)
+- Problem location (file paths, line numbers)
+- Related code snippets
+- Root cause (if known)
+- Fix suggestions (if any)
+- Impact scope (what else might be affected)
+- Related files (all relevant file paths)
+- Test cases (how to verify the fix)
+- Context (background information)
+
+The more detailed, the better the fix!`),
+        cwd: z.string().optional().describe('Working directory (default: current directory)'),
+        timeout: z.number().optional().describe('Timeout in milliseconds (default: 600000 = 10 minutes)')
+      };
+
+      (this.server as any).tool(
         'fix_bug_with_codex',
         `Use OpenAI Codex CLI to automatically fix bugs with FULL SYSTEM ACCESS.
 
@@ -904,30 +933,13 @@ Before calling this tool, gather as much information as possible:
 - Check relevant files
 - Understand the expected behavior
 - Review recent changes that might have caused the bug`,
-      {
-        description: z.string().describe(`DETAILED bug description for Codex.
-
-MUST INCLUDE:
-- Problem symptoms (what's broken)
-- Expected behavior (what should happen)
-- Problem location (file paths, line numbers)
-- Related code snippets
-- Root cause (if known)
-- Fix suggestions (if any)
-- Impact scope (what else might be affected)
-- Related files (all relevant file paths)
-- Test cases (how to verify the fix)
-- Context (background information)
-
-The more detailed, the better the fix!`),
-        cwd: z.string().optional().describe('Working directory (default: current directory)'),
-        timeout: z.number().optional().describe('Timeout in milliseconds (default: 600000 = 10 minutes)')
-      },
+      fixBugWithCodexSchema,
       {
         title: 'Fix Bug with Codex (Full Access)',
         readOnlyHint: false
       },
-      async ({ description, cwd, timeout }): Promise<CallToolResult> => {
+      async (args: any): Promise<CallToolResult> => {
+        const { description, cwd, timeout } = args;
         const params: { description: string; cwd?: string; timeout?: number } = { description };
         if (cwd) params.cwd = cwd;
         if (timeout) params.timeout = timeout;

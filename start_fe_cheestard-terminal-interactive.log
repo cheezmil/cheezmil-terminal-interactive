@@ -1,8 +1,9 @@
 Warning: .env.example file not found
 Searching for frontend processes occupying the port...
-Found 1 processes using port 1107, terminating...
-Terminating node process PID: 9104
-Process 9104 terminated successfully
+Found 2 processes using port 1107, terminating...
+Terminating node process PID: 45104
+Process 45104 terminated successfully
+Skipping non-node process PID: 0
 Starting frontend production server...
 
 > frontend@0.0.0 preview
@@ -10,3 +11,6 @@ Starting frontend production server...
 
   ➜  Local:   http://localhost:1107/
   ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+^CFrontend production server exited with code 3221225786
+Terminate batch job (Y/N)? 
