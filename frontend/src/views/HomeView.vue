@@ -213,7 +213,6 @@ const initializeTerminal = async (terminalId: string) => {
       // VS Code-like monospace font stack / 类似 VS Code 的等宽字体栈
       fontFamily: '"Cascadia Code", Menlo, Monaco, Consolas, "Courier New", monospace',
       fontSize: 12,
-      lineHeight: 1.1,
       theme: {
         // VS Code dark terminal inspired theme / 借鉴 VS Code 深色终端配色
         background: '#111827',
@@ -252,16 +251,9 @@ const initializeTerminal = async (terminalId: string) => {
     term.loadAddon(fitAddon)
     console.log('FitAddon loaded')
 
-    // Add CanvasAddon for better rendering / 添加CanvasAddon以获得更好的渲染效果
-    let canvasAddon: CanvasAddon | null = null
-    try {
-      canvasAddon = new CanvasAddon()
-      term.loadAddon(canvasAddon)
-      console.log('CanvasAddon loaded')
-    } catch (error) {
-      console.error('Failed to load CanvasAddon (will continue without it):', error)
-      canvasAddon = null
-    }
+    // For maximum selection accuracy we avoid CanvasAddon here and keep DOM renderer only
+    // 为了保证文本选择的精确性，这里不加载 CanvasAddon，仅使用默认 DOM 渲染器
+    const canvasAddon: CanvasAddon | null = null
 
     // Open terminal with delay to ensure DOM is ready / 延迟打开终端确保DOM准备好
     await new Promise(resolve => setTimeout(resolve, 50))

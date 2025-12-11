@@ -907,9 +907,10 @@ button.p-button:has(.p-button-icon) .p-button-label {
 
 /* xterm.js global styles (visual only) / xterm.js 全局样式优化（仅视觉相关，不影响字体度量） */
 .xterm {
+  /* 仅控制背景，不修改内边距和字体度量，避免影响选择坐标
+     Only control background here; do not change padding or font metrics to avoid breaking selection coordinates */
   background: #000000 !important;
   border-radius: 0 !important;
-  padding: 8px !important;
 }
 
 .xterm-viewport,

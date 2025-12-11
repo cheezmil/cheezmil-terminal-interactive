@@ -188,10 +188,10 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-/* Ensure xterm text is visible (visual only) / 确保 xterm 文本可见（仅视觉相关） */
+/* Ensure xterm text is visible (visual only) / 确保 xterm 文本可见（仅视觉相关）
+   不修改字体大小或行高，避免破坏 xterm 的度量逻辑 /
+   Do not override font-size or line-height here to keep xterm's measurement accurate */
 :deep(.xterm) {
-  font-size: 12px !important;
-  line-height: 1.2 !important;
   color: #ffffff !important;
 }
 

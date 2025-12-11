@@ -60,5 +60,24 @@ const delegatedProps = reactiveOmit(props, "toastOptions")
 /* 允许具体的 toast 元素正常交互 / Allow individual toast elements to receive pointer events */
 .toaster .toast {
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 确保图标与文字同一行并垂直居中 / Ensure icon and text stay on the same line and vertically centered */
+.toaster .toast [data-icon] {
+  display: flex;
+  align-items: center;
+}
+
+.toaster .toast [data-content] {
+  display: flex;
+  align-items: center;
+}
+
+.toaster .toast [data-title] {
+  display: inline-flex;
+  align-items: center;
 }
 </style>

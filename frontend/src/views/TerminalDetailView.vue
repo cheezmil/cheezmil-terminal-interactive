@@ -747,7 +747,6 @@ onUnmounted(() => {
 /* xterm.js terminal styles aligned with 1Panel (visual only) / 对齐 1Panel 风格的 xterm.js 终端样式（仅视觉，不改字体度量） */
 :deep(.xterm) {
   height: 100% !important;
-  padding: 8px !important;
   background: #000000 !important;
   color: #ffffff !important;
 }
