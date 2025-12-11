@@ -25,6 +25,8 @@ interface ConfigData {
     maxBufferSize?: number
     sessionTimeout?: number
     defaultEnv?: Record<string, string>
+    // 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
+    enableUserControl?: boolean
   }
   mcp?: {
     enableDnsRebindingProtection?: boolean
@@ -44,6 +46,8 @@ interface ConfigData {
     name?: string
     language?: string
     version?: string
+    // 是否显示顶部应用标题 / Whether to show top app title
+    showTitle?: boolean
   }
   [key: string]: any // 允许其他配置项 / Allow other configuration items
 }

@@ -21,6 +21,7 @@ import { useTerminalStore as useTerminalStoreReal } from '../stores/terminal'
 // import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
+import { useSettingsStore } from '../stores/settings'
 import SvgIcon from '@/components/ui/svg-icon.vue'
 
 // Temporary CanvasAddon stub to prevent early activation errors before Terminal.open
@@ -37,6 +38,7 @@ const router = useRouter()
 const { t } = useI18n()
 const terminalStore = useTerminalStoreReal()
 const { refreshTrigger } = storeToRefs(terminalStore)
+const settingsStore = useSettingsStore()
 
 // Terminal management state / 终端管理状态
 const terminals = ref<any[]>([])
@@ -55,6 +57,13 @@ const stats = computed(() => terminalStore.stats)
 const activeTerminal = computed(() => 
   terminals.value.find(t => t.id === activeTerminalId.value)
 )
+
+// 是否允许前端控制终端（实验性设置） / Whether frontend is allowed to control terminals (experimental setting)
+const canControlTerminal = computed(() => {
+  const enableUserControl = settingsStore.configData?.terminal?.enableUserControl
+  // 默认不可控，只有显式启用时才允许 / Default is read-only; only allow when explicitly enabled
+  return enableUserControl === true
+})
 
 // Fetch terminals from API / 从API获取终端列表
 const fetchTerminals = async () => {
@@ -85,38 +94,72 @@ const fetchTerminals = async () => {
 }
 
 
-// Delete terminal / 删除终端
+// Delete (terminate) terminal / 删除（终止）终端
 const deleteTerminal = async (id: string) => {
   try {
-    // Close terminal instance first / 先关闭终端实例
+    // 在只读模式下禁止终止终端 / Disallow terminating terminals when in read-only mode
+    if (!canControlTerminal.value) {
+      toast.error('当前为只读终端模式，前端终止操作已被禁用 / Terminal is in read-only mode; termination from frontend is disabled.')
+      return
+    }
+
+    // 关闭终端实例以防止继续渲染 / Close terminal instance to stop further rendering
     const terminalInstance = terminalInstances.value.get(id)
     if (terminalInstance) {
-      if (terminalInstance.ws) {
-        terminalInstance.ws.close()
+      // 关闭 WebSocket 连接 / Close WebSocket connection
+      try {
+        if (terminalInstance.ws) {
+          terminalInstance.ws.close()
+        }
+      } catch (wsError) {
+        console.warn('Failed to close WebSocket for terminal', id, wsError)
       }
-      if (terminalInstance.term) {
-        terminalInstance.term.dispose()
+
+      // 优先尝试单独释放 CanvasAddon，避免其在 term.dispose() 中抛出异常 /
+      // Try disposing CanvasAddon first to avoid it throwing inside term.dispose()
+      try {
+        if (terminalInstance.canvasAddon && typeof terminalInstance.canvasAddon.dispose === 'function') {
+          terminalInstance.canvasAddon.dispose()
+        }
+      } catch (canvasError) {
+        console.warn('Failed to dispose CanvasAddon for terminal', id, canvasError)
       }
+
+      // 最后释放 xterm 实例本身，任何异常都只记录不阻断后续终结逻辑 /
+      // Finally dispose the xterm instance itself, log any errors without blocking termination
+      try {
+        if (terminalInstance.term) {
+          terminalInstance.term.dispose()
+        }
+      } catch (termError) {
+        console.warn('Failed to dispose xterm instance for terminal', id, termError)
+      }
+
       terminalInstances.value.delete(id)
     }
-    
-    // Use dynamic API service / 使用动态API服务
+
+    // 调用后端 DELETE /api/terminals/:id 终止真实终端进程 /
+    // Call backend DELETE /api/terminals/:id to terminate real terminal process
     const response = await terminalApi.delete(id)
 
     if (!response.ok) {
-      throw new Error('Failed to delete terminal')
+      const errorText = await response.text()
+      throw new Error(`Failed to terminate terminal: ${errorText}`)
     }
 
+    // 从前端列表中移除终端，并更新统计信息 /
+    // Remove terminal from frontend list and update stats
     terminals.value = terminals.value.filter(t => t.id !== id)
     terminalStore.updateTerminals(terminals.value)
-    
-    // Select another terminal if the deleted one was active / 如果删除的是当前活跃终端，选择另一个
+
+    // 如果删除的是当前活跃终端，选择另一个或清空选择 /
+    // If the deleted one was active, select another or clear selection
     if (activeTerminalId.value === id && terminals.value.length > 0) {
       activeTerminalId.value = terminals.value[0].id
     } else if (terminals.value.length === 0) {
       activeTerminalId.value = null
     }
-    
+
     toast.success(t('messages.terminalDeleted'))
   } catch (error) {
     console.error('Error deleting terminal:', error)
@@ -399,6 +442,12 @@ const loadTerminalOutput = async (terminalId: string) => {
 
 // Send terminal input / 发送终端输入
 const sendTerminalInput = async (terminalId: string, input: string) => {
+  // 全局只读模式：当前不允许前端发送输入时直接返回 / Global read-only mode: skip sending input when frontend control is disabled
+  if (!canControlTerminal.value) {
+    // 为避免在按键时刷屏，这里不弹 Toast，只静默丢弃输入
+    // To avoid toast spamming on every keypress, we silently drop input here
+    return
+  }
   try {
     // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.writeInput(terminalId, input)
@@ -419,6 +468,11 @@ const switchTerminal = (terminalId: string) => {
 
 // Clear terminal / 清空终端
 const clearTerminal = (terminalId: string) => {
+  // 只读模式下禁止清空终端内容 / Disallow clearing terminal content in read-only mode
+  if (!canControlTerminal.value) {
+    toast.error('当前为只读终端模式，清空终端已被禁用 / Terminal is in read-only mode; clearing is disabled.')
+    return
+  }
   const instance = terminalInstances.value.get(terminalId)
   if (instance && instance.term) {
     instance.term.clear()
@@ -427,6 +481,11 @@ const clearTerminal = (terminalId: string) => {
 
 // Reconnect terminal / 重新连接终端
 const reconnectTerminal = (terminalId: string) => {
+  // 只读模式下禁止重新连接（避免误以为可交互）/ Disallow reconnect in read-only mode to avoid implying interactivity
+  if (!canControlTerminal.value) {
+    toast.error('当前为只读终端模式，重新连接已被禁用 / Terminal is in read-only mode; reconnect is disabled.')
+    return
+  }
   // Close existing connection / 关闭现有连接
   const instance = terminalInstances.value.get(terminalId)
   if (instance && instance.ws) {
@@ -974,15 +1033,19 @@ watch(terminals, (newTerminals) => {
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Luxury xterm.js styles aligned with 1Panel (visual only) / 参考 1Panel 的奢华 xterm.js 样式（仅视觉，不改字体度量） */
+/* Luxury xterm.js styles aligned with 1Panel (visual only)
+   参考 1Panel 的奢华 xterm.js 样式（仅视觉，不改字体度量） */
 :deep(.xterm) {
   height: 100% !important;
-  padding: 8px !important;
+  /* 避免使用内边距影响选择坐标，只保持背景等视觉效果 /
+     Avoid padding that can affect selection coordinates, keep background-only visuals */
   background: #000000 !important;
   border-radius: 0.5rem !important;
   color: #ffffff !important;
 }
 
+/* 仅对外层容器做圆角，不对内部滚动区域施加位移相关样式 /
+   Apply border radius only, avoid styles that shift inner coordinate system */
 :deep(.xterm-viewport) {
   background: #000000 !important;
   border-radius: 0.5rem !important;
@@ -993,13 +1056,15 @@ watch(terminals, (newTerminals) => {
   border-radius: 0.5rem !important;
 }
 
+/* 使用纯背景颜色高亮选择区域，不改变其几何位置 /
+   Use background color only for selection highlight, do not alter geometry */
 :deep(.xterm-selection) {
   background: var(--luxury-gold) !important;
   opacity: 0.3 !important;
 }
 
-/* Ensure xterm-rows text remains visible without breaking xterm layout engine
-   在不破坏 xterm 布局引擎的前提下，确保 xterm-rows 文本可见 */
+/* Keep xterm rows visible without changing layout or position
+   保持 xterm 行文本可见，但不改变其布局和定位逻辑 */
 :deep(.xterm-rows) {
   z-index: 1 !important;
 }
@@ -1009,9 +1074,6 @@ watch(terminals, (newTerminals) => {
   opacity: 1 !important;
   color: #ffffff !important;
 }
-
-/* Hide xterm.js helper elements / 隐藏xterm.js辅助元素 */
-/* Let global styles and xterm defaults handle helper elements to avoid breaking measurement */
 
 /* Luxury animations / 奢华动画 */
 @keyframes luxury-shimmer {

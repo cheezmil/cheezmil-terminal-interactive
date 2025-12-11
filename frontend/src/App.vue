@@ -5,6 +5,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useTerminalStore } from './stores/terminal'
 import { useI18n } from 'vue-i18n'
 import SvgIcon from '@/components/ui/svg-icon.vue'
+import { useSettingsStore } from './stores/settings'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -12,13 +13,25 @@ const route = useRoute()
 
 const isLoaded = ref(false)
 const terminalStore = useTerminalStore()
+const settingsStore = useSettingsStore()
 
-// 统计数据 - 从store获取或直接计算
+// 统计数据 - 从store获取或直接计算 / Statistics derived from store or fallback
 const stats = computed(() => terminalStore.stats || {
   total: 0,
   active: 0,
   inactive: 0,
   terminated: 0
+})
+
+// 是否显示顶部标题 - 从应用配置中读取 / Whether to show top title - read from app config
+const showTitle = computed(() => {
+  // 尽量从完整配置中读取 app.showTitle，默认为 true
+  // Prefer reading app.showTitle from full config, default to true
+  const appConfig = settingsStore.configData?.app as any | undefined
+  if (appConfig && typeof appConfig.showTitle === 'boolean') {
+    return appConfig.showTitle
+  }
+  return true
 })
 
 const createNewTerminal = () => {
@@ -35,6 +48,11 @@ onMounted(() => {
   setTimeout(() => {
     isLoaded.value = true
   }, 100)
+
+  // 尝试加载完整配置以便读取顶部标题设置 / Try to load full config to read top title setting
+  settingsStore.loadFullConfig().catch((error) => {
+    console.warn('Failed to load full settings for title visibility:', error)
+  })
 })
 </script>
 
@@ -46,12 +64,17 @@ onMounted(() => {
       <!-- 奢华顶部导航栏 - 只在首页显示 -->
       <header v-if="route.name === 'home'" class="luxury-header sticky top-0 z-50 animate-slide-up">
         <div class="w-full h-16 flex items-center justify-between px-4">
-          <!-- 左侧：Logo和标题 -->
+          <!-- 左侧：Logo和标题 / Left: logo and title -->
           <div class="flex items-center flex-shrink-0">
             <div class="luxury-logo-container rounded-lg flex items-center justify-center text-jet-black hover:scale-105 transition-transform duration-200 shadow-luxury" style="margin-right: 1rem;">
               <img src="/CTI.svg" alt="CTI Logo" class="w-6 h-6" />
             </div>
-            <h1 class="text-xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent">Cheestard Terminal Interactive</h1>
+            <h1
+              v-if="showTitle"
+              class="text-xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent"
+            >
+              Cheestard Terminal Interactive
+            </h1>
           </div>
           
           <!-- 右侧：统计信息和设置按钮 -->

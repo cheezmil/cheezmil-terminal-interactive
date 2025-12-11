@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { initializeApiService, terminalApi } from '../services/api-service'
+import { useSettingsStore } from '../stores/settings'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const settingsStore = useSettingsStore()
 
 const terminalId = route.params.id as string
 const terminal = ref<any>(null)
@@ -46,6 +48,13 @@ const calculateUptime = (created: string) => {
 const terminalStats = computed(() => ({
   uptime: terminal.value ? calculateUptime(terminal.value.created) : '0m'
 }))
+
+// 是否允许前端控制终端（实验性设置） / Whether frontend is allowed to control terminals (experimental setting)
+const canControlTerminal = computed(() => {
+  const enableUserControl = settingsStore.configData?.terminal?.enableUserControl
+  // 默认只读，只有显式启用时才允许控制 / Default is read-only; only allow control when explicitly enabled
+  return enableUserControl === true
+})
 
 // 初始化终端
 const setupTerminal = () => {
@@ -186,6 +195,10 @@ const loadTerminalOutput = async () => {
 // 发送命令
 // 发送命令 / Send command
 const sendCommand = async (command: string) => {
+  // 只读模式下直接丢弃命令，不调用后端 / Drop commands in read-only mode without calling backend
+  if (!canControlTerminal.value) {
+    return
+  }
   if (!command.trim() || !ws || ws.readyState !== WebSocket.OPEN) return
 
   try {
@@ -206,6 +219,10 @@ const handleTerminalData = (data: string) => {
 
 // 清空终端
 const clearTerminal = () => {
+  if (!canControlTerminal.value) {
+    console.warn('Clear terminal is disabled in read-only mode')
+    return
+  }
   if (term) {
     term.clear()
   }
@@ -213,6 +230,10 @@ const clearTerminal = () => {
 
 // 终止终端 / Kill terminal
 const killTerminal = async () => {
+  if (!canControlTerminal.value) {
+    console.warn('Kill terminal is disabled in read-only mode')
+    return
+  }
   try {
     // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.delete(terminalId)

@@ -2,6 +2,7 @@ app:
   name: Cheestard Terminal Interactive
   language: zh
   version: 1.0.0
+  showTitle: false
 server:
   host: 0.0.0.0
   port: 1106
@@ -31,4 +32,4 @@ logging:
   enableConsole: false
   enableFile: false
   filePath: ./logs/app.log
-language: en
+language: zh

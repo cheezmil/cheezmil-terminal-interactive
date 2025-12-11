@@ -2,7 +2,7 @@
 Node.js 版本正确: v20.19.5
 Warning: .env.example file not found
 Searching for backend processes occupying the port...
-找到 21 个node进程:
+找到 26 个node进程:
   PID 13388: node  "D:\CodeRelated\frp\frps_12100\start_frps_12100.mjs"        
   PID 18008: node  syncthing_launcher.js
   PID 7152: node  "D:\CodeRelated\ElectronProjects\xdx_toolbox\start_fe_dev_xdx_toolbox.mjs"        
@@ -20,10 +20,15 @@ Searching for backend processes occupying the port...
   PID 7332: node  dist/src/index.js
   PID 45916: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
   PID 44364: "C:\Users\xdx\AppData\Local\fnm_multishells\8388_1765438279786\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
-  PID 29824: "C:\Users\xdx\AppData\Local\fnm_multishells\49548_1765462817256\node.exe" start_fe_cheestard-terminal-interactive.mjs
-  PID 47800: "C:\Users\xdx\AppData\Local\fnm_multishells\49548_1765462817256\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\49548_1765462817256\node_modules\npm\bin\npm-cli.js" run preview
-  PID 47456: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
-  PID 15404: "C:\Users\xdx\AppData\Local\fnm_multishells\42736_1765463096357\node.exe" start_be_cheestard-terminal-interactive.mjs
+  PID 53504: "C:\Program Files (x86)\Tencent\΢��web�����߹���\node.exe" --inspect-port=0 "c:\Program Files (x86)\Tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\src\bootstrap-fork" --type=extensionHost
+  PID 45784: "C:\Program Files (x86)\Tencent\΢��web�����߹���\node.exe" "c:\Program Files (x86)\Tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\extensions\json-language-features\server\dist\node\jsonServerMain" --node-ipc --clientProcessId=53504
+  PID 47912: "C:\Users\xdx\AppData\Local\fnm_multishells\40472_1765464432163\node.exe" start_dev-mp-weixin.mjs
+  PID 45424: "C:\Users\xdx\AppData\Local\fnm_multishells\40472_1765464432163\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\40472_1765464432163\node_modules\npm\bin\npm-cli.js" run dev:mp-weixin
+  PID 19768: "node"   "D:\CodeRelated\HBuilderProjects\PicSelect_FE_BE\PicSelect_Uniapp_Vite_RewriteForWxMiniProgram\node_modules\.bin\\..\@dcloudio\vite-plugin-uni\bin\uni.js" -p mp-weixin
+  PID 33536: "C:\Users\xdx\AppData\Local\fnm_multishells\2812_1765475464923\node.exe" start_fe_cheestard-terminal-interactive.mjs
+  PID 6608: "C:\Users\xdx\AppData\Local\fnm_multishells\2812_1765475464923\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\2812_1765475464923\node_modules\npm\bin\npm-cli.js" run preview
+  PID 32852: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+  PID 44716: "C:\Users\xdx\AppData\Local\fnm_multishells\38264_1765477152886\node.exe" start_be_cheestard-terminal-interactive.mjs
 
 检查进程 13388: node  "d:\coderelated\frp\frps_12100\start_frps_12100.mjs"        
   -> 匹配相关文件: false
@@ -78,13 +83,28 @@ Searching for backend processes occupying the port...
 检查进程 44364: "c:\users\xdx\appdata\local\fnm_multishells\8388_1765438279786\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
   -> 跳过系统进程
 
-检查进程 29824: "c:\users\xdx\appdata\local\fnm_multishells\49548_1765462817256\node.exe" start_fe_cheestard-terminal-interactive.mjs
+检查进程 53504: "c:\program files (x86)\tencent\΢��web�����߹���\node.exe" --inspect-port=0 "c:\program files (x86)\tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\src\bootstrap-fork" --type=extensionhost
   -> 匹配相关文件: false
 
-检查进程 47800: "c:\users\xdx\appdata\local\fnm_multishells\49548_1765462817256\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\49548_1765462817256\node_modules\npm\bin\npm-cli.js" run preview
+检查进程 45784: "c:\program files (x86)\tencent\΢��web�����߹���\node.exe" "c:\program files (x86)\tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\extensions\json-language-features\server\dist\node\jsonservermain" --node-ipc --clientprocessid=53504
+  -> 匹配相关文件: false
+
+检查进程 47912: "c:\users\xdx\appdata\local\fnm_multishells\40472_1765464432163\node.exe" start_dev-mp-weixin.mjs
+  -> 匹配相关文件: false
+
+检查进程 45424: "c:\users\xdx\appdata\local\fnm_multishells\40472_1765464432163\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\40472_1765464432163\node_modules\npm\bin\npm-cli.js" run dev:mp-weixin
   -> 跳过系统进程
 
-检查进程 47456: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+检查进程 19768: "node"   "d:\coderelated\hbuilderprojects\picselect_fe_be\picselect_uniapp_vite_rewriteforwxminiprogram\node_modules\.bin\\..\@dcloudio\vite-plugin-uni\bin\uni.js" -p mp-weixin
+  -> 跳过系统进程
+
+检查进程 33536: "c:\users\xdx\appdata\local\fnm_multishells\2812_1765475464923\node.exe" start_fe_cheestard-terminal-interactive.mjs
+  -> 匹配相关文件: false
+
+检查进程 6608: "c:\users\xdx\appdata\local\fnm_multishells\2812_1765475464923\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\2812_1765475464923\node_modules\npm\bin\npm-cli.js" run preview
+  -> 跳过系统进程
+
+检查进程 32852: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
   -> 跳过系统进程
 No related processes found occupying the port
 Starting backend server...
@@ -121,13 +141,18 @@ __dirname: D:\CodeRelated\cheestard-terminal-interactive\dist
 [MCP-INFO] Tool "fix_bug_with_codex" is disabled
 [MCP-INFO] Services auto-start disabled to prevent recursion
 [HTTP-MCP-INFO] MCP server connected to transport
-[HTTP-MCP-INFO] Session initialized: b087b529-f247-4f76-b091-0903314e8b34
-[HTTP-MCP-INFO] Reusing existing session: b087b529-f247-4f76-b091-0903314e8b34
-[HTTP-MCP-INFO] Reusing existing session: b087b529-f247-4f76-b091-0903314e8b34
-[HTTP-MCP-INFO] Reusing existing session: b087b529-f247-4f76-b091-0903314e8b34
+[HTTP-MCP-INFO] Session initialized: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
 Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: print-terminal (PID: 28212)
+[MCP-INFO] Terminal created: print-terminal (PID: 45756)
 [WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
 [WEB-UI] WebSocket client disconnected
 [WEB-UI] WebSocket client connected
 [WEB-UI] WebSocket client disconnected
@@ -148,35 +173,3 @@ Setting encoding on Windows is not supported
 [WEB-UI] WebSocket client connected
 [WEB-UI] WebSocket client disconnected
 [WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected

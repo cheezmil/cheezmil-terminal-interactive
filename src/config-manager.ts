@@ -38,7 +38,9 @@ export class ConfigManager {
         fontFamily: 'Consolas, "Courier New", monospace',
         maxBufferSize: 10000,
         sessionTimeout: 86400000, // 24 hours
-        defaultEnv: {}
+        defaultEnv: {},
+        // 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
+        enableUserControl: false
       },
       
       // MCP配置 / MCP configuration
