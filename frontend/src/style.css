@@ -5,6 +5,24 @@
 @source "./src/**/*.{vue,js,ts,jsx,tsx}";
 @source "./index.html";
 
+/* JetBrains Mono webfont for terminal / 终端专用 JetBrains Mono Web 字体 */
+@font-face {
+  font-family: "CTIJetBrainsMono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* DejaVu Sans Mono webfont for terminal / 终端专用 DejaVu Sans Mono 字体 */
+@font-face {
+  font-family: "CTIDejaVuSansMono";
+  src: url("/fonts/DejaVuSansMono.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* TailwindCSS v4 自定义颜色定义 / TailwindCSS v4 custom color definitions */
 @theme {
   /* 奢华色彩系统 / Luxury Color System */
@@ -903,38 +921,28 @@ button.p-button:has(.p-button-icon) .p-button-label {
   background: #27c93f;
 }
 
-/* xterm.js 优化样式 */
+/* xterm.js global styles (visual only) / xterm.js 全局样式优化（仅视觉相关，不影响字体度量） */
 .xterm {
-  background: #0a0a0a !important;
+  background: #000000 !important;
   border-radius: 0 !important;
-  padding: 16px !important;
+  padding: 8px !important;
 }
 
-.xterm-viewport {
-  background: #0a0a0a !important;
-}
-
+.xterm-viewport,
 .xterm-screen {
-  background: #0a0a0a !important;
+  background: #000000 !important;
 }
 
-/* 隐藏 xterm.js 辅助元素 */
-.xterm-helper-textarea,
-.xterm-char-measure-element {
-  position: absolute !important;
-  left: -99999px !important;
-  top: -99999px !important;
-    width: auto !important;
-    height: auto !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-    visibility: hidden !important;
-    display: block !important;
-    font-size: inherit !important;
-    line-height: normal !important;
-    z-index: -9999 !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
+/* xterm.js viewport scrollbar style / xterm.js 视口滚动条样式 */
+.xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #000000;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 4px;
 }
 
 /* 动画定义 */
@@ -1284,4 +1292,12 @@ body > div:not(#app) {
 
 .animate-luxury-pulse {
   animation: luxury-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+/* JetBrains Mono webfont for terminal / 终端专用 JetBrains Mono Web 字体 */
+@font-face {
+  font-family: "CTIJetBrainsMono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }

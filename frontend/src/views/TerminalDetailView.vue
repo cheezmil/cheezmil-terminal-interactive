@@ -52,8 +52,11 @@ const setupTerminal = () => {
   try {
     term = new Terminal({
       cursorBlink: true,
-      fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontSize: 12,
+      fontFamily: 'Monaco, Menlo, Consolas, "Courier New", monospace',
+      lineHeight: 1.2,
+      // Slightly tighten spacing for better readability / 略微收紧字符间距以提升可读性
+      letterSpacing: -1,
       theme: {
         background: '#000000',
         foreground: '#ffffff',
@@ -262,100 +265,6 @@ onMounted(async () => {
     console.error('Failed to initialize API service:', error)
     isLoading.value = false
   }
-
-  // 强制隐藏xterm.js的辅助元素和页面底部的多余字符
-  nextTick(() => {
-    // 隐藏xterm-char-measure-element
-    const charMeasureElements = document.querySelectorAll('.xterm-char-measure-element')
-    charMeasureElements.forEach(el => {
-      (el as HTMLElement).style.display = 'none'
-      ;(el as HTMLElement).style.visibility = 'hidden'
-      ;(el as HTMLElement).style.opacity = '0'
-      ;(el as HTMLElement).style.position = 'absolute'
-      ;(el as HTMLElement).style.left = '-99999px'
-      ;(el as HTMLElement).style.top = '-99999px'
-      ;(el as HTMLElement).style.width = '0'
-      ;(el as HTMLElement).style.height = '0'
-      ;(el as HTMLElement).style.fontSize = '0'
-      ;(el as HTMLElement).style.lineHeight = '0'
-      ;(el as HTMLElement).style.overflow = 'hidden'
-      ;(el as HTMLElement).style.clip = 'rect(0, 0, 0, 0)'
-      ;(el as HTMLElement).style.clipPath = 'inset(50%)'
-    })
-
-    // 隐藏页面底部的多余字符
-    const removeExtraChars = () => {
-      // 查找包含多余字符的元素
-      const allElements = document.querySelectorAll('*')
-      allElements.forEach(el => {
-        const element = el as HTMLElement
-        if (element.textContent && element.textContent.includes('}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}')) {
-          element.remove()
-        }
-      })
-      
-      // 查找body下的直接子元素（除了#app）
-      const bodyDivs = document.querySelectorAll('body > div:not(#app)')
-      bodyDivs.forEach(el => {
-        (el as HTMLElement).style.display = 'none'
-        ;(el as HTMLElement).style.visibility = 'hidden'
-        ;(el as HTMLElement).style.opacity = '0'
-        ;(el as HTMLElement).style.position = 'absolute'
-        ;(el as HTMLElement).style.left = '-99999px'
-        ;(el as HTMLElement).style.top = '-99999px'
-        ;(el as HTMLElement).style.width = '0'
-        ;(el as HTMLElement).style.height = '0'
-        ;(el as HTMLElement).style.overflow = 'hidden'
-      })
-    }
-
-    // 使用MutationObserver监控DOM变化
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              const element = node as Element
-              // 检查新添加的元素是否包含多余字符
-              if (element.textContent && element.textContent.includes('}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}')) {
-                element.remove()
-              }
-            }
-          })
-        }
-      })
-    })
-
-    // 监控body的变化
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    })
-
-    // 定期检查并隐藏这些元素（防止xterm.js重新创建）
-    const hideElements = () => {
-      const charElements = document.querySelectorAll('.xterm-char-measure-element')
-      charElements.forEach(el => {
-        (el as HTMLElement).style.display = 'none'
-        ;(el as HTMLElement).style.visibility = 'hidden'
-        ;(el as HTMLElement).textContent = ''
-      })
-
-      removeExtraChars()
-    }
-
-    // 立即执行一次
-    hideElements()
-    
-    // 每100ms检查一次
-    const intervalId = setInterval(hideElements, 100)
-    
-    // 在组件卸载时清理定时器和观察器
-    onUnmounted(() => {
-      clearInterval(intervalId)
-      observer.disconnect()
-    })
-  })
 })
 
 onUnmounted(() => {
@@ -818,48 +727,16 @@ onUnmounted(() => {
   background: #000000;
 }
 
-/* xterm.js样式覆盖 */
+/* xterm.js terminal styles aligned with 1Panel (visual only) / 对齐 1Panel 风格的 xterm.js 终端样式（仅视觉，不改字体度量） */
 :deep(.xterm) {
   height: 100% !important;
+  padding: 8px !important;
   background: #000000 !important;
+  color: #ffffff !important;
 }
 
-:deep(.xterm-viewport) {
-  background: #000000 !important;
-}
-
+:deep(.xterm-viewport),
 :deep(.xterm-screen) {
   background: #000000 !important;
-}
-
-/* 隐藏xterm.js的辅助元素 */
-:deep(.xterm-helper-textarea) {
-  position: absolute !important;
-  left: -9999px !important;
-  top: -9999px !important;
-  width: 0 !important;
-  height: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-:deep(.xterm-char-measure-element) {
-  position: absolute !important;
-  left: -99999px !important;
-  top: -99999px !important;
-  width: 0 !important;
-  height: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-  display: none !important;
-  font-size: 0 !important;
-  line-height: 0 !important;
-  z-index: -9999 !important;
-}
-
-/* 隐藏页面底部可能的多余字符 */
-body > div:not(#app) {
-  display: none !important;
 }
 </style>

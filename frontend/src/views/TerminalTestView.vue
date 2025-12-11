@@ -18,13 +18,15 @@ const errorMessage = ref<string | null>(null)
 
 // Initialize xterm instance / 初始化 xterm 实例
 const initTerminal = (el: HTMLDivElement) => {
-  // Use similar font settings as main view / 使用与主界面相近的字体设置
+  // Use similar font settings as main view / 使用与主界面相同的字体设置
   term = new Terminal({
     cursorBlink: true,
-    fontFamily: 'JetBrains Mono, Consolas, "Courier New", "Microsoft YaHei", monospace',
-    fontSize: 14,
+    // Classic terminal font stack for consistent spacing / 使用经典终端字体栈以获得一致的字符间距
+    fontFamily: 'Monaco, Menlo, Consolas, "Courier New", monospace',
+    fontSize: 12,
     lineHeight: 1.2,
-    letterSpacing: 0,
+    // Slightly tighten spacing to avoid “gap” feeling / 略微收紧字符间距以避免“多一个空格”的观感
+    letterSpacing: -1,
     convertEol: true,
     scrollback: 1000,
     theme: {
@@ -191,12 +193,10 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-/* Ensure xterm text is visible / 确保 xterm 文本可见 */
+/* Ensure xterm text is visible (visual only) / 确保 xterm 文本可见（仅视觉相关） */
 :deep(.xterm) {
-  font-family: "Consolas", "Courier New", "Microsoft YaHei", monospace !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
   line-height: 1.2 !important;
-  letter-spacing: 0 !important;
   color: #ffffff !important;
 }
 
@@ -208,5 +208,8 @@ onBeforeUnmount(() => {
 :deep(.xterm-rows > div) {
   visibility: visible !important;
   opacity: 1 !important;
+}
+.terminal-test-container :deep(.xterm-rows) {
+  transform-origin: left top;
 }
 </style>

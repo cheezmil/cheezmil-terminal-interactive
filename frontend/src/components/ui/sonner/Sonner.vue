@@ -45,3 +45,19 @@ const delegatedProps = reactiveOmit(props, "toastOptions")
     </template>
   </Sonner>
 </template>
+
+<style scoped>
+/* 悬浮通知容器，固定在视口顶部 / Floating notification container fixed at viewport top */
+.toaster {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* 允许具体的 toast 元素正常交互 / Allow individual toast elements to receive pointer events */
+:deep(.toast) {
+  pointer-events: auto;
+}
+</style>

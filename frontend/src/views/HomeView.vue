@@ -164,15 +164,15 @@ const initializeTerminal = async (terminalId: string) => {
     
     console.log('Container cleared and styled')
 
-    // Create xterm instance with VS Code-like fonts / 使用更接近 VS Code 的字体配置创建 xterm 实例
+    // Create xterm instance with 1Panel-like metrics / 使用接近 1Panel 的字体与度量创建 xterm 实例
     const term = new Terminal({
       cursorBlink: true,
-      // Prefer JetBrains Mono & Microsoft YaHei for better CJK rendering
-      // 优先使用 JetBrains Mono 和微软雅黑，提升中英文混排效果
-      fontSize: 14,
-      fontFamily: 'JetBrains Mono, Consolas, "Courier New", "Microsoft YaHei", monospace',
+      // Use classic terminal font stack for better spacing / 使用经典终端字体栈以获得更自然的字符间距
+      fontSize: 12,
+      fontFamily: 'Monaco, Menlo, Consolas, "Courier New", monospace',
       lineHeight: 1.2,
-      letterSpacing: 0,
+      // Slightly tighten spacing to avoid “extra space between letters” / 略微收紧字符间距，避免看起来像是字母间多了一个空格
+      letterSpacing: -1,
       theme: {
         background: '#000000',
         foreground: '#ffffff'
@@ -950,23 +950,23 @@ watch(terminals, (newTerminals) => {
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Luxury xterm.js styles / 奢华xterm.js样式 */
+/* Luxury xterm.js styles aligned with 1Panel (visual only) / 参考 1Panel 的奢华 xterm.js 样式（仅视觉，不改字体度量） */
 :deep(.xterm) {
   height: 100% !important;
-  background: var(--jet-black) !important;
-  border-radius: 0.75rem !important;
-  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace !important;
+  padding: 8px !important;
+  background: #000000 !important;
+  border-radius: 0.5rem !important;
   color: #ffffff !important;
 }
 
 :deep(.xterm-viewport) {
-  background: var(--jet-black) !important;
-  border-radius: 0.75rem !important;
+  background: #000000 !important;
+  border-radius: 0.5rem !important;
 }
 
 :deep(.xterm-screen) {
-  background: var(--jet-black) !important;
-  border-radius: 0.75rem !important;
+  background: #000000 !important;
+  border-radius: 0.5rem !important;
 }
 
 :deep(.xterm-selection) {

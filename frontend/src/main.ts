@@ -5,6 +5,7 @@ import i18n from './i18n'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import 'xterm/css/xterm.css'
 
 const app = createApp(App)
 
