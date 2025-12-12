@@ -2,111 +2,139 @@
 Node.js 版本正确: v20.19.5
 Warning: .env.example file not found
 Searching for backend processes occupying the port...
-找到 26 个node进程:
-  PID 13388: node  "D:\CodeRelated\frp\frps_12100\start_frps_12100.mjs"        
-  PID 18008: node  syncthing_launcher.js
-  PID 7152: node  "D:\CodeRelated\ElectronProjects\xdx_toolbox\start_fe_dev_xdx_toolbox.mjs"        
-  PID 8176: node  "D:\CodeRelated\AI\MCP\mcphub-github\mcphub\start_mcphub.mjs"        
-  PID 20200: "C:\Users\xdx\AppData\Local\fnm_multishells\17284_1765136715396\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\17284_1765136715396\node_modules\npm\bin\npm-cli.js" run dev
-  PID 24784: "node"   "D:\CodeRelated\ElectronProjects\xdx_toolbox\FE\node_modules\.bin\\..\vite\bin\vite.js" 
-  PID 27056: "node" dist/index.js
-  PID 20124: "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
-  PID 9592: "node"   "D:\CodeRelated\Public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d
-  PID 13104: node  "D:\CodeRelated\gpt-load\start_be_gpt-load.mjs"        
-  PID 21776: node  "D:\CodeRelated\gpt-load\start_fe_gpt-load.mjs"        
-  PID 12064: "C:\Users\xdx\AppData\Local\fnm_multishells\12028_1765139730241\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\12028_1765139730241\node_modules\npm\bin\npm-cli.js" run preview -- --host 0.0.0.0 --port 1051
-  PID 26604: "node"   "D:\CodeRelated\gpt-load\web\node_modules\.bin\\..\vite\bin\vite.js" preview --host 0.0.0.0 --port 1051
-  PID 50552: "C:\Users\xdx\AppData\Local\fnm_multishells\43940_1765359650127\node.exe" D:\CodeRelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs
-  PID 7332: node  dist/src/index.js
-  PID 45916: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
-  PID 44364: "C:\Users\xdx\AppData\Local\fnm_multishells\8388_1765438279786\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
-  PID 53504: "C:\Program Files (x86)\Tencent\΢��web�����߹���\node.exe" --inspect-port=0 "c:\Program Files (x86)\Tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\src\bootstrap-fork" --type=extensionHost
-  PID 45784: "C:\Program Files (x86)\Tencent\΢��web�����߹���\node.exe" "c:\Program Files (x86)\Tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\extensions\json-language-features\server\dist\node\jsonServerMain" --node-ipc --clientProcessId=53504
-  PID 47912: "C:\Users\xdx\AppData\Local\fnm_multishells\40472_1765464432163\node.exe" start_dev-mp-weixin.mjs
-  PID 45424: "C:\Users\xdx\AppData\Local\fnm_multishells\40472_1765464432163\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\40472_1765464432163\node_modules\npm\bin\npm-cli.js" run dev:mp-weixin
-  PID 19768: "node"   "D:\CodeRelated\HBuilderProjects\PicSelect_FE_BE\PicSelect_Uniapp_Vite_RewriteForWxMiniProgram\node_modules\.bin\\..\@dcloudio\vite-plugin-uni\bin\uni.js" -p mp-weixin
-  PID 33536: "C:\Users\xdx\AppData\Local\fnm_multishells\2812_1765475464923\node.exe" start_fe_cheestard-terminal-interactive.mjs
-  PID 6608: "C:\Users\xdx\AppData\Local\fnm_multishells\2812_1765475464923\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\2812_1765475464923\node_modules\npm\bin\npm-cli.js" run preview
-  PID 32852: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
-  PID 44716: "C:\Users\xdx\AppData\Local\fnm_multishells\38264_1765477152886\node.exe" start_be_cheestard-terminal-interactive.mjs
+找到 27 个node进程:
+  PID 22892: node  syncthing_launcher.js
+  PID 14540: node  "D:\CodeRelated\frp\frps_12100\start_frps_12100.mjs"        
+  PID 2792: node  "D:\CodeRelated\AI\MCP\mcphub-github\mcphub\start_mcphub.mjs"        
+  PID 3176: "node" dist/index.js
+  PID 25272: node  "D:\CodeRelated\ElectronProjects\xdx_toolbox\start_fe_dev_xdx_toolbox.mjs"        
+  PID 4764: node  "D:\CodeRelated\gpt-load\start_fe_gpt-load.mjs"        
+  PID 25300: "C:\Users\xdx\AppData\Local\fnm_multishells\20440_1765527042483\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\20440_1765527042483\node_modules\npm\bin\npm-cli.js" run preview -- --host 0.0.0.0 --port 1051
+  PID 26460: "node"   "D:\CodeRelated\gpt-load\web\node_modules\.bin\\..\vite\bin\vite.js" preview --host 0.0.0.0 --port 1051
+  PID 20260: "C:\Users\xdx\AppData\Local\fnm_multishells\25060_1765527043212\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\25060_1765527043212\node_modules\npm\bin\npm-cli.js" run dev
+  PID 26348: "node"   "D:\CodeRelated\ElectronProjects\xdx_toolbox\FE\node_modules\.bin\\..\vite\bin\vite.js" 
+  PID 2600: node  "D:\CodeRelated\gpt-load\start_be_gpt-load.mjs"        
+  PID 27068: node  "D:\CodeRelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs"        
+  PID 27224: node  dist/src/index.js
+  PID 12400: "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  PID 26824: "node"   "D:\CodeRelated\Public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  PID 25008: "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  PID 24072: "node"   "D:\CodeRelated\Public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  PID 8296: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+  PID 22888: "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  PID 18356: "node"   "D:\CodeRelated\Public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  PID 28612: "C:\Users\xdx\AppData\Local\fnm_multishells\27864_1765527452431\node.exe" start_be_cheestard-terminal-interactive.mjs
+  PID 28584: node  dist/http-server.js
+  PID 29232: "C:\Users\xdx\AppData\Local\fnm_multishells\29692_1765527527482\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
+  PID 31520: "C:\Users\xdx\AppData\Local\fnm_multishells\6804_1765528268903\node.exe" start_fe_cheestard-terminal-interactive.mjs
+  PID 30968: "C:\Users\xdx\AppData\Local\fnm_multishells\6804_1765528268903\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\6804_1765528268903\node_modules\npm\bin\npm-cli.js" run preview
+  PID 28736: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+  PID 31268: "C:\Users\xdx\AppData\Local\fnm_multishells\28272_1765530060813\node.exe" start_be_cheestard-terminal-interactive.mjs
 
-检查进程 13388: node  "d:\coderelated\frp\frps_12100\start_frps_12100.mjs"        
+检查进程 22892: node  syncthing_launcher.js
   -> 匹配相关文件: false
 
-检查进程 18008: node  syncthing_launcher.js
+检查进程 14540: node  "d:\coderelated\frp\frps_12100\start_frps_12100.mjs"        
   -> 匹配相关文件: false
 
-检查进程 7152: node  "d:\coderelated\electronprojects\xdx_toolbox\start_fe_dev_xdx_toolbox.mjs"        
+检查进程 2792: node  "d:\coderelated\ai\mcp\mcphub-github\mcphub\start_mcphub.mjs"        
   -> 跳过系统进程
 
-检查进程 8176: node  "d:\coderelated\ai\mcp\mcphub-github\mcphub\start_mcphub.mjs"        
-  -> 跳过系统进程
-
-检查进程 20200: "c:\users\xdx\appdata\local\fnm_multishells\17284_1765136715396\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\17284_1765136715396\node_modules\npm\bin\npm-cli.js" run dev
-  -> 跳过系统进程
-
-检查进程 24784: "node"   "d:\coderelated\electronprojects\xdx_toolbox\fe\node_modules\.bin\\..\vite\bin\vite.js" 
-  -> 跳过系统进程
-
-检查进程 27056: "node" dist/index.js
+检查进程 3176: "node" dist/index.js
   -> 匹配相关文件: true
   -> 缺少项目关键词，跳过
 
-检查进程 20124: "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+检查进程 25272: node  "d:\coderelated\electronprojects\xdx_toolbox\start_fe_dev_xdx_toolbox.mjs"        
   -> 跳过系统进程
 
-检查进程 9592: "node"   "d:\coderelated\public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d
-  -> 跳过系统进程
-
-检查进程 13104: node  "d:\coderelated\gpt-load\start_be_gpt-load.mjs"        
+检查进程 4764: node  "d:\coderelated\gpt-load\start_fe_gpt-load.mjs"        
   -> 匹配相关文件: false
 
-检查进程 21776: node  "d:\coderelated\gpt-load\start_fe_gpt-load.mjs"        
-  -> 匹配相关文件: false
-
-检查进程 12064: "c:\users\xdx\appdata\local\fnm_multishells\12028_1765139730241\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\12028_1765139730241\node_modules\npm\bin\npm-cli.js" run preview -- --host 0.0.0.0 --port 1051
+检查进程 25300: "c:\users\xdx\appdata\local\fnm_multishells\20440_1765527042483\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\20440_1765527042483\node_modules\npm\bin\npm-cli.js" run preview -- --host 0.0.0.0 --port 1051
   -> 跳过系统进程
 
-检查进程 26604: "node"   "d:\coderelated\gpt-load\web\node_modules\.bin\\..\vite\bin\vite.js" preview --host 0.0.0.0 --port 1051
+检查进程 26460: "node"   "d:\coderelated\gpt-load\web\node_modules\.bin\\..\vite\bin\vite.js" preview --host 0.0.0.0 --port 1051
   -> 跳过系统进程
 
-检查进程 50552: "c:\users\xdx\appdata\local\fnm_multishells\43940_1765359650127\node.exe" d:\coderelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs
+检查进程 20260: "c:\users\xdx\appdata\local\fnm_multishells\25060_1765527043212\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\25060_1765527043212\node_modules\npm\bin\npm-cli.js" run dev
+  -> 跳过系统进程
+
+检查进程 26348: "node"   "d:\coderelated\electronprojects\xdx_toolbox\fe\node_modules\.bin\\..\vite\bin\vite.js" 
+  -> 跳过系统进程
+
+检查进程 2600: node  "d:\coderelated\gpt-load\start_be_gpt-load.mjs"        
   -> 匹配相关文件: false
 
-检查进程 7332: node  dist/src/index.js
+检查进程 27068: node  "d:\coderelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 27224: node  dist/src/index.js
   -> 匹配相关文件: true
   -> 缺少项目关键词，跳过
 
-检查进程 45916: "node" d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+检查进程 12400: "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
   -> 跳过系统进程
 
-检查进程 44364: "c:\users\xdx\appdata\local\fnm_multishells\8388_1765438279786\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
+检查进程 26824: "node"   "d:\coderelated\public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d
   -> 跳过系统进程
 
-检查进程 53504: "c:\program files (x86)\tencent\΢��web�����߹���\node.exe" --inspect-port=0 "c:\program files (x86)\tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\src\bootstrap-fork" --type=extensionhost
+检查进程 25008: "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  -> 跳过系统进程
+
+检查进程 24072: "node"   "d:\coderelated\public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  -> 跳过系统进程
+
+检查进程 8296: "node" d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+  -> 跳过系统进程
+
+检查进程 22888: "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  -> 跳过系统进程
+
+检查进程 18356: "node"   "d:\coderelated\public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  -> 跳过系统进程
+
+检查进程 28612: "c:\users\xdx\appdata\local\fnm_multishells\27864_1765527452431\node.exe" start_be_cheestard-terminal-interactive.mjs
+  -> 匹配相关文件: true
+  -> 将被标记为目标进程进行清理
+
+检查进程 28584: node  dist/http-server.js
+  -> 匹配相关文件: true
+  -> 缺少项目关键词，跳过
+
+检查进程 29232: "c:\users\xdx\appdata\local\fnm_multishells\29692_1765527527482\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
+  -> 跳过系统进程
+
+检查进程 31520: "c:\users\xdx\appdata\local\fnm_multishells\6804_1765528268903\node.exe" start_fe_cheestard-terminal-interactive.mjs
   -> 匹配相关文件: false
 
-检查进程 45784: "c:\program files (x86)\tencent\΢��web�����߹���\node.exe" "c:\program files (x86)\tencent\΢��web�����߹���\code\package.nw\js\libs\vseditor\extensions\json-language-features\server\dist\node\jsonservermain" --node-ipc --clientprocessid=53504
-  -> 匹配相关文件: false
-
-检查进程 47912: "c:\users\xdx\appdata\local\fnm_multishells\40472_1765464432163\node.exe" start_dev-mp-weixin.mjs
-  -> 匹配相关文件: false
-
-检查进程 45424: "c:\users\xdx\appdata\local\fnm_multishells\40472_1765464432163\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\40472_1765464432163\node_modules\npm\bin\npm-cli.js" run dev:mp-weixin
+检查进程 30968: "c:\users\xdx\appdata\local\fnm_multishells\6804_1765528268903\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\6804_1765528268903\node_modules\npm\bin\npm-cli.js" run preview
   -> 跳过系统进程
 
-检查进程 19768: "node"   "d:\coderelated\hbuilderprojects\picselect_fe_be\picselect_uniapp_vite_rewriteforwxminiprogram\node_modules\.bin\\..\@dcloudio\vite-plugin-uni\bin\uni.js" -p mp-weixin
+检查进程 28736: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
   -> 跳过系统进程
-
-检查进程 33536: "c:\users\xdx\appdata\local\fnm_multishells\2812_1765475464923\node.exe" start_fe_cheestard-terminal-interactive.mjs
-  -> 匹配相关文件: false
-
-检查进程 6608: "c:\users\xdx\appdata\local\fnm_multishells\2812_1765475464923\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\2812_1765475464923\node_modules\npm\bin\npm-cli.js" run preview
-  -> 跳过系统进程
-
-检查进程 32852: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
-  -> 跳过系统进程
-No related processes found occupying the port
+Found 1 related processes, terminating...
+Terminating process PID: 28612 (attempt 1/3)
+Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\27864_1765527452431\node.exe" start_be_cheestard-termina...
+Warning: Failed to terminate process 28612: Command execution failed, exit code: 128
+Error: ERROR: The process with PID 28584 (child process of PID 21164) could not be terminated.
+Reason: This process can only be terminated forcefully (with /F option).
+ERROR: The process with PID 21164 (child process of PID 28612) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 28612 (child process of PID 20952) could not be terminated.
+Reason: One or more child processes of this process were still running.
+System.Management.Automation.RemoteException
+Attempt 1 failed for process 28612: Command execution failed, exit code: 128
+Error: ERROR: The process with PID 28584 (child process of PID 21164) could not be terminated.
+Reason: This process can only be terminated forcefully (with /F option).
+ERROR: The process with PID 21164 (child process of PID 28612) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 28612 (child process of PID 20952) could not be terminated.
+Reason: One or more child processes of this process were still running.
+System.Management.Automation.RemoteException
+Terminating process PID: 28612 (attempt 2/3)
+Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\27864_1765527452431\node.exe" start_be_cheestard-termina...
+Process 28612 terminated successfully
+Process termination completed: 1 successful, 0 failed
 Starting backend server...
 [HTTP-MCP-INFO] Starting Cheestard Terminal Interactive Streamable HTTP MCP Server...
 [HTTP-MCP-INFO] Disabled MCP tools via config: fix_bug_with_codex
@@ -141,78 +169,20 @@ __dirname: D:\CodeRelated\cheestard-terminal-interactive\dist
 [MCP-INFO] Tool "fix_bug_with_codex" is disabled
 [MCP-INFO] Services auto-start disabled to prevent recursion
 [HTTP-MCP-INFO] MCP server connected to transport
-[HTTP-MCP-INFO] Session initialized: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Session initialized: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
 Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: print-terminal (PID: 45756)
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[WEB-UI] WebSocket client disconnected
+[MCP-INFO] Terminal created: wsl-terminal (PID: 26276)
 [WEB-UI] WebSocket client connected
 [WEB-UI] WebSocket client disconnected
 [WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
 Setting encoding on Windows is not supported
-[MCP-INFO] Terminal created: new-terminal-test (PID: 24244)
+[MCP-INFO] Terminal created: wsl-native-terminal (PID: 28180)
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
 [WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[HTTP-MCP-INFO] Reusing existing session: ad2db85a-06d9-4c6d-aabf-e294e0d63618
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client disconnected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
-[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811

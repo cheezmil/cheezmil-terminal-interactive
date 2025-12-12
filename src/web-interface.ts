@@ -443,7 +443,14 @@ export class WebInterfaceServer {
     const payload = JSON.stringify(message);
     this.clients.forEach((client) => {
       if (client.readyState === 1) { // WebSocket.OPEN
-        client.send(payload);
+        try {
+          client.send(payload);
+        } catch (error) {
+          // 发送失败通常表示客户端已关闭，不应影响主进程
+          // Send failure usually means the client is gone; do not crash the MCP server
+          this.clients.delete(client);
+          process.stderr.write(`[WEB-UI] WebSocket send failed, removed client: ${error}\n`);
+        }
       }
     });
   }

@@ -486,11 +486,10 @@ onMounted(async () => {
                   <svg class="w-4 h-4 text-neon-green" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
-                  <span class="font-serif-luxury">实验性：允许前端控制终端 / Experimental: allow frontend to control terminals</span>
+                  <span class="font-serif-luxury">{{ t('settings.experimentalTerminalControl') }}</span>
                 </Label>
                 <p class="text-sm text-text-secondary">
-                  当前为实验功能，关闭时前端只能查看输出，不能发送命令或终止终端。
-                  / This is an experimental feature. When disabled, the frontend becomes read-only: it cannot send commands or terminate terminals.
+                  {{ t('settings.experimentalTerminalControlDescription') }}
                 </p>
                 <div class="flex items-center">
                   <label class="luxury-checkbox-container">
@@ -502,7 +501,7 @@ onMounted(async () => {
                     <span class="luxury-checkbox-slider"></span>
                   </label>
                   <span class="ml-3 text-text-primary select-none">
-                    {{ configData.terminal.enableUserControl ? 'Enabled / 已启用' : 'Disabled / 已禁用' }}
+                    {{ configData.terminal.enableUserControl ? t('settings.experimentalTerminalControlEnabled') : t('settings.experimentalTerminalControlDisabled') }}
                   </span>
                 </div>
               </div>

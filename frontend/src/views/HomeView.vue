@@ -17,9 +17,8 @@ import { DialogFooter } from '@/components/ui/dialog'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { CanvasAddon } from 'xterm-addon-canvas'
-import { useTerminalStore as useTerminalStoreReal } from '../stores/terminal'
-// import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { useTerminalStore } from '../stores/terminal'
+// import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { initializeApiService, terminalApi } from '../services/api-service'
 import { useSettingsStore } from '../stores/settings'
 import SvgIcon from '@/components/ui/svg-icon.vue'
@@ -36,9 +35,12 @@ const _unusedCanvasAddonStub: any = CanvasAddonStub
 
 const router = useRouter()
 const { t } = useI18n()
-const terminalStore = useTerminalStoreReal()
+const terminalStore = useTerminalStore()
 const { refreshTrigger } = storeToRefs(terminalStore)
 const settingsStore = useSettingsStore()
+
+// Persistent storage key for active terminal tab / 用于持久化当前终端“tab”的本地存储键名
+const ACTIVE_TERMINAL_STORAGE_KEY = 'cti.activeTerminalId'
 
 // Terminal management state / 终端管理状态
 const terminals = ref<any[]>([])
@@ -78,9 +80,15 @@ const fetchTerminals = async () => {
     const fetchedTerminals = data.terminals || []
     terminals.value = fetchedTerminals
     terminalStore.updateTerminals(fetchedTerminals)
-    
-    // Auto-select first terminal if none selected / 如果没有选中终端，自动选择第一个
-    if (fetchedTerminals.length > 0 && !activeTerminalId.value) {
+
+    // 恢复上次选中的终端“tab”（如果存在并仍然有效）/ Restore last active terminal \"tab\" if it still exists
+    const savedId = localStorage.getItem(ACTIVE_TERMINAL_STORAGE_KEY)
+    const hasSaved = savedId && fetchedTerminals.some(t => t.id === savedId)
+
+    if (hasSaved) {
+      activeTerminalId.value = savedId!
+    } else if (fetchedTerminals.length > 0 && !activeTerminalId.value) {
+      // 没有有效的保存记录时，仍然回退到第一个终端 / Fallback to first terminal when there is no valid saved record
       activeTerminalId.value = fetchedTerminals[0].id
     }
   } catch (error) {
@@ -266,6 +274,17 @@ const initializeTerminal = async (terminalId: string) => {
       console.log('Terminal fitted to container')
     }, 100)
 
+    // 先写入本地缓存的输出（若有），提升切换性能 / Write cached output first (if any) to improve tab switch performance
+    const cachedOutput = terminalStore.getTerminalOutput(terminalId)
+    if (cachedOutput) {
+      try {
+        term.write(cachedOutput)
+        term.refresh(0, term.rows - 1)
+      } catch (error) {
+        console.warn('Failed to write cached output for terminal', terminalId, error)
+      }
+    }
+
     // Write test content immediately / 立即写入测试内容
     setTimeout(() => {
       console.log('Writing test content...')
@@ -311,6 +330,8 @@ const initializeTerminal = async (terminalId: string) => {
       const message = JSON.parse(event.data)
       if (message.terminalId === terminalId && message.type === 'output') {
         term.write(message.data)
+        // 追加到 pinia 缓存并持久化 / Append to pinia cache and persist
+        terminalStore.appendTerminalOutput(terminalId, message.data)
       }
     }
 
@@ -377,7 +398,13 @@ const loadTerminalOutput = async (terminalId: string) => {
     await new Promise(resolve => setTimeout(resolve, 100))
     
     // Use dynamic API service / 使用动态API服务
-    const response = await terminalApi.readOutput(terminalId)
+    // 只读取最近一部分历史输出，避免一次性加载过多数据导致切换卡顿
+    // Only fetch the most recent portion of history to avoid laggy tab switches
+    const response = await terminalApi.readOutput(terminalId, {
+      mode: 'tail',
+      tailLines: 200,
+      stripSpinner: true
+    })
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
@@ -389,6 +416,11 @@ const loadTerminalOutput = async (terminalId: string) => {
     // 使用后端返回的完整输出内容，避免再次截断导致看不到真实历史
     // Use full backend output directly to avoid over-truncation hiding real history
     const output = data.output ?? ''
+
+    // 同步历史输出到 pinia 缓存 / Sync historical output into pinia cache
+    if (output && output.length > 0) {
+      terminalStore.setTerminalOutput(terminalId, output)
+    }
 
     // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
     if (!output || output.length === 0) {
@@ -452,10 +484,24 @@ const sendTerminalInput = async (terminalId: string, input: string) => {
   }
 }
 
+// Fit and refresh terminal when it becomes visible / 当终端变为可见时重新适配并刷新
+const fitAndRefreshTerminal = async (terminalId: string) => {
+  await nextTick()
+  const instance = terminalInstances.value.get(terminalId)
+  if (!instance) {
+    return
+  }
+  try {
+    instance.fitAddon.fit()
+    instance.term.refresh(0, instance.term.rows - 1)
+  } catch (error) {
+    console.warn('Failed to fit/refresh terminal', terminalId, error)
+  }
+}
+
 // Switch terminal / 切换终端
 const switchTerminal = (terminalId: string) => {
   activeTerminalId.value = terminalId
-  initializeTerminal(terminalId)
 }
 
 // Clear terminal / 清空终端
@@ -546,11 +592,24 @@ watch(refreshTrigger, () => {
   fetchTerminals()
 })
 
-watch(() => activeTerminalId.value, (newId) => {
-  if (newId) {
-    initializeTerminal(newId)
+watch(
+  () => activeTerminalId.value,
+  async (newId) => {
+    if (newId) {
+      // 初始化终端内容 / Initialize terminal content
+      await initializeTerminal(newId)
+      // 对于之前在隐藏状态下 open 的终端，这里强制 fit/refresh
+      // Force fit/refresh in case the terminal was opened while hidden
+      await fitAndRefreshTerminal(newId)
+      // 持久化当前选中的终端“tab”，用于刷新后恢复 / Persist current active terminal \"tab\" for restoration after refresh
+      try {
+        localStorage.setItem(ACTIVE_TERMINAL_STORAGE_KEY, newId)
+      } catch (error) {
+        console.warn('Failed to persist active terminal id:', error)
+      }
+    }
   }
-})
+)
 
 // Lifecycle hooks / 生命周期钩子
 onMounted(async () => {

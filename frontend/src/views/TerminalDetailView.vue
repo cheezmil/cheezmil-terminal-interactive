@@ -167,8 +167,12 @@ let currentCursor = 0
 const loadTerminalOutput = async () => {
   try {
     console.log('Loading terminal output for:', terminalId)
-    // Use dynamic API service / 使用动态API服务
-    const response = await terminalApi.readOutput(terminalId, currentCursor)
+    // Use dynamic API service with explicit options object to ensure correct query parameters
+    // 使用带有显式选项对象的动态 API 服务，确保查询参数正确传递
+    const response = await terminalApi.readOutput(terminalId, {
+      since: currentCursor,
+      mode: 'full'
+    })
 
     if (!response.ok) {
       const errorText = await response.text()

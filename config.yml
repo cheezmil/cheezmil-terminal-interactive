@@ -18,6 +18,7 @@ terminal:
   maxBufferSize: 10000
   sessionTimeout: 86400000
   defaultEnv: {}
+  enableUserControl: false
 mcp:
   enableDnsRebindingProtection: false
   enableServerSelectionTool: true

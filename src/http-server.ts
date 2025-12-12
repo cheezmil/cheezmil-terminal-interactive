@@ -283,11 +283,51 @@ async function main() {
 
   // Handle uncaught exceptions
   process.on('uncaughtException', (error) => {
+    // node-pty 在 Windows 上终止终端时，偶尔会触发 EPIPE 或 AttachConsole failed 等底层错误
+    // 这些错误通常表示管道或控制台已关闭，不应导致整个 MCP 服务器退出
+    // node-pty on Windows sometimes throws low-level EPIPE or "AttachConsole failed" errors when killing a terminal.
+    // These usually mean the pipe/console is already closed and should not bring down the MCP server.
+    const anyError = error as any;
+    const messageText = String(anyError && (anyError.message || anyError.toString() || ''));
+
+    if (
+      anyError &&
+      (
+        anyError.code === 'EPIPE' ||
+        messageText.includes('EPIPE') ||
+        messageText.includes('AttachConsole failed') ||
+        messageText.includes('conpty_console_list_agent')
+      )
+    ) {
+      log('Ignoring benign uncaughtException from PTY (EPIPE / AttachConsole failed) after terminal kill.');
+      return;
+    }
+
     console.error('[HTTP-MCP-ERROR] Uncaught exception:', error);
     shutdown();
   });
 
   process.on('unhandledRejection', (reason, promise) => {
+    // node-pty 在 Windows 上终止终端时也可能产生未处理的 Promise 拒绝
+    // 这些拒绝一般与 EPIPE / AttachConsole failed 等控制台关闭有关，不应触发服务器退出
+    // node-pty on Windows may also emit unhandled Promise rejections during terminal kill.
+    // These are usually benign (EPIPE / AttachConsole failed) and should not shutdown the server.
+    const anyReason = reason as any;
+    const messageText = String(anyReason && (anyReason.message || anyReason.toString() || ''));
+
+    if (
+      anyReason &&
+      (
+        anyReason.code === 'EPIPE' ||
+        messageText.includes('EPIPE') ||
+        messageText.includes('AttachConsole failed') ||
+        messageText.includes('conpty_console_list_agent')
+      )
+    ) {
+      log('Ignoring benign unhandledRejection from PTY (EPIPE / AttachConsole failed) after terminal kill.');
+      return;
+    }
+
     console.error('[HTTP-MCP-ERROR] Unhandled rejection at:', promise, 'reason:', reason);
     shutdown();
   });
@@ -691,7 +731,14 @@ function broadcast(wsClients: Set<any>, message: any): void {
   const payload = JSON.stringify(message);
   wsClients.forEach((client) => {
     if (client.readyState === 1) { // WebSocket.OPEN
-      client.send(payload);
+      try {
+        client.send(payload);
+      } catch (error) {
+        // 发送失败通常表示客户端已关闭，不应影响主进程
+        // Send failure usually means the client is gone; do not crash the MCP server
+        wsClients.delete(client);
+        process.stderr.write(`[WEB-UI] WebSocket send failed, removed client: ${error}\n`);
+      }
     }
   });
 }
