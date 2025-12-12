@@ -181,6 +181,6 @@ node start_fe_cheestard-terminal-interactive.mjs
 
 
 ## TODO
-- [] Add authentication to prevent anyone from accessing it.
-- [] Add a command blacklist so that some commands will never be executed even if they are received.
+- [ ] Add authentication to prevent anyone from accessing it.
+- [ ] Add a command blacklist so that some commands will never be executed even if they are received.
 
