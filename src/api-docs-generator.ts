@@ -44,6 +44,30 @@ export class ApiDocsGenerator {
           }
         }
       },
+      killAll: {
+        method: 'POST',
+        path: '/api/terminals/kill-all',
+        description: '终结所有终端 / Terminate all terminals',
+        parameters: {},
+        response: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            total: { type: 'number' },
+            killed: { type: 'number' },
+            failed: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  message: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      },
       create: {
         method: 'POST',
         path: '/api/terminals',
@@ -169,6 +193,27 @@ export class ApiDocsGenerator {
           properties: {
             success: { type: 'boolean' },
             message: { type: 'string' }
+          }
+        }
+      }
+    });
+
+    // 系统信息相关 API / System info related APIs
+    this.apiEndpoints.set('system', {
+      version: {
+        method: 'GET',
+        path: '/api/version',
+        description: '获取版本信息（含更新提示） / Get version info (with update hint)',
+        parameters: {},
+        response: {
+          type: 'object',
+          properties: {
+            currentVersion: { type: 'string' },
+            latestVersion: { type: 'string' },
+            updateAvailable: { type: 'boolean' },
+            lastCheckedAt: { type: 'string' },
+            remoteVersionUrl: { type: 'string' },
+            error: { type: 'string' }
           }
         }
       }

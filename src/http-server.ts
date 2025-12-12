@@ -10,6 +10,7 @@ import { TerminalManager } from './terminal-manager.js';
 import { TerminalApiRoutes } from './terminal-api-routes.js';
 import { configManager } from './config-manager.js';
 import { apiDocsGenerator } from './api-docs-generator.js';
+import { VersionService } from './version-service.js';
 import { fileURLToPath } from 'url';
 import { realpathSync } from 'fs';
 import path from 'path';
@@ -89,6 +90,18 @@ async function main() {
   const fastify: FastifyInstance = Fastify({
     logger: false, // 使用自定义日志记录器 / Use custom logger
     trustProxy: true
+  });
+
+  // 版本检查服务（启动时检查 GitHub 最新版本）
+  // Version check service (check GitHub latest version on startup)
+  const versionService = new VersionService();
+  // 将版本服务挂到 fastify，便于路由中复用
+  // Attach version service to fastify for reuse in routes
+  (fastify as any).versionService = versionService;
+  // 启动时进行一次远端版本检查（失败不影响启动）
+  // Do one remote version check on startup (do not block startup on failure)
+  versionService.refreshRemoteVersion({ timeoutMs: 4000 }).catch((error) => {
+    process.stderr.write(`[VERSION] Remote version check failed: ${error instanceof Error ? error.message : String(error)}\n`);
   });
 
   // 注册 CORS 插件 / Register CORS plugin
@@ -387,6 +400,17 @@ async function setupStaticFilesAndRoutes(fastify: FastifyInstance): Promise<void
  */
 async function setupFrontendApiRoutes(fastify: FastifyInstance): Promise<void> {
   const terminalManager = (global as any).sharedTerminalManager;
+  const versionService: VersionService | undefined = (fastify as any).versionService as any;
+
+  // 版本信息 / Version info
+  fastify.get('/api/version', async () => {
+    // 每次请求时若之前没检查过，则补一次（不阻塞太久）
+    // If never checked yet, do a quick refresh (with short timeout)
+    if (versionService && !versionService.getInfo().lastCheckedAt) {
+      await versionService.refreshRemoteVersion({ timeoutMs: 2000 });
+    }
+    return versionService ? versionService.getInfo() : { currentVersion: '0.0.0', latestVersion: null, updateAvailable: false };
+  });
   
   // 获取所有终端 / Get all terminals
   fastify.get('/api/terminals', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -569,6 +593,42 @@ async function setupFrontendApiRoutes(fastify: FastifyInstance): Promise<void> {
     }
   });
 
+  // 终结所有终端 / Terminate all terminals
+  fastify.post('/api/terminals/kill-all', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const list = await terminalManager.listTerminals();
+      const terminalIds: string[] = (list?.terminals || []).map((t: any) => t.id).filter(Boolean);
+
+      let killed = 0;
+      const failed: Array<{ id: string; message: string }> = [];
+
+      for (const id of terminalIds) {
+        try {
+          await terminalManager.killTerminal(id, 'SIGTERM');
+          killed++;
+        } catch (error) {
+          failed.push({
+            id,
+            message: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      return {
+        success: failed.length === 0,
+        total: terminalIds.length,
+        killed,
+        failed
+      };
+    } catch (error) {
+      reply.status(500).send({
+        error: 'Failed to kill all terminals',
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return;
+    }
+  });
+
   // 设置相关API / Settings related API
   await setupSettingsRoutes(fastify);
 }
@@ -678,6 +738,7 @@ async function setupSettingsRoutes(fastify: FastifyInstance): Promise<void> {
       return;
     }
   });
+
 }
 
 /**

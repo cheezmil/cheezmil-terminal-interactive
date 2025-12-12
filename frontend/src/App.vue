@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useRouter, useRoute } from 'vue-router'
 import { useTerminalStore } from './stores/terminal'
 import { useI18n } from 'vue-i18n'
@@ -15,13 +16,12 @@ const isLoaded = ref(false)
 const terminalStore = useTerminalStore()
 const settingsStore = useSettingsStore()
 
-// 统计数据 - 从store获取或直接计算 / Statistics derived from store or fallback
-const stats = computed(() => terminalStore.stats || {
-  total: 0,
-  active: 0,
-  inactive: 0,
-  terminated: 0
-})
+// 版本信息（来自后端 /api/version）/ Version info from backend /api/version
+const versionInfo = ref<{
+  currentVersion: string
+  latestVersion: string | null
+  updateAvailable: boolean
+} | null>(null)
 
 // 是否显示顶部标题 - 从应用配置中读取 / Whether to show top title - read from app config
 const showTitle = computed(() => {
@@ -38,9 +38,50 @@ const createNewTerminal = () => {
   terminalStore.createNewTerminal()
 }
 
+// 顶部搜索框：快速定位 Tab / Top search: quick locate tabs
+const tabSearchQuery = computed({
+  get: () => terminalStore.tabSearchQuery,
+  set: (value: string) => terminalStore.setTabSearchQuery(value)
+})
+
 // 导航到设置页面
 const navigateToSettings = () => {
   router.push('/settings')
+}
+
+// 终结所有终端（只读模式也允许）/ Terminate all terminals (allowed even in read-only mode)
+const killAllTerminals = async () => {
+  const confirmed = window.confirm(t('app.confirmKillAllTerminals'))
+  if (!confirmed) return
+
+  try {
+    const response = await fetch('http://localhost:1106/api/terminals/kill-all', { method: 'POST' })
+    if (!response.ok) {
+      throw new Error(await response.text())
+    }
+    terminalStore.refreshTerminals()
+  } catch (error) {
+    console.warn('Failed to kill all terminals:', error)
+    window.alert(t('app.killAllFailed'))
+  }
+}
+
+const loadVersionInfo = async () => {
+  try {
+    const response = await fetch('http://localhost:1106/api/version', { method: 'GET' })
+    if (!response.ok) {
+      throw new Error(await response.text())
+    }
+    const data = await response.json()
+    versionInfo.value = {
+      currentVersion: data.currentVersion || '0.0.0',
+      latestVersion: data.latestVersion ?? null,
+      updateAvailable: Boolean(data.updateAvailable)
+    }
+  } catch (error) {
+    console.warn('Failed to load version info:', error)
+    versionInfo.value = null
+  }
 }
 
 onMounted(() => {
@@ -53,6 +94,9 @@ onMounted(() => {
   settingsStore.loadFullConfig().catch((error) => {
     console.warn('Failed to load full settings for title visibility:', error)
   })
+
+  // 拉取版本信息 / Fetch version info
+  loadVersionInfo()
 })
 </script>
 
@@ -69,6 +113,16 @@ onMounted(() => {
             <div class="luxury-logo-container rounded-lg flex items-center justify-center text-jet-black hover:scale-105 transition-transform duration-200 shadow-luxury" style="margin-right: 1rem;">
               <img src="/CTI.svg" alt="CTI Logo" class="w-6 h-6" />
             </div>
+
+            <!-- 版本号放在最左侧图标右边 / Put version right next to the left icon -->
+            <div class="text-xs text-text-secondary font-mono whitespace-nowrap mr-4">
+              <span v-if="versionInfo">v{{ versionInfo.currentVersion }}</span>
+              <span v-else>v0.0.0</span>
+              <span v-if="versionInfo?.updateAvailable && versionInfo.latestVersion" class="text-amber-300 ml-2">
+                {{ t('app.updateAvailable') }} v{{ versionInfo.latestVersion }}
+              </span>
+            </div>
+
             <h1
               v-if="showTitle"
               class="text-xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent"
@@ -77,27 +131,28 @@ onMounted(() => {
             </h1>
           </div>
           
-          <!-- 右侧：统计信息和设置按钮 -->
-          <div class="flex items-center space-x-6 flex-shrink-0">
-            <div class="hidden md:flex items-center space-x-6">
-              <span class="flex items-center space-x-2 text-sm text-text-secondary luxury-stat-item">
-                <SvgIcon name="server" class="w-4 h-4 text-luxury-gold" />
-                <span>{{ stats.total }} {{ t('app.totalTerminals') }}</span>
-              </span>
-              <span class="flex items-center space-x-2 text-sm text-text-secondary luxury-stat-item">
-                <SvgIcon name="play" class="w-4 h-4 text-emerald-400" />
-                <span>{{ stats.active }} {{ t('app.active') }}</span>
-              </span>
-              <span class="flex items-center space-x-2 text-sm text-text-secondary luxury-stat-item">
-                <SvgIcon name="pause" class="w-4 h-4 text-amber-400" />
-                <span>{{ stats.inactive }} {{ t('app.inactive') }}</span>
-              </span>
-              <span class="flex items-center space-x-2 text-sm text-text-secondary luxury-stat-item">
-                <SvgIcon name="stop" class="w-4 h-4 text-rose-400" />
-                <span>{{ stats.terminated }} {{ t('app.terminated') }}</span>
-              </span>
+          <!-- 右侧：搜索、版本、终结全部、设置 / Right: search, version, kill-all, settings -->
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <div class="hidden md:flex items-center gap-3">
+              <div class="w-72">
+                <Input
+                  v-model="tabSearchQuery"
+                  :placeholder="t('app.searchTabsPlaceholder')"
+                  class="h-9 bg-black/30 border border-luxury-gold/30 text-text-primary placeholder:text-text-muted"
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-9 border-rose-500/40 text-rose-200 hover:bg-rose-500/10"
+                @click="killAllTerminals"
+              >
+                <SvgIcon name="stop" class="w-4 h-4 mr-2" />
+                {{ t('app.killAll') }}
+              </Button>
             </div>
-            
+
             <Button
               variant="ghost"
               size="icon"

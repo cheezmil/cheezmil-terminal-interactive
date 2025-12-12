@@ -10,3 +10,4 @@ Starting frontend production server...
   ➜  Local:   http://localhost:1107/
   ➜  Network: use --host to expose
   ➜  press h + enter to show help
+Frontend production server exited with code 1

@@ -49,10 +49,10 @@ const terminalStats = computed(() => ({
   uptime: terminal.value ? calculateUptime(terminal.value.created) : '0m'
 }))
 
-// 是否允许前端控制终端（实验性设置） / Whether frontend is allowed to control terminals (experimental setting)
-const canControlTerminal = computed(() => {
+// 是否允许前端写入终端输入（实验性设置）/ Whether frontend is allowed to send terminal input (experimental setting)
+const canSendTerminalInput = computed(() => {
   const enableUserControl = settingsStore.configData?.terminal?.enableUserControl
-  // 默认只读，只有显式启用时才允许控制 / Default is read-only; only allow control when explicitly enabled
+  // 默认只读（仅禁用输入），终止终端仍允许 / Default is read-only (input disabled only); termination is still allowed
   return enableUserControl === true
 })
 
@@ -200,7 +200,7 @@ const loadTerminalOutput = async () => {
 // 发送命令 / Send command
 const sendCommand = async (command: string) => {
   // 只读模式下直接丢弃命令，不调用后端 / Drop commands in read-only mode without calling backend
-  if (!canControlTerminal.value) {
+  if (!canSendTerminalInput.value) {
     return
   }
   if (!command.trim() || !ws || ws.readyState !== WebSocket.OPEN) return
@@ -223,7 +223,7 @@ const handleTerminalData = (data: string) => {
 
 // 清空终端
 const clearTerminal = () => {
-  if (!canControlTerminal.value) {
+  if (!canSendTerminalInput.value) {
     console.warn('Clear terminal is disabled in read-only mode')
     return
   }
@@ -234,10 +234,7 @@ const clearTerminal = () => {
 
 // 终止终端 / Kill terminal
 const killTerminal = async () => {
-  if (!canControlTerminal.value) {
-    console.warn('Kill terminal is disabled in read-only mode')
-    return
-  }
+  // 终止终端允许在只读模式下执行 / Termination is allowed even in read-only mode
   try {
     // Use dynamic API service / 使用动态API服务
     const response = await terminalApi.delete(terminalId)

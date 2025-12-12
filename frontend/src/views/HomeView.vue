@@ -5,7 +5,6 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'vue-sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -60,11 +59,34 @@ const activeTerminal = computed(() =>
   terminals.value.find(t => t.id === activeTerminalId.value)
 )
 
-// 是否允许前端控制终端（实验性设置） / Whether frontend is allowed to control terminals (experimental setting)
-const canControlTerminal = computed(() => {
+// 是否允许前端写入终端输入（实验性设置）/ Whether frontend is allowed to send terminal input (experimental setting)
+const canSendTerminalInput = computed(() => {
   const enableUserControl = settingsStore.configData?.terminal?.enableUserControl
-  // 默认不可控，只有显式启用时才允许 / Default is read-only; only allow when explicitly enabled
+  // 默认只读（仅禁用输入），终止终端仍允许 / Default is read-only (input disabled only); termination is still allowed
   return enableUserControl === true
+})
+
+// 侧边栏展示的终端列表（支持搜索与置顶）/ Sidebar terminal list (supports search & pin)
+const displayedTerminals = computed(() => {
+  const query = (terminalStore.tabSearchQuery || '').trim().toLowerCase()
+  const list = terminals.value.slice()
+
+  const filtered = query
+    ? list.filter((t) => {
+      const id = String(t?.id || '').toLowerCase()
+      const shell = String(t?.shell || '').toLowerCase()
+      const cwd = String(t?.cwd || '').toLowerCase()
+      return id.includes(query) || shell.includes(query) || cwd.includes(query)
+    })
+    : list
+
+  filtered.sort((a, b) => {
+    const ap = terminalStore.isPinned(a.id) ? 1 : 0
+    const bp = terminalStore.isPinned(b.id) ? 1 : 0
+    return bp - ap
+  })
+
+  return filtered
 })
 
 // Fetch terminals from API / 从API获取终端列表
@@ -105,15 +127,23 @@ const fetchTerminals = async () => {
 // Delete (terminate) terminal / 删除（终止）终端
 const deleteTerminal = async (id: string) => {
   try {
-    // 在只读模式下禁止终止终端 / Disallow terminating terminals when in read-only mode
-    if (!canControlTerminal.value) {
-      toast.error('当前为只读终端模式，前端终止操作已被禁用 / Terminal is in read-only mode; termination from frontend is disabled.')
-      return
-    }
+    // 终止终端允许在只读模式下执行；只读模式仅禁用输入 /
+    // Termination is allowed even in read-only mode; read-only only disables input
 
     // 关闭终端实例以防止继续渲染 / Close terminal instance to stop further rendering
     const terminalInstance = terminalInstances.value.get(id)
     if (terminalInstance) {
+      // 移除右键复制监听，避免残留事件 / Remove right-click copy handler to avoid lingering events
+      const container = document.getElementById(`terminal-${id}`) as any | null
+      const handler = container?._ctiContextMenuHandler as ((e: MouseEvent) => void) | undefined
+      if (container && handler) {
+        try {
+          container.removeEventListener('contextmenu', handler)
+        } catch (removeError) {
+          console.warn('Failed to remove contextmenu handler for terminal', id, removeError)
+        }
+      }
+
       // 关闭 WebSocket 连接 / Close WebSocket connection
       try {
         if (terminalInstance.ws) {
@@ -267,6 +297,43 @@ const initializeTerminal = async (terminalId: string) => {
     await new Promise(resolve => setTimeout(resolve, 50))
     term.open(container)
     console.log('Terminal opened in container')
+
+    // 选中文本后右键直接复制 / Right-click to copy when selection exists
+    const onContextMenu = async (event: MouseEvent) => {
+      try {
+        if (!term.hasSelection()) {
+          return
+        }
+        event.preventDefault()
+        const selectedText = term.getSelection()
+        if (!selectedText) {
+          return
+        }
+
+        // 优先使用 Clipboard API / Prefer Clipboard API
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(selectedText)
+        } else {
+          // 兼容回退：使用隐藏 textarea + execCommand / Fallback: hidden textarea + execCommand
+          const textarea = document.createElement('textarea')
+          textarea.value = selectedText
+          textarea.style.position = 'fixed'
+          textarea.style.left = '-9999px'
+          textarea.style.top = '0'
+          document.body.appendChild(textarea)
+          textarea.focus()
+          textarea.select()
+          document.execCommand('copy')
+          document.body.removeChild(textarea)
+        }
+
+        term.clearSelection()
+      } catch (error) {
+        console.warn('Right-click copy failed:', error)
+      }
+    }
+    ;(container as any)._ctiContextMenuHandler = onContextMenu
+    container.addEventListener('contextmenu', onContextMenu)
     
     // Fit terminal to container / 适配终端到容器
     setTimeout(() => {
@@ -467,7 +534,7 @@ const loadTerminalOutput = async (terminalId: string) => {
 // Send terminal input / 发送终端输入
 const sendTerminalInput = async (terminalId: string, input: string) => {
   // 全局只读模式：当前不允许前端发送输入时直接返回 / Global read-only mode: skip sending input when frontend control is disabled
-  if (!canControlTerminal.value) {
+  if (!canSendTerminalInput.value) {
     // 为避免在按键时刷屏，这里不弹 Toast，只静默丢弃输入
     // To avoid toast spamming on every keypress, we silently drop input here
     return
@@ -507,7 +574,7 @@ const switchTerminal = (terminalId: string) => {
 // Clear terminal / 清空终端
 const clearTerminal = (terminalId: string) => {
   // 只读模式下禁止清空终端内容 / Disallow clearing terminal content in read-only mode
-  if (!canControlTerminal.value) {
+  if (!canSendTerminalInput.value) {
     toast.error('当前为只读终端模式，清空终端已被禁用 / Terminal is in read-only mode; clearing is disabled.')
     return
   }
@@ -520,7 +587,7 @@ const clearTerminal = (terminalId: string) => {
 // Reconnect terminal / 重新连接终端
 const reconnectTerminal = (terminalId: string) => {
   // 只读模式下禁止重新连接（避免误以为可交互）/ Disallow reconnect in read-only mode to avoid implying interactivity
-  if (!canControlTerminal.value) {
+  if (!canSendTerminalInput.value) {
     toast.error('当前为只读终端模式，重新连接已被禁用 / Terminal is in read-only mode; reconnect is disabled.')
     return
   }
@@ -707,73 +774,83 @@ watch(terminals, (newTerminals) => {
             <p class="text-text-muted text-sm">{{ t('home.useCtiTool') }}</p>
           </div>
           
-          <div v-else class="space-y-2">
-            <div
-              v-for="terminal in terminals"
-              :key="terminal.id"
-              :class="['luxury-terminal-item cursor-pointer transition-all duration-300',
-                       { 'luxury-terminal-active': terminal.id === activeTerminalId,
-                         'luxury-terminal-inactive': terminal.id !== activeTerminalId }]"
-              @click="switchTerminal(terminal.id)"
-            >
-              <div class="flex flex-col space-y-2">
-                <div class="flex justify-between items-center">
-                  <div class="flex items-center space-x-2">
-                    <span class="luxury-terminal-id">
-                      {{ terminal.id || 'N/A' }}
-                    </span>
-                    <Badge
-                      :variant="getStatusBadgeVariant(terminal.status)"
-                      class="luxury-status-badge"
-                    >
-                      {{ terminal.status }}
-                    </Badge>
+          <div v-else>
+            <div v-if="displayedTerminals.length === 0" class="luxury-empty-state">
+              <p class="text-text-secondary mb-2 font-serif-luxury">{{ t('home.noMatches') }}</p>
+              <p class="text-text-muted text-sm">{{ t('home.tryDifferentKeyword') }}</p>
+            </div>
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="terminal in displayedTerminals"
+                :key="terminal.id"
+                :class="['luxury-terminal-item cursor-pointer transition-all duration-300',
+                         { 'luxury-terminal-active': terminal.id === activeTerminalId,
+                           'luxury-terminal-inactive': terminal.id !== activeTerminalId }]"
+                @click="switchTerminal(terminal.id)"
+              >
+                <div class="flex flex-col space-y-2">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                      <span
+                        class="luxury-status-dot"
+                        :class="{
+                          'luxury-status-dot-active': terminal.status === 'active',
+                          'luxury-status-dot-inactive': terminal.status === 'inactive',
+                          'luxury-status-dot-terminated': terminal.status === 'terminated'
+                        }"
+                        aria-hidden="true"
+                      />
+                      <span class="luxury-terminal-id">
+                        {{ terminal.id || 'N/A' }}
+                      </span>
+                      <span class="luxury-terminal-shell" :title="terminal.shell">
+                        {{ terminal.shell || '-' }}
+                      </span>
+                    </div>
+                    <div class="flex space-x-1 luxury-terminal-actions">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="luxury-action-button"
+                        @click.stop="terminalStore.togglePin(terminal.id)"
+                        :title="terminalStore.isPinned(terminal.id) ? t('home.unpin') : t('home.pin')"
+                      >
+                        <SvgIcon name="pin" class="w-4 h-4" :class="terminalStore.isPinned(terminal.id) ? 'text-luxury-gold' : 'text-text-muted'" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="luxury-action-button-danger"
+                        @click.stop="deleteTerminal(terminal.id)"
+                        :title="t('home.terminate')"
+                      >
+                        <SvgIcon name="x" class="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div class="flex space-x-1 luxury-terminal-actions">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="luxury-action-button"
-                      @click.stop="clearTerminal(terminal.id)"
-                      :title="t('terminal.clear')"
-                    >
-                      <SvgIcon name="trash" class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="luxury-action-button"
-                      @click.stop="reconnectTerminal(terminal.id)"
-                      :title="t('terminal.reconnect')"
-                    >
-                      <SvgIcon name="refresh" class="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="luxury-action-button-danger"
-                      @click.stop="deleteTerminal(terminal.id)"
-                      :title="t('home.terminate')"
-                    >
-                      <SvgIcon name="x" class="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div class="space-y-1">
-                  <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
-                    <SvgIcon name="cog" class="w-3 h-3 text-luxury-gold" />
-                    <span class="text-text-muted">PID:</span>
-                    <span class="text-text-secondary">{{ terminal.pid }}</span>
-                  </div>
-                  <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
-                    <SvgIcon name="folder" class="w-3 h-3 text-rose-gold" />
-                    <span class="text-text-secondary truncate" :title="terminal.cwd">
-                      {{ terminal.cwd || t('home.default') }}
-                    </span>
-                  </div>
-                  <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
-                    <SvgIcon name="clock" class="w-3 h-3 text-platinum" />
-                    <span class="text-text-secondary">{{ formatDate(terminal.created) }}</span>
+                  <div class="space-y-1">
+                    <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
+                      <SvgIcon name="cog" class="w-3 h-3 text-luxury-gold" />
+                      <span class="text-text-muted">PID:</span>
+                      <span class="text-text-secondary">{{ terminal.pid }}</span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
+                      <SvgIcon name="terminal" class="w-3 h-3 text-emerald-400" />
+                      <span class="text-text-secondary truncate" :title="terminal.shell">
+                        {{ terminal.shell || '-' }}
+                      </span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
+                      <SvgIcon name="folder" class="w-3 h-3 text-rose-gold" />
+                      <span class="text-text-secondary truncate" :title="terminal.cwd">
+                        {{ terminal.cwd || t('home.default') }}
+                      </span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-xs luxury-terminal-info">
+                      <SvgIcon name="clock" class="w-3 h-3 text-platinum" />
+                      <span class="text-text-secondary">{{ formatDate(terminal.created) }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -801,38 +878,23 @@ watch(terminals, (newTerminals) => {
           <header class="luxury-terminal-header">
             <div class="flex items-center space-x-3">
               <div class="flex items-center space-x-2">
-                <SvgIcon v-if="activeTerminal?.status === 'active'" name="check" class="w-5 h-5 luxury-status-icon" />
-                <SvgIcon v-else-if="activeTerminal?.status === 'inactive'" name="pause" class="w-5 h-5 luxury-status-icon" />
-                <SvgIcon v-else name="stop" class="w-5 h-5 luxury-status-icon" />
+                <span
+                  class="luxury-status-dot"
+                  :class="{
+                    'luxury-status-dot-active': activeTerminal?.status === 'active',
+                    'luxury-status-dot-inactive': activeTerminal?.status === 'inactive',
+                    'luxury-status-dot-terminated': activeTerminal?.status === 'terminated'
+                  }"
+                  aria-hidden="true"
+                />
                 <span class="font-semibold text-text-primary font-serif-luxury">{{ activeTerminal?.id || 'Terminal ' + (activeTerminalId || 'N/A') }}</span>
-                <Badge
-                  :variant="getStatusBadgeVariant(activeTerminal?.status)"
-                  class="luxury-status-badge"
-                >
-                  {{ activeTerminal?.status }}
-                </Badge>
+                <span class="text-xs text-text-secondary font-mono truncate" :title="activeTerminal?.shell">
+                  {{ activeTerminal?.shell || '-' }}
+                </span>
               </div>
             </div>
             
             <div class="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                class="luxury-header-button"
-                @click="clearTerminal(activeTerminalId!)"
-                :title="t('terminal.clear')"
-              >
-                <SvgIcon name="trash" class="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                class="luxury-header-button"
-                @click="reconnectTerminal(activeTerminalId!)"
-                :title="t('terminal.reconnect')"
-              >
-                <SvgIcon name="refresh" class="w-4 h-4" />
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -960,6 +1022,39 @@ watch(terminals, (newTerminals) => {
   border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
+.luxury-terminal-shell {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(229, 228, 226, 0.06);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(229, 228, 226, 0.12);
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.luxury-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.luxury-status-dot-active {
+  background: #34d399;
+}
+
+.luxury-status-dot-inactive {
+  background: #fbbf24;
+}
+
+.luxury-status-dot-terminated {
+  background: #fb7185;
+}
+
 .luxury-status-badge {
   font-size: 0.75rem !important;
   font-weight: 500 !important;
@@ -1023,9 +1118,10 @@ watch(terminals, (newTerminals) => {
 .luxury-main-content {
   background: var(--jet-black);
   position: relative;
-  /* Add slight padding to keep inner headers visually separated from the global top navigation
-     为内部终端头部增加适当内边距，避免被全局顶部导航在视觉上压住 */
-  padding-top: 0.75rem;
+  /* 主区域不额外加上下内边距，避免出现多余留白
+     Do not add extra vertical padding to main area to avoid unwanted gaps */
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* Luxury terminal header / 奢华终端头部 */

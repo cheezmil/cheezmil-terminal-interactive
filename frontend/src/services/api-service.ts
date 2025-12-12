@@ -71,14 +71,16 @@ export function getEndpoint(category: string, action: string): string {
       read: '/api/terminals/:id/output',
       stats: '/api/terminals/:id/stats',
       kill: '/api/terminals/:id',
-      resize: '/api/terminals/:id/resize'
+      resize: '/api/terminals/:id/resize',
+      killAll: '/api/terminals/kill-all'
     },
     health: {
       check: '/health'
     },
     system: {
       health: '/health',
-      stats: '/stats'
+      stats: '/stats',
+      version: '/api/version'
     }
   };
 
@@ -206,6 +208,19 @@ export const terminalApi = {
       headers: { 'Content-Type': 'application/json' }
     });
   },
+  killAll: () => {
+    const endpoint = getEndpoint('terminals', 'killAll');
+    const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+};
+
+// 系统相关 API / System related APIs
+export const systemApi = {
+  version: () => apiRequest('system', 'version')
 };
 // 设置相关API / Settings related APIs
 export const settingsApi = {

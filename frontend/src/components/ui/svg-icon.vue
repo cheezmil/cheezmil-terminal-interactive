@@ -23,6 +23,7 @@ const iconMap = {
   computer: Icons.Monitor,
   refresh: Icons.RefreshCw,
   trash: Icons.Trash2,
+  pin: Icons.Pin,
   folder: Icons.Folder,
   clock: Icons.Clock,
   cog: Icons.Settings,

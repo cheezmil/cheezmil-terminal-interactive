@@ -48,6 +48,10 @@
     "defaultDirectory": "默认目录",
     "viewTerminal": "查看",
     "terminate": "终止",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "noMatches": "没有匹配的终端",
+    "tryDifferentKeyword": "试试其他关键字",
     "copyTerminalId": "点击复制终端ID",
     "terminalCreated": "终端已创建！是否立即打开？",
     "confirmTerminate": "确定要终止终端 {id} 吗？",
@@ -116,7 +120,12 @@
     "totalTerminals": "总终端数",
     "active": "活跃",
     "inactive": "非活跃",
-    "terminated": "已终止"
+    "terminated": "已终止",
+    "searchTabsPlaceholder": "搜索终端标签…",
+    "killAll": "终结全部",
+    "confirmKillAllTerminals": "确认终结所有终端？",
+    "killAllFailed": "终结全部终端失败。",
+    "updateAvailable": "有新版本："
   },
   "settings": {
     "title": "设置",
@@ -141,7 +150,7 @@
     "maxBufferSize": "最大缓冲区大小",
     "sessionTimeout": "会话超时",
     "experimentalTerminalControl": "实验性：允许前端控制终端",
-    "experimentalTerminalControlDescription": "当前为实验功能，关闭时前端只能查看输出，不能发送命令或终止终端。",
+    "experimentalTerminalControlDescription": "当前为实验功能，关闭时前端只能查看输出，不能发送命令，但仍可终止终端。",
     "experimentalTerminalControlEnabled": "已启用",
     "experimentalTerminalControlDisabled": "已禁用",
     "defaultEnv": "默认环境变量",

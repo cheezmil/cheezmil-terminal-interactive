@@ -48,6 +48,10 @@
     "defaultDirectory": "Default Directory",
     "viewTerminal": "View",
     "terminate": "Terminate",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "noMatches": "No matching terminals",
+    "tryDifferentKeyword": "Try a different keyword",
     "copyTerminalId": "Click to copy terminal ID",
     "terminalCreated": "Terminal created! Open it now?",
     "confirmTerminate": "Are you sure you want to terminate terminal {id}?",
@@ -116,7 +120,12 @@
     "totalTerminals": "Total Terminals",
     "active": "Active",
     "inactive": "Inactive",
-    "terminated": "Terminated"
+    "terminated": "Terminated",
+    "searchTabsPlaceholder": "Search tabs...",
+    "killAll": "Terminate All",
+    "confirmKillAllTerminals": "Terminate ALL terminals?",
+    "killAllFailed": "Failed to terminate all terminals.",
+    "updateAvailable": "Update available:"
   },
   "settings": {
     "title": "Settings",
@@ -141,7 +150,7 @@
     "maxBufferSize": "Max Buffer Size",
     "sessionTimeout": "Session Timeout",
     "experimentalTerminalControl": "Experimental: allow frontend to control terminals",
-    "experimentalTerminalControlDescription": "This is an experimental feature. When disabled, the frontend becomes read-only: it cannot send commands or terminate terminals.",
+    "experimentalTerminalControlDescription": "This is an experimental feature. When disabled, the frontend becomes read-only: it cannot send commands, but it can still terminate terminals.",
     "experimentalTerminalControlEnabled": "Enabled",
     "experimentalTerminalControlDisabled": "Disabled",
     "defaultEnv": "Default Environment Variables",
