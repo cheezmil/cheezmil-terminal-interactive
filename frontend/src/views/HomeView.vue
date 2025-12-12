@@ -660,7 +660,7 @@ watch(terminals, (newTerminals) => {
 </script>
 
 <template>
-  <div class="luxury-home-container flex flex-col overflow-hidden">
+  <div class="luxury-home-container h-full flex flex-col min-h-0 overflow-hidden">
     <!-- Global toast container at top center / 顶部居中的全局消息提示容器 -->
     <Toaster position="top-center" />
     
@@ -675,10 +675,10 @@ watch(terminals, (newTerminals) => {
     </div>
 
     <!-- Luxury main workspace / 奢华主工作区 - 全屏终端布局 -->
-    <div v-else class="flex-1 flex overflow-hidden">
+    <div v-else class="flex-1 flex min-h-0 overflow-hidden">
       <!-- Luxury left sidebar with terminal tabs / 奢华左侧边栏带终端标签 -->
       <aside :class="['luxury-sidebar flex flex-col flex-shrink-0 transition-all duration-300',
-                     { 'w-80': !isSidebarCollapsed, 'w-16': isSidebarCollapsed }]">
+                     { 'w-80': !isSidebarCollapsed, 'w-16': isSidebarCollapsed }, 'min-h-0']">
         <div class="luxury-sidebar-header">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
@@ -698,7 +698,7 @@ watch(terminals, (newTerminals) => {
         </div>
 
         <!-- Luxury terminal tabs / 奢华终端标签 -->
-        <div v-if="!isSidebarCollapsed" class="flex-1 overflow-y-auto p-2 luxury-terminal-list">
+        <div v-if="!isSidebarCollapsed" class="flex-1 min-h-0 overflow-y-auto p-2 luxury-terminal-list">
           <div v-if="terminals.length === 0" class="luxury-empty-state">
             <div class="text-5xl text-platinum mb-4">
               <SvgIcon name="archive" class="w-16 h-16" />
@@ -900,6 +900,14 @@ watch(terminals, (newTerminals) => {
 .luxury-terminal-list {
   padding: 0.5rem;
   background: var(--jet-black);
+  /* 隐藏滚动条但保持可滚动 / Hide scrollbar but keep scrolling */
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge Legacy */
+}
+
+.luxury-terminal-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .luxury-empty-state {

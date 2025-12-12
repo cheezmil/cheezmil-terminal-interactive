@@ -186,3 +186,115 @@ Setting encoding on Windows is not supported
 [HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
 [WEB-UI] WebSocket client connected
 [HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: wsl-check-file (PID: 30212)
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: vim-test-terminal (PID: 23508)
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: check-file-terminal (PID: 31840)
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Reusing existing session: 306b51ee-60d6-4946-b67c-970fc1ab3811
+[HTTP-MCP-INFO] Creating new session and MCP server
+[MCP-INFO] Using shared TerminalManager instance
+[MCP-DEBUG] Checking if tool "interact_with_terminal" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "interact_with_terminal" is ENABLED
+[MCP-DEBUG] Checking if tool "fix_bug_with_codex" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "fix_bug_with_codex" is DISABLED
+[MCP-INFO] Tool "fix_bug_with_codex" is disabled
+[MCP-INFO] Services auto-start disabled to prevent recursion
+[HTTP-MCP-INFO] MCP server connected to transport
+[HTTP-MCP-INFO] Session initialized: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[WEB-UI] WebSocket client disconnected
+[WEB-UI] WebSocket client disconnected
+[WEB-UI] WebSocket client disconnected
+[WEB-UI] WebSocket client disconnected
+[WEB-UI] WebSocket client disconnected
+[WEB-UI] WebSocket client connected
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: test-terminal-new (PID: 7852)
+[MCP-INFO] Terminal created: test-terminal-new (PID: 7852)
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: test-terminal-wsl (PID: 28492)
+[MCP-INFO] Terminal created: test-terminal-wsl (PID: 28492)
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: test-terminal-success (PID: 34992)
+[MCP-INFO] Terminal created: test-terminal-success (PID: 34992)
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2
+Setting encoding on Windows is not supported
+[HTTP-MCP-INFO] Reusing existing session: feb955ab-6e61-46d3-9527-c5b669c939a2

@@ -16,6 +16,12 @@ export interface TerminalSession {
   lastPromptLine?: string | null;
   lastPromptAt?: Date | null;
   hasPrompt?: boolean;
+  // 是否处于备用屏幕（vim/top 等全屏程序会启用）
+  // Whether we are in alternate screen (fullscreen apps like vim/top enable it)
+  alternateScreen?: boolean;
+  // 原始输出环形缓冲（用于全屏程序时回退）
+  // Raw output ring buffer (fallback for fullscreen apps)
+  rawOutput?: string;
 }
 
 export interface CommandRuntimeInfo {
@@ -43,7 +49,7 @@ export interface TerminalReadOptions {
   terminalName: string;
   since?: number | undefined;
   maxLines?: number | undefined;
-  mode?: 'full' | 'head-tail' | 'head' | 'tail' | 'auto' | 'smart' | undefined;
+  mode?: 'full' | 'head-tail' | 'head' | 'tail' | 'auto' | 'smart' | 'raw' | undefined;
   headLines?: number | undefined;
   tailLines?: number | undefined;
   stripSpinner?: boolean | undefined;
@@ -72,6 +78,9 @@ export interface TerminalReadStatus {
   lastCommand: CommandSummary | null;
   promptLine: string | null;
   lastActivity: string;
+  // 是否检测到备用屏幕模式（vim 等）
+  // Whether alternate screen mode is detected (vim etc.)
+  alternateScreen?: boolean;
 }
 
 export interface CommandSummary {

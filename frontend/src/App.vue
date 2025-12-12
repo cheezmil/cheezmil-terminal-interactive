@@ -111,10 +111,10 @@ onMounted(() => {
       </header>
 
       <!-- 页面内容 -->
-      <main class="flex-1">
+      <main class="flex-1 min-h-0 overflow-hidden flex">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" class="flex-1 min-h-0" />
           </transition>
         </router-view>
       </main>

@@ -448,7 +448,7 @@ Fix tool: OpenAI Codex
         // 读取参数 / Parameters for reading from terminal
         since: z.number().optional().describe('Line number to start reading from (default: 0)'),
         maxLines: z.number().optional().describe('Maximum number of lines to read (default: 1000)'),
-        mode: z.enum(['full', 'head', 'tail', 'head-tail', 'smart']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), head-tail (first + last N lines), or smart (automatically choose best mode)'),
+        mode: z.enum(['full', 'head', 'tail', 'head-tail', 'smart', 'raw']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), head-tail (first + last N lines), smart (auto best), or raw (tail of raw PTY output; useful for vim/fullscreen apps)'),
         headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
         tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
         stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)')

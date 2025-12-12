@@ -182,7 +182,9 @@ export class TerminalManager extends EventEmitter {
         lastCommand: null,
         lastPromptLine: null,
         lastPromptAt: null,
-        hasPrompt: false
+        hasPrompt: false,
+        alternateScreen: false,
+        rawOutput: ''
       };
 
       // 创建输出缓冲器
@@ -202,6 +204,11 @@ export class TerminalManager extends EventEmitter {
         setImmediate(() => {
           const now = new Date();
           session.lastActivity = now;
+
+          // 记录原始输出，并检测是否进入/退出备用屏幕（vim 等全屏程序）
+          // Record raw output and detect alternate screen enter/exit (fullscreen apps like vim)
+          this.updateRawOutputAndScreenState(session, data);
+
           outputBuffer.append(data);
           // 使用终端名称而不是内部 UUID，保证 WebSocket 与前端使用的 ID 对齐
           // Use terminal name instead of internal UUID so WebSocket IDs match frontend IDs
@@ -280,33 +287,22 @@ export class TerminalManager extends EventEmitter {
     }
 
     try {
-      // 如果输入不以换行符结尾，自动添加换行符以执行命令
-      // 这样用户可以直接发送 "ls" 而不需要手动添加 "\n"
-      const autoAppend = appendNewline ?? this.shouldAutoAppendNewline(input);
+      // 如果输入不以换行符结尾，自动添加换行符以执行命令。
+      // 对多行输入（例如粘贴到 vim 插入模式）默认不自动追加，避免多余回车导致状态错乱。
+      // Auto-append newline when input doesn't end with a newline.
+      // For multi-line input (e.g., pasting into vim insert mode), default to NO auto-append to avoid extra Enter.
+      const hasMultiline = input.includes('\n') || input.includes('\r\n');
+      const autoAppend = appendNewline ?? (hasMultiline ? false : this.shouldAutoAppendNewline(input));
       const needsNewline = autoAppend && !input.endsWith('\n') && !input.endsWith('\r');
       const newlineChar = '\r';
       const inputWithAutoNewline = needsNewline ? input + newlineChar : input;
       const inputToWrite = this.normalizeNewlines(inputWithAutoNewline);
 
-      // 写入数据到 PTY
-      // node-pty 的 write 方法是同步的，但我们需要确保数据被发送
-      const written = ptyProcess.write(inputToWrite);
-
-      // 如果写入失败（返回 false），等待 drain 事件
-      if (written === false) {
-        await new Promise<void>((resolve) => {
-          const onDrain = () => {
-            ptyProcess.off('drain', onDrain);
-            resolve();
-          };
-          ptyProcess.on('drain', onDrain);
-          // 设置超时，避免永久等待
-          setTimeout(() => {
-            ptyProcess.off('drain', onDrain);
-            resolve();
-          }, 5000);
-        });
-      }
+      // 写入数据到 PTY。
+      // Windows ConPTY 在一次 write 过大时可能丢数据；因此这里按块写入并小幅让出事件循环。
+      // Write to PTY in chunks.
+      // Windows ConPTY may drop very large single writes, so we chunk and yield briefly.
+      await this.writeInChunks(ptyProcess, inputToWrite);
 
       session.lastActivity = new Date();
       this.emit('terminalInput', terminalName, inputToWrite);
@@ -334,6 +330,69 @@ export class TerminalManager extends EventEmitter {
     return value
       .replace(/\r\n/g, '\r')
       .replace(/\n/g, '\r');
+  }
+
+  /**
+   * 分块写入，避免 ConPTY 大包截断
+   * Chunked write to avoid ConPTY truncation on large payloads
+   */
+  private async writeInChunks(ptyProcess: any, data: string): Promise<void> {
+    const chunkSize = 4000;
+    for (let offset = 0; offset < data.length; offset += chunkSize) {
+      const chunk = data.slice(offset, offset + chunkSize);
+      const written = ptyProcess.write(chunk);
+      if (written === false) {
+        await new Promise<void>((resolve) => {
+          const onDrain = () => {
+            ptyProcess.off('drain', onDrain);
+            resolve();
+          };
+          ptyProcess.on('drain', onDrain);
+          setTimeout(() => {
+            ptyProcess.off('drain', onDrain);
+            resolve();
+          }, 5000);
+        });
+      }
+      // 让出事件循环，给全屏程序处理输入的时间
+      // Yield to event loop to let fullscreen apps process input
+      await new Promise(resolve => setTimeout(resolve, 2));
+    }
+  }
+
+  /**
+   * 更新原始输出缓冲并检测备用屏幕状态
+   * Update raw output buffer and detect alternate screen state
+   */
+  private updateRawOutputAndScreenState(session: TerminalSession, data: string): void {
+    if (!session) {
+      return;
+    }
+
+    const enterSeqs = ['\x1b[?1049h', '\x1b[?47h', '\x1b[?1047h'];
+    const exitSeqs = ['\x1b[?1049l', '\x1b[?47l', '\x1b[?1047l'];
+
+    for (const seq of enterSeqs) {
+      if (data.includes(seq)) {
+        session.alternateScreen = true;
+        break;
+      }
+    }
+    for (const seq of exitSeqs) {
+      if (data.includes(seq)) {
+        session.alternateScreen = false;
+        break;
+      }
+    }
+
+    if (session.rawOutput === undefined) {
+      session.rawOutput = '';
+    }
+    session.rawOutput += data;
+    const maxRawChars = 200000;
+    if (session.rawOutput.length > maxRawChars) {
+      session.rawOutput = session.rawOutput.slice(session.rawOutput.length - maxRawChars);
+    }
   }
 
   private shouldAutoAppendNewline(input: string): boolean {
@@ -391,6 +450,40 @@ export class TerminalManager extends EventEmitter {
         selectedMode = this.selectReadMode(stats.totalLines);
       }
 
+      // 全屏程序（vim）在备用屏幕时，普通行缓冲无法准确还原屏幕。
+      // 这里在 smart/auto 或显式 raw 模式下回退到原始输出尾部。
+      // Fullscreen apps (vim) in alternate screen can't be reconstructed well from line buffer.
+      // Fallback to raw output tail for smart/auto or explicit raw mode.
+      const shouldUseRaw = selectedMode === 'raw' || ((mode === undefined || mode === 'auto' || mode === 'smart') && session.alternateScreen);
+      if (shouldUseRaw) {
+        const rawText = session.rawOutput || '';
+        const rawTailChars = Math.min(rawText.length, 8000);
+        const output = rawTailChars > 0 ? rawText.slice(rawText.length - rawTailChars) : '';
+        const totalBytes = Buffer.byteLength(output, 'utf8');
+        const estimatedTokens = Math.ceil(output.length / 4);
+        const latestEntries = outputBuffer.getLatest(1);
+        const nextCursor = latestEntries[0]?.sequence ?? cursorPosition;
+
+        return {
+          output,
+          totalLines: outputBuffer.getStats().totalLines,
+          hasMore: false,
+          since: nextCursor,
+          cursor: nextCursor,
+          truncated: rawText.length > rawTailChars,
+          stats: {
+            totalBytes,
+            estimatedTokens,
+            linesShown: output.split('\n').length,
+            linesOmitted: 0
+          },
+          status: {
+            ...this.buildReadStatus(session),
+            alternateScreen: Boolean(session.alternateScreen)
+          }
+        };
+      }
+
       if (selectedMode && selectedMode !== 'full') {
         const smartOptions: any = {
           since: cursorPosition,
@@ -426,7 +519,10 @@ export class TerminalManager extends EventEmitter {
           cursor: result.nextCursor,
           truncated: result.truncated,
           stats: result.stats,
-          status: this.buildReadStatus(session)
+          status: {
+            ...this.buildReadStatus(session),
+            alternateScreen: Boolean(session.alternateScreen)
+          }
         };
       }
 
@@ -440,7 +536,10 @@ export class TerminalManager extends EventEmitter {
         hasMore: result.hasMore,
         since: result.nextCursor,
         cursor: result.nextCursor,
-        status: this.buildReadStatus(session)
+        status: {
+          ...this.buildReadStatus(session),
+          alternateScreen: Boolean(session.alternateScreen)
+        }
       };
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to read from terminal: ${error}`) as TerminalError;
