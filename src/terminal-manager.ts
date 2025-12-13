@@ -1020,7 +1020,7 @@ export class TerminalManager extends EventEmitter {
       return false;
     }
 
-    const promptSuffixes = ['$', '#', '%', '>', ':'];
+    const promptSuffixes = ['$', '#', '%', '>'];
 
     // Common case: prompt ends with symbol and space
     for (const suffix of promptSuffixes) {
@@ -1067,8 +1067,52 @@ export class TerminalManager extends EventEmitter {
       pendingCommand: pending,
       lastCommand,
       promptLine: session.lastPromptLine ?? null,
-      lastActivity: session.lastActivity.toISOString()
+      lastActivity: session.lastActivity.toISOString(),
+      alternateScreen: Boolean(session.alternateScreen)
     };
+  }
+
+  /**
+   * 获取终端当前状态（不读取输出）
+   * Get current terminal status (without reading output)
+   */
+  public getTerminalReadStatus(terminalName: string): TerminalReadStatus {
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
+    if (!session) {
+      const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
+      error.code = 'TERMINAL_NOT_FOUND';
+      error.terminalName = terminalName;
+      throw error;
+    }
+    return this.buildReadStatus(session);
+  }
+
+  private looksLikeAwaitingInputTail(rawTail: string): boolean {
+    if (!rawTail) {
+      return false;
+    }
+    // 若末尾没有换行，且以常见提示符结尾（如 ":" / "?" / "]"），通常表示程序正在等待用户输入
+    // If tail doesn't end with newline and ends with common prompt chars (":" / "?" / "]"), it's likely awaiting user input
+    if (/[\r\n]$/.test(rawTail)) {
+      return false;
+    }
+    return /[:?\]]\s*$/.test(rawTail);
+  }
+
+  /**
+   * 判断终端是否处于“等待用户输入”的交互状态（例如 Read-Host / npm init 提示）
+   * Detect whether terminal is awaiting user input (e.g., Read-Host / interactive prompts)
+   */
+  public isTerminalAwaitingInput(terminalName: string): boolean {
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
+    if (!session) {
+      return false;
+    }
+    const raw = session.rawOutput || '';
+    const tail = raw.length > 200 ? raw.slice(raw.length - 200) : raw;
+    return this.looksLikeAwaitingInputTail(tail);
   }
 
   /**

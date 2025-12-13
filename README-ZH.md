@@ -181,6 +181,7 @@ node start_fe_cheestard-terminal-interactive.mjs
 
 
 ## TODO
+- [ ] i18n
 - [ ] 美化终端
 - [ ] 新增认证功能，避免任何人都能访问。
 - [ ] 新增命令黑名单，即使接收到某些命令，也绝不会执行。

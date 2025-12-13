@@ -16,6 +16,7 @@ import { DialogFooter } from '@/components/ui/dialog'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { CanvasAddon } from 'xterm-addon-canvas'
+import { Copy } from 'lucide-vue-next'
 import { useTerminalStore } from '../stores/terminal'
 // import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { initializeApiService, terminalApi } from '../services/api-service'
@@ -45,7 +46,7 @@ const ACTIVE_TERMINAL_STORAGE_KEY = 'cti.activeTerminalId'
 const terminals = ref<any[]>([])
 const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
-const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon | null, ws: WebSocket }>>(new Map())
+const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon | null, ws: WebSocket | null, hasLiveOutput: boolean }>>(new Map())
 
 // Sidebar state / 侧边栏状态
 const isSidebarCollapsed = ref(false)
@@ -202,6 +203,36 @@ const deleteTerminal = async (id: string) => {
   } catch (error) {
     console.error('Error deleting terminal:', error)
     toast.error(t('messages.deleteTerminalError'))
+  }
+}
+
+// Copy terminal name/id to clipboard / 复制终端名称到剪贴板
+const copyTerminalId = async (terminalId: string) => {
+  try {
+    const text = String(terminalId || '')
+    if (!text) {
+      return
+    }
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(text)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+      textarea.style.top = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+
+    toast.success(t('messages.terminalIdCopied'))
+  } catch (error) {
+    console.warn('Copy terminal id failed:', error)
+    toast.error(t('messages.copyError'))
   }
 }
 
@@ -382,11 +413,25 @@ const initializeTerminal = async (terminalId: string) => {
       }
     }, 200)
 
+    // Save instance early (before WS) / 先保存实例（在 WS 之前），避免历史输出覆盖 live 输出导致渲染乱套
+    const instance = { term, fitAddon, canvasAddon, ws: null as WebSocket | null, hasLiveOutput: false }
+    terminalInstances.value.set(terminalId, instance)
+    
+    // Also store reference on DOM element for debugging / 也在DOM元素上存储引用以便调试
+    container._xterm = term
+    container._terminalInstance = instance
+    
+    console.log(`Terminal instance saved (pre-ws) for ${terminalId}`)
+
+    // Load historical output first, then connect WS to avoid overwriting prompt/input / 先加载历史输出，再连接 WS，避免覆盖命令行位置
+    await loadTerminalOutput(terminalId)
+
     // Create WebSocket connection / 创建WebSocket连接
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     // Connect to backend port 1106 with /ws endpoint, not frontend port 1107 / 连接到后端端口1106的/ws端点，而不是前端端口1107
     const wsUrl = `${protocol}//localhost:1106/ws`
     const ws = new WebSocket(wsUrl)
+    instance.ws = ws
 
     // WebSocket event handlers / WebSocket事件处理
     ws.onopen = () => {
@@ -396,6 +441,7 @@ const initializeTerminal = async (terminalId: string) => {
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data)
       if (message.terminalId === terminalId && message.type === 'output') {
+        instance.hasLiveOutput = true
         term.write(message.data)
         // 追加到 pinia 缓存并持久化 / Append to pinia cache and persist
         terminalStore.appendTerminalOutput(terminalId, message.data)
@@ -415,26 +461,14 @@ const initializeTerminal = async (terminalId: string) => {
       sendTerminalInput(terminalId, data)
     })
 
-    // Save instance / 保存实例
-    terminalInstances.value.set(terminalId, { term, fitAddon, canvasAddon, ws })
-    
-    // Also store reference on DOM element for debugging / 也在DOM元素上存储引用以便调试
-    container._xterm = term
-    container._terminalInstance = { term, fitAddon, canvasAddon, ws }
-    
     // Store in global window object for easier access / 存储在全局window对象中以便更容易访问
     if (!window.terminalDebugInstances) {
       window.terminalDebugInstances = new Map()
     }
-    window.terminalDebugInstances.set(terminalId, { term, fitAddon, canvasAddon, ws })
+    window.terminalDebugInstances.set(terminalId, instance)
     
-    console.log(`Terminal instance saved for ${terminalId}`)
+    console.log(`Terminal instance ready for ${terminalId}`)
     console.log('Global terminal instances:', window.terminalDebugInstances)
-
-    // Load historical output after a delay / 延迟加载历史输出
-    setTimeout(async () => {
-      await loadTerminalOutput(terminalId)
-    }, 1000)
 
     // Listen for window resize / 监听窗口大小变化
     const resizeHandler = () => {
@@ -508,6 +542,12 @@ const loadTerminalOutput = async (terminalId: string) => {
     }
     
     if (instance && instance.term && output && output.length > 0) {
+      // 如果已经开始收到实时输出，则不再用历史输出清屏覆盖，避免覆盖命令行位置
+      // If live output has started, avoid clearing and overwriting with history to prevent prompt/input corruption
+      if (instance.hasLiveOutput) {
+        console.log(`Skip writing historical output for terminal ${terminalId} because live output has started`)
+        return
+      }
       console.log(`Writing ${output.length} characters to terminal ${terminalId}`)
       
       // Clear terminal first and then write content
@@ -792,26 +832,31 @@ watch(terminals, (newTerminals) => {
                 <div class="flex flex-col space-y-2">
                   <div class="flex justify-between items-center">
                     <div class="flex items-center space-x-2">
-                      <span
-                        class="luxury-status-dot"
-                        :class="{
-                          'luxury-status-dot-active': terminal.status === 'active',
-                          'luxury-status-dot-inactive': terminal.status === 'inactive',
-                          'luxury-status-dot-terminated': terminal.status === 'terminated'
-                        }"
-                        aria-hidden="true"
-                      />
-                      <span class="luxury-terminal-id">
-                        {{ terminal.id || 'N/A' }}
-                      </span>
-                      <span class="luxury-terminal-shell" :title="terminal.shell">
-                        {{ terminal.shell || '-' }}
-                      </span>
-                    </div>
-                    <div class="flex space-x-1 luxury-terminal-actions">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+              <span
+                class="luxury-status-dot"
+                :class="{
+                  'luxury-status-dot-active': terminal.status === 'active',
+                  'luxury-status-dot-inactive': terminal.status === 'inactive',
+                  'luxury-status-dot-terminated': terminal.status === 'terminated'
+                }"
+                aria-hidden="true"
+              />
+              <span class="luxury-terminal-id">
+                {{ terminal.id || 'N/A' }}
+              </span>
+              <button
+                type="button"
+                class="luxury-action-button inline-flex items-center justify-center"
+                :title="t('home.copyTerminalId')"
+                @click.stop="copyTerminalId(terminal.id)"
+              >
+                <Copy class="w-4 h-4" />
+              </button>
+            </div>
+            <div class="flex space-x-1 luxury-terminal-actions">
+              <Button
+                variant="ghost"
+                size="sm"
                         class="luxury-action-button"
                         @click.stop="terminalStore.togglePin(terminal.id)"
                         :title="terminalStore.isPinned(terminal.id) ? t('home.unpin') : t('home.pin')"

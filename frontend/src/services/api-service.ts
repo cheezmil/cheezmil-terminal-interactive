@@ -170,8 +170,7 @@ export const terminalApi = {
     if (signal) params.append('signal', signal);
     const finalUrl = params.toString() ? `${url}?${params.toString()}` : url;
     return fetch(finalUrl, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
+      method: 'DELETE'
     });
   },
   readOutput: (id: string, options?: any) => {

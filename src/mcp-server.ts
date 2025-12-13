@@ -494,12 +494,16 @@ Fix tool: OpenAI Codex
     if (!trimmed) return { blocked: false };
     if (/^[\u0000-\u001F\u007F]+$/.test(trimmed)) return { blocked: false };
 
-    const { caseInsensitive, rules } = this.getCommandBlacklistConfig();
+    const { rules } = this.getCommandBlacklistConfig();
     if (!rules.length) return { blocked: false };
+
+    // PowerShell/Windows 命令名通常不区分大小写；为避免“写了黑名单但仍可执行”的困扰，这里始终按不区分大小写匹配
+    // PowerShell/Windows command names are typically case-insensitive; to avoid "blacklist not working", always match ignoring case
+    const ignoreCase = true;
 
     const map = new Map<string, { command: string; message?: string }>();
     for (const rule of rules) {
-      const key = caseInsensitive ? rule.command.toLowerCase() : rule.command;
+      const key = ignoreCase ? rule.command.toLowerCase() : rule.command;
       if (!map.has(key)) {
         const value: { command: string; message?: string } = { command: rule.command };
         if (typeof rule.message === 'string') {
@@ -511,7 +515,7 @@ Fix tool: OpenAI Codex
 
     const tokens = this.extractCommandTokens(input);
     for (const token of tokens) {
-      const key = caseInsensitive ? token.toLowerCase() : token;
+      const key = ignoreCase ? token.toLowerCase() : token;
       const hit = map.get(key);
       if (!hit) continue;
 
@@ -737,6 +741,37 @@ Fix tool: OpenAI Codex
 
           // 如果提供了输入或特殊操作，则发送到终端
           if (actualInput) {
+            // 若终端已进入交互/忙碌状态，则拒绝“新命令执行”，避免把新命令误送进交互程序
+            // If terminal is interactive/busy, refuse "new command execution" to avoid sending commands into an interactive program
+            const trimmedInput = actualInput.trim();
+            const isControlOnly = /^[\u0000-\u001F\u007F]+$/.test(trimmedInput);
+            const intendsExecute = appendNewline !== false;
+            if (!isControlOnly && intendsExecute && !specialOperation) {
+              try {
+                const status = this.terminalManager.getTerminalReadStatus(actualTerminalId);
+                const awaitingInput = this.terminalManager.isTerminalAwaitingInput(actualTerminalId);
+                if (status.alternateScreen || status.isRunning || awaitingInput) {
+                  return {
+                    content: [
+                      {
+                        type: 'text',
+                        text: '该终端进入了交互状态，请交互或新开终端，否则新的输入命令无法执行'
+                      }
+                    ],
+                    structuredContent: {
+                      terminalId: actualTerminalId,
+                      interactive: true,
+                      awaitingInput,
+                      status
+                    },
+                    isError: true
+                  } as CallToolResult;
+                }
+              } catch {
+                // Ignore status errors and proceed / 忽略状态获取失败，继续执行
+              }
+            }
+
             // 命令黑名单拦截：命中则严格禁止执行
             // Command blacklist: strictly refuse execution when matched
             const blacklist = this.checkCommandBlacklist(actualInput);

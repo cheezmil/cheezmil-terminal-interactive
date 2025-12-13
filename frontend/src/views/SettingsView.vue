@@ -75,6 +75,7 @@ const defaultConfigTemplate = JSON.parse(JSON.stringify(configData.value))
 const originalConfigData = ref<any>({})
 const isLoading = ref(false)
 const hasChanges = ref(false)
+const hasLoadedOnce = ref(false)
 
 // 对话框状态 / Dialog state
 const showResetDialog = ref(false)
@@ -135,6 +136,7 @@ const loadConfiguration = async () => {
     toast.error(t('common.error') + ': Failed to load configuration')
   } finally {
     isLoading.value = false
+    hasLoadedOnce.value = true
   }
 }
 
@@ -280,7 +282,7 @@ onMounted(async () => {
     </div>
 
     <!-- 设置内容 / Settings content -->
-    <div class="w-full px-4 py-10 overflow-y-auto flex-1" v-if="!isLoading">
+    <div class="w-full px-4 py-10 overflow-y-auto flex-1" v-if="hasLoadedOnce" :class="{ 'opacity-70 pointer-events-none': isLoading }">
       <div class="space-y-8">
         <!-- 奢华应用配置 / Luxury application configuration -->
         <Card class="luxury-card border border-luxury-gold hover:shadow-luxury hover:border-rose-gold transition-all duration-300 animate-fade-in group">
