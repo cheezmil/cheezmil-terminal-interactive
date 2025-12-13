@@ -199,10 +199,10 @@ const deleteTerminal = async (id: string) => {
       activeTerminalId.value = null
     }
 
-    toast.success(t('messages.terminalDeleted'))
+    toast.success(t('messages.terminalTerminated', { id }))
   } catch (error) {
     console.error('Error deleting terminal:', error)
-    toast.error(t('messages.deleteTerminalError'))
+    toast.error(t('messages.terminateTerminalError'))
   }
 }
 
@@ -615,7 +615,7 @@ const switchTerminal = (terminalId: string) => {
 const clearTerminal = (terminalId: string) => {
   // 只读模式下禁止清空终端内容 / Disallow clearing terminal content in read-only mode
   if (!canSendTerminalInput.value) {
-    toast.error('当前为只读终端模式，清空终端已被禁用 / Terminal is in read-only mode; clearing is disabled.')
+    toast.error(t('messages.readOnlyClearDisabled'))
     return
   }
   const instance = terminalInstances.value.get(terminalId)
@@ -628,7 +628,7 @@ const clearTerminal = (terminalId: string) => {
 const reconnectTerminal = (terminalId: string) => {
   // 只读模式下禁止重新连接（避免误以为可交互）/ Disallow reconnect in read-only mode to avoid implying interactivity
   if (!canSendTerminalInput.value) {
-    toast.error('当前为只读终端模式，重新连接已被禁用 / Terminal is in read-only mode; reconnect is disabled.')
+    toast.error(t('messages.readOnlyReconnectDisabled'))
     return
   }
   // Close existing connection / 关闭现有连接
@@ -734,7 +734,7 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to initialize API service:', error)
     // Show a clear bilingual toast when API init fails / 当 API 初始化失败时显示清晰的中英文提示
-    toast.error('Failed to initialize API service / 无法初始化后端 API 服务，请确认 1106 端口的后端已启动。')
+    toast.error(t('messages.apiInitFailed'))
     isLoading.value = false
   }
 })

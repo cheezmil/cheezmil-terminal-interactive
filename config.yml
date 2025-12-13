@@ -1,41 +1,75 @@
+# 应用配置 / Application Configuration
 app:
-  name: Cheestard Terminal Interactive
-  language: zh
-  version: 1.0.0
-  showTitle: false
+  language: 'zh'
+  # 是否显示顶部标题 / Whether to show top title
+  showTitle: true
+
+# 服务器配置 / Server Configuration
 server:
-  host: 0.0.0.0
+  host: '127.0.0.1'
   port: 1106
   cors:
-    origin:
-      - http://localhost:1107
-      - http://127.0.0.1:1107
+    origin: 
+      - 'http://localhost:1107'
+      - 'http://127.0.0.1:1107'
     credentials: true
+
+# 终端配置 / Terminal Configuration
 terminal:
-  defaultShell: pwsh.exe
+  defaultShell: 'pwsh.exe'  # Windows下默认使用pwsh.exe
   fontSize: 14
-  fontFamily: Consolas, "Courier New", monospace
+  fontFamily: 'Consolas, "Courier New", monospace'
   maxBufferSize: 10000
-  sessionTimeout: 86400000
+  sessionTimeout: 86400000  # 24小时 / 24 hours
+  defaultEnv: {}  # 默认环境变量 / Default environment variables
+  # 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
   enableUserControl: false
-  defaultEnv: {}
+
+# MCP配置 / MCP Configuration
 mcp:
   enableDnsRebindingProtection: false
+  # 是否启用 MCP 服务器选择工具 / Whether to enable MCP server selection tool
   enableServerSelectionTool: true
+  # 通过名称禁用 MCP 工具，例如要禁用 fix_bug_with_codex 工具（默认不需要这个工具）：
+  # Disable MCP tools by name, e.g. to disable fix_bug_with_codex tool:
   disabledTools:
-    - fix_bug_with_codex
+    - 'fix_bug_with_codex'
+  # 命令黑名单：当 MCP 客户端发送匹配命令时，后端将拒绝执行并返回提示
+  # Command blacklist: when MCP client sends a matching command, backend will refuse and return a message
   commandBlacklist:
+    # 是否不区分命令大小写 / Whether to ignore command case when matching
     caseInsensitive: true
+    # 黑名单规则列表：每条规则可指定 command 与 message（不填 message 则使用默认提示）
+    # BLACKLIST: each rule supports command and optional message (default message will be used if message is empty)
     rules:
-      - command: write-host
+      - command: 'write-host'
         message: ''
-  allowedHosts:
-    - 127.0.0.1
-    - localhost
-    - localhost:1106
+      # Windows PowerShell 高危命令 / Windows PowerShell dangerous commands
+      - command: 'Remove-Item -Path C:\'
+        message: ''
+      - command: 'Remove-Item -Path D:\'
+        message: ''
+      - command: 'Remove-Item -Path E:\'
+        message: ''
+      - command: 'Remove-Item -Path F:\'
+        message: ''
+      - command: 'Format-Volume -DriveLetter C'
+        message: ''
+      # 类 Unix（Linux/macOS）终端 高危命令 / Unix-like (Linux/macOS) terminal dangerous commands
+      - command: 'rm -rf /'
+        message: ''
+      - command: 'rm -rf /mnt/'
+        message: ''
+      - command: 'dd if=/dev/zero'
+        message: ''
+  allowedHosts: 
+    - '127.0.0.1'
+    - 'localhost'
+    - 'localhost:1106'
+
+# 日志配置 / Logging Configuration
 logging:
-  level: info
-  enableConsole: false
+  level: 'info'  # debug, info, warn, error
+  enableConsole: true
   enableFile: false
-  filePath: ./logs/app.log
-language: zh
+  filePath: './logs/app.log'

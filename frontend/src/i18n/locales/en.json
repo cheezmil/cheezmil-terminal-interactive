@@ -114,6 +114,12 @@
     "createTerminalError": "Unable to create terminal.",
     "terminateTerminalError": "Unable to terminate terminal.",
     "copyError": "Copy failed",
+    "apiInitFailed": "Unable to initialize backend API. Please make sure the backend (port 1106) is running.",
+    "readOnlyClearDisabled": "Terminal is in read-only mode; clearing is disabled.",
+    "readOnlyReconnectDisabled": "Terminal is in read-only mode; reconnect is disabled.",
+    "loadConfigError": "Failed to load configuration.",
+    "saveConfigError": "Failed to save configuration.",
+    "resetConfigError": "Failed to reset configuration.",
     "fetchTerminalDetailsError": "Unable to fetch terminal details."
   },
   "app": {

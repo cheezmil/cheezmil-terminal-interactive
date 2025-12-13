@@ -114,6 +114,12 @@
     "createTerminalError": "无法创建终端。",
     "terminateTerminalError": "无法终止终端。",
     "copyError": "复制失败",
+    "apiInitFailed": "无法初始化后端 API 服务，请确认 1106 端口的后端已启动。",
+    "readOnlyClearDisabled": "当前为只读终端模式，清空终端已被禁用。",
+    "readOnlyReconnectDisabled": "当前为只读终端模式，重新连接已被禁用。",
+    "loadConfigError": "加载配置失败。",
+    "saveConfigError": "保存配置失败。",
+    "resetConfigError": "重置配置失败。",
     "fetchTerminalDetailsError": "无法获取终端详情。"
   },
   "app": {

@@ -1,22 +1,22 @@
 # Cheestard Terminal Interactive MCP Server
 
-[Chinese README](README-ZH.md)
+[中文文档](README-ZH.md)
 
-#### This tool allows AI to control multiple terminals and interact with them via MCP (Model Context Protocol). It solves the problem that some AI coding tools get stuck when the terminal is blocked and cannot proceed to the next step. It provides persistent terminal session management, so even if the AI coding tool is accidentally closed, the terminal will keep running, increasing the success rate of automated tasks.
+#### This tool enables AI to control multiple terminals and interact through MCP (Model Context Protocol), solving the issue of AI programming tools getting stuck in terminals and not proceeding to the next step. It achieves persistent terminal session management - even if AI programming tools are accidentally closed, terminals will continue running, improving the success rate of automated tasks.
 
-
-## Why use this project
-- At present, most mainstream AI coding tools block the terminal when running certain commands such as `npm run dev`. In this case, the AI cannot receive new messages for a long time. Some AI tools hard‑code a 2‑minute timeout; some can still see terminal output after timing out; some just completely hang. This project helps you avoid wasting time when things get stuck.
-- If you are using different AI coding tools at the same time, this project allows different AIs to view the same running terminals.
-- You might let one Codex control another Claude Code.
-- You might say, “I can just redirect all terminal output to a file and let the AI read that.” But that costs an extra API call. Also, the AI does not know which commands need to be written to a file or where that file is, and you must clearly describe all of this in the prompt; otherwise things will still get blocked. That is a bit troublesome.
-- In some cases, you may need to restart codex cli or Claude Code to apply some settings, and at this time you do not want to lose the terminal tasks that are still running.
+## Why Use This Project
+- Currently, various mainstream AI programming tools get stuck when executing certain commands like `npm run dev`, causing the terminal to block. In such cases, AI doesn't receive timely feedback. Some AI programming tools have a hardcoded 2-minute timeout, and even after timeout, they can't see any terminal information. Some can see messages after timeout, while others get completely stuck. This project saves time wasted on getting stuck.
+- If you're using different AI programming tools simultaneously, this project allows different AIs to view running terminals.
+- You might want one codex to control other claude code instances.
+- You might think, "Why not just output all terminal content to a file for AI to read?" However, this consumes an additional API request. Moreover, AI doesn't know which commands need to be output to a file or where the file should be located. You would need to manually write clear prompts to tell AI, otherwise it will still get stuck, which is quite troublesome.
+- In certain situations, you might need to restart codex cli or claude code to apply some settings, but you don't want to lose running terminal tasks.
 
 ## Usage
-### Run backend
-> ⚠️ Due to `node-pty`, Windows users currently need to use a Node.js version no greater than 20 in order to use this project properly. For convenience, the install, build and run scripts all use 20.19.5. Please be sure to install `https://github.com/Schniz/fnm`, otherwise it will not work, unless you use the same Node.js version for every project, which is unlikely because one of the AI coding tools or popular MCP tools mentioned in this document uses Node.js 22+.
+### Running the Backend
+> ⚠️ Due to `node-pty`, Windows users currently need to use Node.js version 20 or lower to work properly. For convenience, I've set all installation, compilation, and running scripts to use 20.19.5. Please make sure to install `https://github.com/Schniz/fnm`, otherwise it won't work unless you use the same Node.js version for all projects, which is unlikely since some AI programming tools or popular MCP tools mentioned in this documentation require Node.js 22+.
 
-First fork this project so it is convenient for you to submit PR contributions, and then:
+First fork this project for easy PR contributions, then:
+
 ```bash
 git clone https://github.com/<your-github-username>/cheestard-terminal-interactive.git
 ```
@@ -29,14 +29,14 @@ node start_install.mjs
 node start_be_cheestard-terminal-interactive.mjs
 ```
 
-
-### ⚙️ MCP client configuration
-#### Before configuring the MCP client, it is best to add a rule to your AI coding tool:
+### ⚙️ MCP Client Configuration
+#### Before configuring MCP clients, it's best to add a rule to your AI programming tool:
 ```plaintext
-Be sure to use this CTI MCP terminal tool. Do not use the built-in tool functions in the system prompt to run commands.
+Always use the CTI MCP terminal tool to execute commands. Do not use the tool functions that come with the system prompt to execute commands.
 ```
+> Note: If CTI is not running, AI will intelligently automatically use the original tool functions that come with the AI programming tool to execute commands. If you never tell it about the CTI tool, AI will likely never use CTI.
 
-#### All MCP clients that support Streamable HTTP can be used. The configuration differs slightly between clients, so please check the official documentation of each one. Here are some simple examples:
+#### All MCP clients that support Streamable HTTP can be used. Configuration will vary slightly for different MCP clients. Please refer to the corresponding client's official documentation. Here are simple examples:
 
 - **Cline / Roocode / Kilocode**:
 ```json
@@ -68,8 +68,8 @@ url = "http://localhost:1106/mcp"
     }
 ```
 
-**Command line add method:**
-In addition to configuration files, Claude Code also supports quickly adding MCP servers via the command line:
+**Command Line Addition Method:**
+In addition to the configuration file method, Claude Code also supports using the command line to quickly add MCP servers:
 
 ```bash
 # Add cheestard-terminal-interactive server
@@ -82,12 +82,12 @@ claude mcp list
 claude mcp remove cheestard-terminal-interactive
 ```
 
-**Command line parameter description:**
-- `--scope user`: Set configuration scope to user level.
-- `--type streamable-http`: Specify transport type as streamable-http.
-- `--url http://localhost:1106/mcp`: Specify server address.
+**Command Line Parameter Description:**
+- `--scope user`: Set configuration scope to user level
+- `--type streamable-http`: Specify transport type as streamable-http
+- `--url http://localhost:1106/mcp`: Specify server address
 
-For more complex configuration, it is recommended to edit the configuration file directly:
+For complex configurations, it's recommended to directly edit the configuration file:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - Linux: `~/.config/Claude/claude_desktop_config.json`
@@ -148,39 +148,37 @@ For more complex configuration, it is recommended to edit the configuration file
     }
 ```
 
-### 🌐 How to use the Web management interface
+### 🌐 Web Management Interface Usage
 ```bash
 node start_fe_cheestard-terminal-interactive.mjs
 ```
 
 ## Disclaimer
-- Because different AI models have different intelligence levels when judging dangerous commands and are guided by different prompts, they sometimes cannot decide whether a command is dangerous. For example, recursive file deletion commands should be executed manually by you, or you should clearly specify that dangerous commands must be run by yourself. No matter what commands are executed through this project, you are responsible for any negative consequences.
-- Do not allow the internet to directly access this project deployed on your computer. Otherwise, you are responsible for any negative consequences.
+- Due to varying levels of intelligence in different AI models when judging dangerous commands and different prompt guidance, AI sometimes cannot determine whether certain commands are dangerous, such as some recursive file deletion commands. Please manually execute some more dangerous commands or clearly specify dangerous commands for me to handle. Regardless of what commands are executed through this project, you are responsible for any adverse consequences.
+- Do not allow direct internet access to this project deployed on your computer, otherwise you are responsible for any adverse consequences.
 
-
-## As of 2025-11-03, comparison of terminal interaction features in mainstream AI coding tools (if there is any mistake, please tell me so I can fix it 🥲):
+## Comparison of Terminal Interaction Features in Mainstream AI Programming Tools as of November 3, 2025 (If there are errors, please let me know to correct them 🥲):
 
 | Feature | Cheestard Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
-|--------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
+|---------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
 | Input ctrl+c | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Press Enter | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Rarely hangs and stops working | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Create multiple terminals in one API request | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| View output of multiple terminals simultaneously | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Input enter | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Doesn't often get stuck | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Create multiple terminals with one API request | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View multiple terminal outputs simultaneously | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Close old terminals | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Search strings in terminal | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Search strings from terminal | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Input y or n | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Run Linux commands directly in WSL | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Interact with another command-line AI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Directly input Linux commands in WSL | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Interact with another command line AI | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | SSH terminal | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Continue using previous terminal after starting a new chat | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Run specified scripts before and after commands | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Run some fixed commands before and after commands | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Attach extra prompts for certain commands to tell the AI the correct behavior | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Continue using previous terminals after new conversation | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Execute specified scripts before and after command execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Execute certain fixed commands before and after command execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Execute certain commands with additional prompts to inform AI of correct approach | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Use regular expressions to filter terminal output to save context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-
 ## TODO
-- [ ] Add authentication to prevent anyone from accessing it.
-- [ ] Add a command blacklist so that some commands will never be executed even if they are received.
-
+- [ ] Beautify terminal
+- [ ] Add authentication functionality to prevent anyone from accessing
+- [x] Add command blacklist - even if certain commands are received, they will never be executed

@@ -4,7 +4,10 @@ import { initializeApiService, settingsApi } from '../services/api-service'
 
 // 设置接口定义 / Settings interface definition
 interface Settings {
-  language: string
+  language?: string
+  app?: {
+    language?: string
+  }
   [key: string]: any // 允许动态配置项 / Allow dynamic configuration items
 }
 
@@ -53,9 +56,7 @@ interface ConfigData {
     filePath?: string
   }
   app?: {
-    name?: string
     language?: string
-    version?: string
     // 是否显示顶部应用标题 / Whether to show top app title
     showTitle?: boolean
   }
@@ -67,6 +68,37 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref<string>('zh')
   const isLoading = ref(false)
   const configData = ref<ConfigData>({}) // 存储完整配置数据 / Store complete configuration data
+
+  const normalizeLanguageKeys = (config: any): any => {
+    if (!config || typeof config !== 'object') {
+      return config
+    }
+    // 兼容旧字段：若存在根级 language，则迁移到 app.language 并移除根级字段
+    // Backwards-compat: if root-level language exists, migrate it into app.language and remove the root key
+    if (typeof config.language === 'string' && config.language.trim()) {
+      config.app = config.app && typeof config.app === 'object' ? config.app : {}
+      if (typeof config.app.language !== 'string' || !config.app.language.trim()) {
+        config.app.language = config.language
+      }
+      delete config.language
+    }
+    return config
+  }
+
+  const resolveLanguageFromConfig = (settings: any): string | null => {
+    if (!settings || typeof settings !== 'object') {
+      return null
+    }
+    const appLang = settings.app && typeof settings.app === 'object' ? settings.app.language : undefined
+    if (typeof appLang === 'string' && appLang.trim()) {
+      return appLang
+    }
+    const rootLang = settings.language
+    if (typeof rootLang === 'string' && rootLang.trim()) {
+      return rootLang
+    }
+    return null
+  }
 
   // 加载设置 / Load settings
   const loadSettings = async (): Promise<void> => {
@@ -82,9 +114,8 @@ export const useSettingsStore = defineStore('settings', () => {
         const response = await settingsApi.get()
         if (response.ok) {
           const settings: Settings = await response.json()
-          if (settings.language) {
-            language.value = settings.language
-          }
+          const resolved = resolveLanguageFromConfig(settings)
+          if (resolved) language.value = resolved
         }
       } catch (error) {
         console.warn('Failed to load settings from backend:', error)
@@ -107,14 +138,18 @@ export const useSettingsStore = defineStore('settings', () => {
       // 更新本地状态 / Update local state
       language.value = newLanguage
       
-      // 保存到后端配置文件 / Save to backend configuration file
+      // 保存到后端配置文件（必须保存完整配置，避免浅合并覆盖 app 对象）
+      // Save full config to backend (must be full to avoid shallow-merge overwriting the app object)
       try {
-        // Use dynamic API service / 使用动态API服务
-        const response = await settingsApi.update({ language: newLanguage })
+        await loadFullConfig()
+        const nextConfig: any = normalizeLanguageKeys(JSON.parse(JSON.stringify(configData.value || {})))
+        nextConfig.app = nextConfig.app && typeof nextConfig.app === 'object' ? nextConfig.app : {}
+        nextConfig.app.language = newLanguage
 
-        if (!response.ok) {
-          throw new Error('Failed to save settings to backend')
-        }
+        const response = await settingsApi.save(nextConfig)
+        if (!response.ok) throw new Error('Failed to save settings to backend')
+
+        configData.value = nextConfig
       } catch (error) {
         console.error('Failed to save settings to backend:', error)
         throw error
@@ -137,12 +172,11 @@ export const useSettingsStore = defineStore('settings', () => {
         // Use dynamic API service / 使用动态API服务
         const response = await settingsApi.get()
         if (response.ok) {
-          const config: ConfigData = await response.json()
-          configData.value = config
-          // 如果配置中有语言设置，更新语言 / If there's language setting in config, update language
-          if (config.app?.language) {
-            language.value = config.app.language
-          }
+          const config: any = await response.json()
+          const normalized = normalizeLanguageKeys(config)
+          configData.value = normalized as ConfigData
+          const resolved = resolveLanguageFromConfig(normalized)
+          if (resolved) language.value = resolved
         }
       } catch (error) {
         console.warn('Failed to load full config from backend:', error)
@@ -164,20 +198,20 @@ export const useSettingsStore = defineStore('settings', () => {
       
       // 保存到后端配置文件 / Save to backend configuration file
       try {
+        const sanitized: any = normalizeLanguageKeys(JSON.parse(JSON.stringify(config || {})))
         // Use dynamic API service / 使用动态API服务
-        const response = await settingsApi.save(config)
+        const response = await settingsApi.save(sanitized)
 
         if (!response.ok) {
           throw new Error('Failed to save full config to backend')
         }
         
         // 更新本地状态 / Update local state
-        configData.value = { ...config }
+        configData.value = sanitized
         
         // 如果配置中有语言设置，更新语言 / If there's language setting in config, update language
-        if (config.app?.language) {
-          language.value = config.app.language
-        }
+        const resolved = resolveLanguageFromConfig(sanitized)
+        if (resolved) language.value = resolved
       } catch (error) {
         console.error('Failed to save full config to backend:', error)
         throw error

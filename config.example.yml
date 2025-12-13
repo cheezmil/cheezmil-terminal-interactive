@@ -1,12 +1,6 @@
-
-# 语言设置 / Language Setting
-language: 'zh'  # zh, en
-
 # 应用配置 / Application Configuration
 app:
-  name: 'Cheestard Terminal Interactive'
   language: 'zh'
-  version: '1.0.0'
   # 是否显示顶部标题 / Whether to show top title
   showTitle: true
 

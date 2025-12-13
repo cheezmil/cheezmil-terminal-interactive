@@ -24,7 +24,6 @@ const languageOptions = [
 
 // 配置数据 / Configuration data
 const configData = ref<any>({
-  language: 'zh',
   server: {
     host: '127.0.0.1',
     port: 1106,
@@ -64,6 +63,8 @@ const configData = ref<any>({
     filePath: './logs/app.log'
   },
   app: {
+    // 语言 / Language
+    language: 'zh',
     // 是否显示顶部标题 / Whether to show top app title
     showTitle: true
   }
@@ -82,9 +83,10 @@ const showResetDialog = ref(false)
 
 // 当前选择的语言 / Current selected language
 const selectedLanguage = computed({
-  get: () => configData.value.language || locale.value,
+  get: () => configData.value?.app?.language || locale.value,
   set: (value: string) => {
-    configData.value.language = value
+    configData.value.app = configData.value.app || {}
+    configData.value.app.language = value
     hasChanges.value = true
   }
 })
@@ -103,6 +105,15 @@ const loadConfiguration = async () => {
     // 使用前端默认模板与后端返回配置深度合并，确保嵌套对象始终存在
     // Deep-merge frontend default template with backend config to ensure nested objects always exist
     const backendConfig = JSON.parse(JSON.stringify(settingsStore.configData || {}))
+    // 兼容旧字段：若存在根级 language，则迁移到 app.language 并移除根级字段
+    // Backwards-compat: if root-level language exists, migrate it into app.language and remove the root key
+    if (backendConfig && typeof backendConfig === 'object' && typeof backendConfig.language === 'string') {
+      backendConfig.app = backendConfig.app && typeof backendConfig.app === 'object' ? backendConfig.app : {}
+      if (!backendConfig.app.language) {
+        backendConfig.app.language = backendConfig.language
+      }
+      delete backendConfig.language
+    }
     const mergedConfig: any = {
       ...defaultConfigTemplate,
       ...backendConfig,
@@ -125,6 +136,10 @@ const loadConfiguration = async () => {
       logging: {
         ...defaultConfigTemplate.logging,
         ...(backendConfig.logging || {})
+      },
+      app: {
+        ...defaultConfigTemplate.app,
+        ...(backendConfig.app || {})
       }
     }
 
@@ -133,7 +148,7 @@ const loadConfiguration = async () => {
     hasChanges.value = false
   } catch (error) {
     console.error('Failed to load configuration:', error)
-    toast.error(t('common.error') + ': Failed to load configuration')
+    toast.error(t('messages.loadConfigError'))
   } finally {
     isLoading.value = false
     hasLoadedOnce.value = true
@@ -144,12 +159,17 @@ const loadConfiguration = async () => {
 const saveConfiguration = async () => {
   try {
     isLoading.value = true
+    // 保存前清理根级 language，避免写入重复字段
+    // Remove root-level language before saving to avoid duplicate fields in YAML
+    if (configData.value && typeof configData.value === 'object' && 'language' in configData.value) {
+      delete configData.value.language
+    }
     await settingsStore.saveFullConfig(configData.value)
     // 更新语言设置 / Update language setting
-    if (configData.value.language) {
+    if (configData.value?.app?.language) {
       // 避免页面重新加载，直接更新locale
-      locale.value = configData.value.language
-      localStorage.setItem('language', configData.value.language)
+      locale.value = configData.value.app.language
+      localStorage.setItem('language', configData.value.app.language)
     }
     
     originalConfigData.value = JSON.parse(JSON.stringify(configData.value))
@@ -158,7 +178,7 @@ const saveConfiguration = async () => {
     toast.success(t('common.success') + ': ' + t('settings.configSaved'))
   } catch (error) {
     console.error('Failed to save configuration:', error)
-    toast.error(t('common.error') + ': Failed to save configuration')
+    toast.error(t('messages.saveConfigError'))
   } finally {
     isLoading.value = false
   }
@@ -174,7 +194,7 @@ const resetConfiguration = async () => {
     toast.success(t('common.success') + ': ' + t('settings.configReset'))
   } catch (error) {
     console.error('Failed to reset configuration:', error)
-    toast.error(t('common.error') + ': Failed to reset configuration')
+    toast.error(t('messages.resetConfigError'))
   } finally {
     isLoading.value = false
   }

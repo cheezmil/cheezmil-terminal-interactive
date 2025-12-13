@@ -16,9 +16,9 @@ export class ConfigManager {
     this.defaultConfig = {
       // 应用配置 / Application configuration
       app: {
-        name: 'Cheestard Terminal Interactive',
         language: 'zh',
-        version: '1.0.0'
+        // 是否显示顶部标题 / Whether to show top title
+        showTitle: true
       },
       
       // 服务器配置 / Server configuration
