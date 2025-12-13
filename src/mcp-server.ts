@@ -8,6 +8,7 @@ import {
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TerminalManager } from './terminal-manager.js';
 import { WebUIManager } from './web-ui-manager.js';
+import { configManager } from './config-manager.js';
 import {
   CreateTerminalInput,
   CreateTerminalResult,
@@ -416,6 +417,115 @@ Fix tool: OpenAI Codex
   }
 
   /**
+   * 从配置中读取命令黑名单配置
+   * Read command blacklist config from config.yml
+   */
+  private getCommandBlacklistConfig(): {
+    caseInsensitive: boolean;
+    rules: Array<{ command: string; message?: string }>;
+  } {
+    const mcpConfig = (configManager.getMcpConfig?.() || {}) as any;
+    const raw = (mcpConfig.commandBlacklist || {}) as any;
+
+    const caseInsensitive = raw.caseInsensitive !== false;
+    const rules = Array.isArray(raw.rules) ? raw.rules : [];
+
+    const normalizedRules: Array<{ command: string; message?: string }> = [];
+    for (const rule of rules) {
+      if (!rule || typeof rule !== 'object') continue;
+      const command = typeof rule.command === 'string' ? rule.command.trim() : '';
+      if (!command) continue;
+      const normalizedRule: { command: string; message?: string } = { command };
+      if (typeof rule.message === 'string') {
+        normalizedRule.message = rule.message;
+      }
+      normalizedRules.push(normalizedRule);
+    }
+
+    return { caseInsensitive, rules: normalizedRules };
+  }
+
+  /**
+   * 从输入中提取可能的“命令名”Token（支持按行、按 ; 和 | 分段）
+   * Extract possible command-name tokens from input (split by lines and by ; / | segments)
+   */
+  private extractCommandTokens(input: string): string[] {
+    const tokens: string[] = [];
+    const lines = input.split(/\r?\n/);
+
+    for (const line of lines) {
+      const segments = line.split(/[;|]/);
+      for (const segment of segments) {
+        let text = segment.trimStart();
+        if (!text) continue;
+
+        // PowerShell call operator: & <command>
+        // PowerShell 调用运算符：& <command>
+        if (text.startsWith('&')) {
+          text = text.slice(1).trimStart();
+        }
+
+        if (!text) continue;
+
+        const first = text.split(/\s+/)[0] || '';
+        if (!first) continue;
+
+        // Strip surrounding quotes for simple cases / 简单场景下去掉命令名前后的引号
+        const unquoted =
+          (first.startsWith('\"') && first.endsWith('\"') && first.length >= 2) ||
+          (first.startsWith('\'') && first.endsWith('\'') && first.length >= 2)
+            ? first.slice(1, -1)
+            : first;
+
+        if (unquoted) tokens.push(unquoted);
+      }
+    }
+
+    return tokens;
+  }
+
+  /**
+   * 检测输入是否命中命令黑名单；命中则返回阻止执行的消息
+   * Detect whether input hits command blacklist; if so, return a blocking message
+   */
+  private checkCommandBlacklist(input: string): { blocked: boolean; command?: string; message?: string } {
+    // Ignore control sequences / 忽略控制字符（例如 Ctrl+C）
+    const trimmed = input.trim();
+    if (!trimmed) return { blocked: false };
+    if (/^[\u0000-\u001F\u007F]+$/.test(trimmed)) return { blocked: false };
+
+    const { caseInsensitive, rules } = this.getCommandBlacklistConfig();
+    if (!rules.length) return { blocked: false };
+
+    const map = new Map<string, { command: string; message?: string }>();
+    for (const rule of rules) {
+      const key = caseInsensitive ? rule.command.toLowerCase() : rule.command;
+      if (!map.has(key)) {
+        const value: { command: string; message?: string } = { command: rule.command };
+        if (typeof rule.message === 'string') {
+          value.message = rule.message;
+        }
+        map.set(key, value);
+      }
+    }
+
+    const tokens = this.extractCommandTokens(input);
+    for (const token of tokens) {
+      const key = caseInsensitive ? token.toLowerCase() : token;
+      const hit = map.get(key);
+      if (!hit) continue;
+
+      const message = (hit.message && hit.message.trim())
+        ? hit.message
+        : `${hit.command}命令已经被用户禁用，你不能用这个命令`;
+
+      return { blocked: true, command: hit.command, message };
+    }
+
+    return { blocked: false };
+  }
+
+  /**
    * 设置 MCP 工具
    */
   private setupTools(): void {
@@ -627,6 +737,26 @@ Fix tool: OpenAI Codex
 
           // 如果提供了输入或特殊操作，则发送到终端
           if (actualInput) {
+            // 命令黑名单拦截：命中则严格禁止执行
+            // Command blacklist: strictly refuse execution when matched
+            const blacklist = this.checkCommandBlacklist(actualInput);
+            if (blacklist.blocked) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: blacklist.message || 'Command blocked.'
+                  }
+                ],
+                structuredContent: {
+                  blocked: true,
+                  blockedCommand: blacklist.command || null,
+                  terminalId: actualTerminalId
+                },
+                isError: true
+              } as CallToolResult;
+            }
+
             const writeOptions: any = {
               terminalName: actualTerminalId,
               input: actualInput

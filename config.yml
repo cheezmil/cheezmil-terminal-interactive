@@ -24,6 +24,9 @@ mcp:
   enableServerSelectionTool: true
   disabledTools:
     - fix_bug_with_codex
+  commandBlacklist:
+    caseInsensitive: true
+    rules: []
   allowedHosts:
     - 127.0.0.1
     - localhost

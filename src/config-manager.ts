@@ -51,6 +51,15 @@ export class ConfigManager {
         // 通过配置禁用指定的 MCP 工具（对应 DISABLED_TOOLS 环境变量）
         // Disable specific MCP tools via config (mapped to DISABLED_TOOLS environment variable)
         disabledTools: [] as string[],
+        // 命令黑名单：当 MCP 客户端发送匹配命令时，后端将拒绝执行并返回提示
+        // Command blacklist: when MCP client sends a matching command, backend will refuse and return a message
+        commandBlacklist: {
+          // 是否不区分命令大小写 / Whether to ignore command case when matching
+          caseInsensitive: true,
+          // 被禁用的命令列表 / Disabled command list
+          // message 为空或未提供时，将返回默认提示 / When message is empty or missing, default message will be returned
+          rules: [] as Array<{ command: string; message?: string }>
+        },
         allowedHosts: ['127.0.0.1', 'localhost', 'localhost:1106']
       },
       

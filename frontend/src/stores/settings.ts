@@ -34,6 +34,16 @@ interface ConfigData {
     enableServerSelectionTool?: boolean
     // 被禁用的 MCP 工具名称列表 / Disabled MCP tool names list
     disabledTools?: string[]
+    // 命令黑名单配置 / Command blacklist configuration
+    commandBlacklist?: {
+      // 是否不区分命令大小写 / Whether to ignore command case when matching
+      caseInsensitive?: boolean
+      // 被禁用的命令规则列表 / Disabled command rules list
+      rules?: Array<{
+        command: string
+        message?: string
+      }>
+    }
     allowedHosts?: string[]
   }
   logging?: {

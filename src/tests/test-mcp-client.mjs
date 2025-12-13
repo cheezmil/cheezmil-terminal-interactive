@@ -1,5 +1,8 @@
 // MCP客户端连通性测试 / MCP Client Connectivity Test
 import { spawn } from 'child_process';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { CallToolResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 
 // 测试后端API连通性 / Test backend API connectivity
 async function testBackendConnectivity() {
@@ -31,12 +34,110 @@ async function testBackendConnectivity() {
   }
 }
 
+// 测试命令黑名单是否生效（MCP工具层拦截）/ Test command blacklist enforcement (blocked at MCP tool layer)
+async function testCommandBlacklist() {
+  console.log('Testing MCP command blacklist...');
+
+  const baseUrl = 'http://localhost:1106';
+  const settingsUrl = `${baseUrl}/api/settings`;
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+
+  let originalConfig = null;
+  const terminalId = `blacklist-test-${Date.now()}`;
+  const customMessage = 'XXXXX';
+
+  try {
+    const getRes = await fetch(settingsUrl, { method: 'GET' });
+    if (!getRes.ok) {
+      throw new Error(`Failed to GET settings: ${getRes.status}`);
+    }
+    originalConfig = await getRes.json();
+
+    const testConfig = JSON.parse(JSON.stringify(originalConfig || {}));
+    testConfig.mcp = testConfig.mcp || {};
+    testConfig.mcp.commandBlacklist = {
+      ...(testConfig.mcp.commandBlacklist || {}),
+      caseInsensitive: true,
+      rules: [{ command: 'write-host', message: customMessage }]
+    };
+
+    const saveRes = await fetch(settingsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(testConfig)
+    });
+    if (!saveRes.ok) {
+      throw new Error(`Failed to POST settings: ${saveRes.status}`);
+    }
+
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    const tools = await client.request({ method: 'tools/list', params: {} }, ListToolsResultSchema);
+    const hasInteractTool = tools.tools.some((t) => t.name === 'interact_with_terminal');
+    if (!hasInteractTool) {
+      throw new Error('Tool interact_with_terminal not found on server');
+    }
+
+    const result = await client.request({
+      method: 'tools/call',
+      params: {
+        name: 'interact_with_terminal',
+        arguments: {
+          terminalId,
+          input: 'Write-Host hello',
+          appendNewline: true,
+          waitForOutput: 0
+        }
+      }
+    }, CallToolResultSchema);
+
+    const textBlock = (result.content || []).find((c) => c.type === 'text');
+    const text = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
+
+    if (result.isError && text.includes(customMessage)) {
+      console.log('✅ Command blacklist enforced (blocked as expected)');
+    } else {
+      console.log('❌ Command blacklist NOT enforced');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    }
+
+    // Cleanup: terminate the test terminal if it was created / 清理：如果创建了测试终端则终止
+    await client.request({
+      method: 'tools/call',
+      params: {
+        name: 'interact_with_terminal',
+        arguments: { killTerminal: true, terminalId }
+      }
+    }, CallToolResultSchema).catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ Command blacklist test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    // Restore original config / 恢复原始配置
+    if (originalConfig) {
+      try {
+        await fetch(settingsUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(originalConfig)
+        });
+      } catch (error) {
+        console.log(`⚠️ Failed to restore settings: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+}
+
 
 // 运行所有测试 / Run all tests
 async function runTests() {
   console.log('=== MCP Client Connectivity Tests ===');
   
   await testBackendConnectivity();
+  await testCommandBlacklist();
 
   
   console.log('=== Tests completed ===');

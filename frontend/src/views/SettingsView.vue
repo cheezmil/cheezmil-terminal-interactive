@@ -48,6 +48,13 @@ const configData = ref<any>({
     enableServerSelectionTool: true,
     // 被禁用的 MCP 工具名称列表 / Disabled MCP tool names list
     disabledTools: [],
+    // 命令黑名单配置 / Command blacklist configuration
+    commandBlacklist: {
+      // 是否不区分命令大小写 / Whether to ignore command case when matching
+      caseInsensitive: true,
+      // 被禁用的命令规则列表 / Disabled command rules list
+      rules: []
+    },
     allowedHosts: ['127.0.0.1', 'localhost', 'localhost:1106']
   },
   logging: {
@@ -108,7 +115,11 @@ const loadConfiguration = async () => {
       },
       mcp: {
         ...defaultConfigTemplate.mcp,
-        ...(backendConfig.mcp || {})
+        ...(backendConfig.mcp || {}),
+        commandBlacklist: {
+          ...defaultConfigTemplate.mcp.commandBlacklist,
+          ...((backendConfig.mcp && backendConfig.mcp.commandBlacklist) ? backendConfig.mcp.commandBlacklist : {})
+        }
       },
       logging: {
         ...defaultConfigTemplate.logging,
@@ -560,6 +571,68 @@ onMounted(async () => {
                     <span class="luxury-checkbox-slider"></span>
                   </label>
                   <span class="ml-3 text-text-primary select-none">{{ configData.mcp.enableServerSelectionTool ? 'Enabled' : 'Disabled' }}</span>
+                </div>
+              </div>
+              
+              <!-- 命令黑名单 / Command blacklist -->
+              <div class="flex flex-col space-y-2">
+                <Label class="flex items-center space-x-2 text-text-primary font-medium">
+                  <svg class="w-4 h-4 text-accent-cyan" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 .556-.447 1-1 1H7a1 1 0 01-1-1V7c0-.556.447-1 1-1h4c.553 0 1 .444 1 1v4zm6 0c0 .556-.447 1-1 1h-4a1 1 0 01-1-1V7c0-.556.447-1 1-1h4c.553 0 1 .444 1 1v4zM12 17c0 .556-.447 1-1 1H7a1 1 0 01-1-1v-4c0-.556.447-1 1-1h4c.553 0 1 .444 1 1v4zm6 0c0 .556-.447 1-1 1h-4a1 1 0 01-1-1v-4c0-.556.447-1 1-1h4c.553 0 1 .444 1 1v4z" />
+                  </svg>
+                  <span class="font-serif-luxury">{{ t('settings.commandBlacklist') }}</span>
+                </Label>
+
+                <div class="flex items-center">
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.mcp.commandBlacklist.caseInsensitive"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">{{ t('settings.commandBlacklistCaseInsensitive') }}</span>
+                </div>
+
+                <div class="space-y-2">
+                  <div
+                    v-for="(rule, index) in configData.mcp.commandBlacklist.rules"
+                    :key="index"
+                    class="flex items-center space-x-2"
+                  >
+                    <Input
+                      v-model="configData.mcp.commandBlacklist.rules[index].command"
+                      class="flex-1 bg-charcoal border-border-dark text-text-primary focus:border-accent-cyan luxury-input"
+                      :placeholder="t('settings.commandBlacklistCommandPlaceholder')"
+                    />
+                    <Input
+                      v-model="configData.mcp.commandBlacklist.rules[index].message"
+                      class="flex-1 bg-charcoal border-border-dark text-text-primary focus:border-accent-cyan luxury-input"
+                      :placeholder="t('settings.commandBlacklistMessagePlaceholder')"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="luxury-delete-button"
+                      @click="configData.mcp.commandBlacklist.rules.splice(index, 1)"
+                    >
+                      <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="luxury-add-button-cyan"
+                    @click="configData.mcp.commandBlacklist.rules.push({ command: '', message: '' })"
+                  >
+                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    {{ t('common.create') }}
+                  </Button>
                 </div>
               </div>
               

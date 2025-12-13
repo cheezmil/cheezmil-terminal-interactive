@@ -1,7 +1,8 @@
 Warning: .env.example file not found
 Searching for frontend processes occupying the port...
-Netstat command failed, trying alternative method...
-No related processes found
+Found 1 processes using port 1107, terminating...
+Terminating node process PID: 2340
+Process 2340 terminated successfully
 Starting frontend production server...
 
 > frontend@0.0.0 preview
@@ -9,5 +10,3 @@ Starting frontend production server...
 
   ➜  Local:   http://localhost:1107/
   ➜  Network: use --host to expose
-  ➜  press h + enter to show help
-Frontend production server exited with code 1
