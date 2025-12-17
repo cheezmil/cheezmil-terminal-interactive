@@ -185,6 +185,87 @@ export class CheestardTerminalInteractiveServer {
     return null;
   }
 
+  private buildSearchMatcher(options: { query: string; isRegex: boolean; caseSensitive: boolean }): { test: (line: string) => boolean } | { error: string } {
+    const query = options.query ?? '';
+    if (!query) {
+      return { error: 'Search query is empty.' };
+    }
+
+    if (options.isRegex) {
+      try {
+        const flags = options.caseSensitive ? '' : 'i';
+        const re = new RegExp(query, flags);
+        return { test: (line: string) => re.test(line) };
+      } catch (e) {
+        return { error: `Invalid regex: ${e instanceof Error ? e.message : String(e)}` };
+      }
+    }
+
+    if (!options.caseSensitive) {
+      const q = query.toLowerCase();
+      return { test: (line: string) => (line || '').toLowerCase().includes(q) };
+    }
+
+    return { test: (line: string) => (line || '').includes(query) };
+  }
+
+  private searchTerminalBuffer(options: {
+    terminalId: string;
+    query: string;
+    isRegex: boolean;
+    caseSensitive: boolean;
+    contextLines: number;
+    maxMatches: number;
+    since: number;
+  }): { lines: Array<{ lineNumber: number; sequence: number; content: string }>; matchCount: number } | { error: string } {
+    const outputBuffer = this.terminalManager.getOutputBuffer(options.terminalId);
+    if (!outputBuffer) {
+      return { error: `Terminal output buffer not found: ${options.terminalId}` };
+    }
+
+    const matcher = this.buildSearchMatcher({
+      query: options.query,
+      isRegex: options.isRegex,
+      caseSensitive: options.caseSensitive
+    });
+    if ('error' in matcher) {
+      return { error: matcher.error };
+    }
+
+    const all = outputBuffer.read({ since: options.since ?? 0, maxLines: 0 }).entries;
+    const ctx = Math.max(0, Math.floor(options.contextLines ?? 2));
+    const maxMatches = Math.max(1, Math.floor(options.maxMatches ?? 50));
+
+    const include = new Set<number>(); // index in all[]
+    const matchIndices: number[] = [];
+
+    for (let i = 0; i < all.length; i++) {
+      const entry = all[i]!;
+      if (matcher.test(entry.content || '')) {
+        matchIndices.push(i);
+        if (matchIndices.length >= maxMatches) {
+          break;
+        }
+      }
+    }
+
+    for (const idx of matchIndices) {
+      const start = Math.max(0, idx - ctx);
+      const end = Math.min(all.length - 1, idx + ctx);
+      for (let j = start; j <= end; j++) {
+        include.add(j);
+      }
+    }
+
+    const indices = Array.from(include).sort((a, b) => a - b);
+    const lines = indices.map((i) => {
+      const e = all[i]!;
+      return { lineNumber: e.lineNumber, sequence: e.sequence, content: e.content };
+    });
+
+    return { lines, matchCount: matchIndices.length };
+  }
+
   constructor() {
     // 创建 MCP 服务器
     this.server = new McpServer(
@@ -726,7 +807,15 @@ Fix tool: OpenAI Codex
         mode: z.enum(['full', 'head', 'tail', 'head-tail', 'smart', 'raw']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), head-tail (first + last N lines), smart (auto best), or raw (tail of raw PTY output; useful for vim/fullscreen apps)'),
         headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
         tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
-        stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)')
+        stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)'),
+
+        // 搜索参数 / Search parameters
+        search: z.string().optional().describe('Search query (regex or plain text) to find in terminal output buffer.'),
+        searchRegex: z.boolean().optional().describe('Treat search as regex (default: false).'),
+        caseSensitive: z.boolean().optional().describe('Case sensitive search (default: false).'),
+        contextLines: z.number().optional().describe('Context lines before/after each match (default: 2).'),
+        maxMatches: z.number().optional().describe('Max number of matches to return (default: 50).'),
+        searchSince: z.number().optional().describe('Search start cursor/sequence (default: 0).')
       };
 
       // 这里将 server 强制为 any，以避免复杂泛型导致的深度类型实例化问题
@@ -740,7 +829,8 @@ Fix tool: OpenAI Codex
 - 发送 ESC：specialOperation: "esc"（或 keys: "esc"）
 - 双击 ESC：specialOperation: "double_esc"（或 keys: "esc,esc"）
 - 如果检测到交互式终端且你使用 input + appendNewline（默认 true），服务端会自动等价转换为 keySequence（text + enter），以提升交互式程序下的提交成功率
-- 复杂组合键：使用 keys 或 keySequence 一次性发送，并通过 keyDelayMs / delayMsAfter 指定每个按键之间的间隔时间；程序内部会按顺序逐个写入到 PTY。`,
+- 复杂组合键：使用 keys 或 keySequence 一次性发送，并通过 keyDelayMs / delayMsAfter 指定每个按键之间的间隔时间；程序内部会按顺序逐个写入到 PTY。
+- 终端内容搜索：传 search（支持正则，配合 searchRegex:true），服务端会在终端输出缓冲区里匹配并返回命中行及上下文（contextLines/maxMatches/searchSince）。`,
         interactWithTerminalSchema,
       {
         title: 'Interact with Terminal',
@@ -751,7 +841,8 @@ Fix tool: OpenAI Codex
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
           input, appendNewline, waitForOutput,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
-          specialOperation, keys, keyDelayMs, keySequence
+          specialOperation, keys, keyDelayMs, keySequence,
+          search, searchRegex, caseSensitive, contextLines, maxMatches, searchSince
         } = args;
         try {
           // 如果请求列出所有终端，则执行list操作并返回
@@ -1196,6 +1287,44 @@ Fix tool: OpenAI Codex
                 }
               }
             }
+          }
+
+          // 可选：对终端缓冲区做正则/文本搜索（不新增工具）
+          // Optional: regex/plain-text search on terminal output buffer (no new tool)
+          if (typeof search === 'string' && search.trim()) {
+            const searchResult = this.searchTerminalBuffer({
+              terminalId: actualTerminalId,
+              query: search,
+              isRegex: Boolean(searchRegex),
+              caseSensitive: Boolean(caseSensitive),
+              contextLines: typeof contextLines === 'number' ? contextLines : 2,
+              maxMatches: typeof maxMatches === 'number' ? maxMatches : 50,
+              since: typeof searchSince === 'number' ? searchSince : 0
+            });
+
+            if ('error' in searchResult) {
+              return {
+                content: [{ type: 'text', text: searchResult.error }],
+                structuredContent: { isError: true, reason: 'SEARCH_FAILED', terminalId: actualTerminalId },
+                isError: true
+              } as CallToolResult;
+            }
+
+            structuredContent.search = {
+              query: search,
+              regex: Boolean(searchRegex),
+              caseSensitive: Boolean(caseSensitive),
+              contextLines: typeof contextLines === 'number' ? contextLines : 2,
+              maxMatches: typeof maxMatches === 'number' ? maxMatches : 50,
+              since: typeof searchSince === 'number' ? searchSince : 0,
+              matchCount: searchResult.matchCount,
+              lines: searchResult.lines
+            };
+
+            const preview = searchResult.lines
+              .map((l) => `${l.lineNumber}:${l.sequence} ${l.content}`)
+              .join('\n');
+            responseText += `\n\n--- Search Results (matchCount=${searchResult.matchCount}) ---\n${preview}\n--- End of Search Results ---`;
           }
           
           // 如果创建了新终端，添加相关信息
