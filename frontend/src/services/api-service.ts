@@ -20,7 +20,7 @@ export async function getApiDocs(): Promise<any> {
   }
 
   try {
-    const response = await fetch(API_DOCS_ENDPOINT);
+    const response = await fetch(API_DOCS_ENDPOINT, { cache: 'no-store' });
     if (!response.ok) {
       throw new Error(`Failed to fetch API docs: ${response.status}`);
     }
@@ -60,6 +60,7 @@ export function getEndpoint(category: string, action: string): string {
   const defaultPaths: Record<string, Record<string, string>> = {
     settings: {
       get: '/api/settings',
+      reload: '/api/settings/reload',
       save: '/api/settings',
       reset: '/api/settings/reset'
     },
@@ -224,6 +225,7 @@ export const systemApi = {
 // 设置相关API / Settings related APIs
 export const settingsApi = {
   get: () => apiRequest('settings', 'get'),
+  reload: () => apiRequest('settings', 'reload'),
   save: (data: any) => apiRequest('settings', 'save', {
     method: 'POST',
     body: JSON.stringify(data),

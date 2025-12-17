@@ -1,0 +1,411 @@
+✅ iconv-lite loaded successfully via dynamic module loader
+Node.js 版本正确: v20.19.5
+Warning: .env.example file not found
+Searching for backend processes occupying the port...
+找到 47 个node进程:
+  PID 22316: "C:\Users\xdx\AppData\Local\fnm_multishells\15600_1765948849748\node.exe" C:\Users\xdx\AppData\Local\fnm_multishells\15600_1765948849748/node_modules/@musistudio/claude-code-router/dist/cli.js code
+  PID 22408: node D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\@musistudio\claude-code-router\dist\cli.js start
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\15600_1765948849748\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\15600_1765948849748\\node_modules\@anthropic-ai\claude-code\cli.js" --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID 20344: node  "D:\CodeRelated\CLIProxyAPI\start_be_CLIProxyAPI.mjs"        
+  PID 7680: node  "D:\CodeRelated\gpt-load\start_be_gpt-load.mjs"        
+  PID 19344: node  "D:\CodeRelated\gpt-load\start_fe_gpt-load.mjs"        
+  PID 4884: node  "D:\CodeRelated\xdx_toolbox\start_fe_xdx_toolbox.mjs"        
+  PID 22852: "C:\Users\xdx\AppData\Local\fnm_multishells\16476_1765948888295\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\16476_1765948888295\node_modules\npm\bin\npm-cli.js" run preview -- --host 0.0.0.0 --port 1051
+  PID 23380: node  "D:\CodeRelated\AI\MCP\mcphub-github\mcphub\start_mcphub.mjs"        
+  PID 22572: "node"   "D:\CodeRelated\gpt-load\web\node_modules\.bin\\..\vite\bin\vite.js" preview --host 0.0.0.0 --port 1051
+  PID 19156: node  "D:\CodeRelated\page-spy-all\start_page-spy-api.mjs"        
+  PID 22932: "node" dist/index.js
+  PID 17824: node  syncthing_launcher.js
+  PID 23588: "C:\Users\xdx\AppData\Local\fnm_multishells\22832_1765948889529\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\22832_1765948889529\node_modules\npm\bin\npx-cli.js" -y -- D:\CodeRelated\page-spy-all\.cheestard_runtime\page-spy-api.exe
+  PID 23752: "node" D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+  PID 23864: "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  PID 21732: "node"   "D:\CodeRelated\Public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaApiKey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  PID 29564: "C:\Users\xdx\AppData\Local\fnm_multishells\29356_1765948915518\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\29356_1765948915518\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\29356_1765948915518\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\29356_1765948915518\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID 4948: "C:\Users\xdx\AppData\Local\fnm_multishells\1060_1765948948810\node.exe" start_dev-mp-weixin.mjs
+  PID 32008: "C:\Users\xdx\AppData\Local\fnm_multishells\31588_1765948944345\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\31588_1765948944345\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID 16516: "C:\Users\xdx\AppData\Local\fnm_multishells\32744_1765948944926\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\32744_1765948944926\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID 5012: "C:\Users\xdx\AppData\Local\fnm_multishells\4864_1765948951532\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\4864_1765948951532\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID 1256: "C:\Users\xdx\AppData\Local\fnm_multishells\9260_1765948951796\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\9260_1765948951796\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID 12836: "C:\Users\xdx\AppData\Local\fnm_multishells\30004_1765948951282\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\30004_1765948951282\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\31588_1765948944345\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\31588_1765948944345\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\32744_1765948944926\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\32744_1765948944926\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID 5440: "C:\Users\xdx\AppData\Local\fnm_multishells\10184_1765948956182\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\10184_1765948956182\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  PID 27616: "C:\Users\xdx\AppData\Local\fnm_multishells\1060_1765948948810\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\1060_1765948948810\node_modules\npm\bin\npm-cli.js" run dev:mp-weixin
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\4864_1765948951532\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\4864_1765948951532\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\9260_1765948951796\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\9260_1765948951796\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\30004_1765948951282\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\30004_1765948951282\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID 30504: "node"   "D:\CodeRelated\HBuilderProjects\PicSelect_FE_BE\PicSelect_Uniapp_Vite_RewriteForWxMiniProgram\node_modules\.bin\\..\@dcloudio\vite-plugin-uni\bin\uni.js" -p mp-weixin
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\10184_1765948956182\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\10184_1765948956182\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID 28972: "C:\Users\xdx\AppData\Local\fnm_multishells\30768_1765953893376\node.exe"  "D:\CodeRelated\Public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
+  PID 19976: node  "D:\CodeRelated\cheestard-terminal-interactive\start_fe_cheestard-terminal-interactive.mjs"        
+  PID 1072: "C:\Users\xdx\AppData\Local\fnm_multishells\31496_1765953926158\\node.exe"  "C:\Users\xdx\AppData\Local\fnm_multishells\31496_1765953926158\node_modules\npm\bin\npm-cli.js" run preview
+  PID 30984: "node"   "D:\CodeRelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+  PID 11280: node  "D:\CodeRelated\frp\frps_12100\start_frps_12100.mjs"        
+  PID 680: "C:\Users\xdx\AppData\Local\fnm_multishells\18428_1765961522891\node.exe" D:\CodeRelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs
+  PID 18656: node  dist/src/index.js
+  PID 8180: "C:\Users\xdx\AppData\Local\fnm_multishells\35628_1765962137406\node.exe" start_be_cheestard-terminal-interactive.mjs
+  PID 35792: node  dist/http-server.js
+  PID 34868: "C:\Users\xdx\AppData\Local\fnm_multishells\20092_1765962164940\node.exe" C:\Users\xdx\AppData\Local\fnm_multishells\20092_1765962164940/node_modules/@anthropic-ai/claude-code/cli.js
+  PID 14676: "C:\Users\xdx\AppData\Local\fnm_multishells\14124_1765962486957\node.exe" C:\Users\xdx\AppData\Local\fnm_multishells\14124_1765962486957/node_modules/@musistudio/claude-code-router/dist/cli.js code
+  PID NaN: "C:\Users\xdx\AppData\Local\fnm_multishells\14124_1765962486957\\node.exe"   "C:\Users\xdx\AppData\Local\fnm_multishells\14124_1765962486957\\node_modules\@anthropic-ai\claude-code\cli.js" --settings "{\"env\":{\"ANTHROPIC_AUTH_TOKEN\":\"sk-123456\"
+  PID 1524: "C:\Users\xdx\AppData\Local\fnm_multishells\32868_1765962617688\node.exe" start_be_cheestard-terminal-interactive.mjs
+
+检查进程 22316: "c:\users\xdx\appdata\local\fnm_multishells\15600_1765948849748\node.exe" c:\users\xdx\appdata\local\fnm_multishells\15600_1765948849748/node_modules/@musistudio/claude-code-router/dist/cli.js code
+  -> 跳过系统进程
+
+检查进程 22408: node d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\@musistudio\claude-code-router\dist\cli.js start
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\15600_1765948849748\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\15600_1765948849748\\node_modules\@anthropic-ai\claude-code\cli.js" --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 20344: node  "d:\coderelated\cliproxyapi\start_be_cliproxyapi.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 7680: node  "d:\coderelated\gpt-load\start_be_gpt-load.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 19344: node  "d:\coderelated\gpt-load\start_fe_gpt-load.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 4884: node  "d:\coderelated\xdx_toolbox\start_fe_xdx_toolbox.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 22852: "c:\users\xdx\appdata\local\fnm_multishells\16476_1765948888295\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\16476_1765948888295\node_modules\npm\bin\npm-cli.js" run preview -- --host 0.0.0.0 --port 1051
+  -> 跳过系统进程
+
+检查进程 23380: node  "d:\coderelated\ai\mcp\mcphub-github\mcphub\start_mcphub.mjs"        
+  -> 跳过系统进程
+
+检查进程 22572: "node"   "d:\coderelated\gpt-load\web\node_modules\.bin\\..\vite\bin\vite.js" preview --host 0.0.0.0 --port 1051
+  -> 跳过系统进程
+
+检查进程 19156: node  "d:\coderelated\page-spy-all\start_page-spy-api.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 22932: "node" dist/index.js
+  -> 匹配相关文件: true
+  -> 缺少项目关键词，跳过
+
+检查进程 17824: node  syncthing_launcher.js
+  -> 匹配相关文件: false
+
+检查进程 23588: "c:\users\xdx\appdata\local\fnm_multishells\22832_1765948889529\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\22832_1765948889529\node_modules\npm\bin\npx-cli.js" -y -- d:\coderelated\page-spy-all\.cheestard_runtime\page-spy-api.exe
+  -> 跳过系统进程
+
+检查进程 23752: "node" d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\mcp\mcp-server-stdio.js
+  -> 跳过系统进程
+
+检查进程 23864: "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v24.11.0\installation\node_modules\npm\bin\npx-cli.js" "-y" "mcp-remote" "https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d"
+  -> 跳过系统进程
+
+检查进程 21732: "node"   "d:\coderelated\public\npm-cache\_npx\705d23756ff7dacc\node_modules\.bin\\..\mcp-remote\dist\proxy.js" https://mcp.exa.ai/mcp?exaapikey=ef6e893a-b14b-467e-b666-d1877d4fab0d
+  -> 跳过系统进程
+
+检查进程 29564: "c:\users\xdx\appdata\local\fnm_multishells\29356_1765948915518\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\29356_1765948915518\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\29356_1765948915518\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\29356_1765948915518\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 4948: "c:\users\xdx\appdata\local\fnm_multishells\1060_1765948948810\node.exe" start_dev-mp-weixin.mjs
+  -> 匹配相关文件: false
+
+检查进程 32008: "c:\users\xdx\appdata\local\fnm_multishells\31588_1765948944345\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\31588_1765948944345\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 16516: "c:\users\xdx\appdata\local\fnm_multishells\32744_1765948944926\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\32744_1765948944926\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 5012: "c:\users\xdx\appdata\local\fnm_multishells\4864_1765948951532\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\4864_1765948951532\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 1256: "c:\users\xdx\appdata\local\fnm_multishells\9260_1765948951796\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\9260_1765948951796\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 12836: "c:\users\xdx\appdata\local\fnm_multishells\30004_1765948951282\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\30004_1765948951282\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\31588_1765948944345\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\31588_1765948944345\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\32744_1765948944926\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\32744_1765948944926\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 5440: "c:\users\xdx\appdata\local\fnm_multishells\10184_1765948956182\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\10184_1765948956182\\node_modules\@musistudio\claude-code-router\dist\cli.js" code --ide --dangerously-skip-permissions
+  -> 跳过系统进程
+
+检查进程 27616: "c:\users\xdx\appdata\local\fnm_multishells\1060_1765948948810\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\1060_1765948948810\node_modules\npm\bin\npm-cli.js" run dev:mp-weixin
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\4864_1765948951532\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\4864_1765948951532\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\9260_1765948951796\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\9260_1765948951796\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\30004_1765948951282\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\30004_1765948951282\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 30504: "node"   "d:\coderelated\hbuilderprojects\picselect_fe_be\picselect_uniapp_vite_rewriteforwxminiprogram\node_modules\.bin\\..\@dcloudio\vite-plugin-uni\bin\uni.js" -p mp-weixin
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\10184_1765948956182\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\10184_1765948956182\\node_modules\@anthropic-ai\claude-code\cli.js" --ide --dangerously-skip-permissions --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+
+检查进程 28972: "c:\users\xdx\appdata\local\fnm_multishells\30768_1765953893376\node.exe"  "d:\coderelated\public\fnm\node\node-versions\v20.19.5\installation\node_modules\mcp-chrome-bridge\dist\index.js" 
+  -> 跳过系统进程
+
+检查进程 19976: node  "d:\coderelated\cheestard-terminal-interactive\start_fe_cheestard-terminal-interactive.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 1072: "c:\users\xdx\appdata\local\fnm_multishells\31496_1765953926158\\node.exe"  "c:\users\xdx\appdata\local\fnm_multishells\31496_1765953926158\node_modules\npm\bin\npm-cli.js" run preview
+  -> 跳过系统进程
+
+检查进程 30984: "node"   "d:\coderelated\cheestard-terminal-interactive\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview
+  -> 跳过系统进程
+
+检查进程 11280: node  "d:\coderelated\frp\frps_12100\start_frps_12100.mjs"        
+  -> 匹配相关文件: false
+
+检查进程 680: "c:\users\xdx\appdata\local\fnm_multishells\18428_1765961522891\node.exe" d:\coderelated\cheestard-task-manager\start_be_cheestard-task-manager.mjs
+  -> 匹配相关文件: false
+
+检查进程 18656: node  dist/src/index.js
+  -> 匹配相关文件: true
+  -> 缺少项目关键词，跳过
+
+检查进程 8180: "c:\users\xdx\appdata\local\fnm_multishells\35628_1765962137406\node.exe" start_be_cheestard-terminal-interactive.mjs
+  -> 匹配相关文件: true
+  -> 将被标记为目标进程进行清理
+
+检查进程 35792: node  dist/http-server.js
+  -> 匹配相关文件: true
+  -> 缺少项目关键词，跳过
+
+检查进程 34868: "c:\users\xdx\appdata\local\fnm_multishells\20092_1765962164940\node.exe" c:\users\xdx\appdata\local\fnm_multishells\20092_1765962164940/node_modules/@anthropic-ai/claude-code/cli.js
+  -> 跳过系统进程
+
+检查进程 14676: "c:\users\xdx\appdata\local\fnm_multishells\14124_1765962486957\node.exe" c:\users\xdx\appdata\local\fnm_multishells\14124_1765962486957/node_modules/@musistudio/claude-code-router/dist/cli.js code
+  -> 跳过系统进程
+
+检查进程 NaN: "c:\users\xdx\appdata\local\fnm_multishells\14124_1765962486957\\node.exe"   "c:\users\xdx\appdata\local\fnm_multishells\14124_1765962486957\\node_modules\@anthropic-ai\claude-code\cli.js" --settings "{\"env\":{\"anthropic_auth_token\":\"sk-123456\"
+  -> 跳过系统进程
+Found 1 related processes, terminating...
+Terminating process PID: 8180 (attempt 1/3)
+Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\35628_1765962137406\node.exe" start_be_cheestard-termina...
+Warning: Failed to terminate process 8180: Command execution failed, exit code: 128
+Error: ERROR: The process with PID 33652 (child process of PID 13680) could not be terminated.
+Reason: This process can only be terminated forcefully (with /F option).
+ERROR: The process with PID 13680 (child process of PID 14676) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 34868 (child process of PID 2676) could not be terminated.
+Reason: This process can only be terminated forcefully (with /F option).
+ERROR: The process with PID 14676 (child process of PID 30800) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 2676 (child process of PID 35792) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 30800 (child process of PID 35792) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 35792 (child process of PID 13996) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 13996 (child process of PID 8180) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 8180 (child process of PID 29220) could not be terminated.
+Reason: One or more child processes of this process were still running.
+System.Management.Automation.RemoteException
+Attempt 1 failed for process 8180: Command execution failed, exit code: 128
+Error: ERROR: The process with PID 33652 (child process of PID 13680) could not be terminated.
+Reason: This process can only be terminated forcefully (with /F option).
+ERROR: The process with PID 13680 (child process of PID 14676) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 34868 (child process of PID 2676) could not be terminated.
+Reason: This process can only be terminated forcefully (with /F option).
+ERROR: The process with PID 14676 (child process of PID 30800) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 2676 (child process of PID 35792) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 30800 (child process of PID 35792) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 35792 (child process of PID 13996) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 13996 (child process of PID 8180) could not be terminated.
+Reason: One or more child processes of this process were still running.
+ERROR: The process with PID 8180 (child process of PID 29220) could not be terminated.
+Reason: One or more child processes of this process were still running.
+System.Management.Automation.RemoteException
+Terminating process PID: 8180 (attempt 2/3)
+Command line: "C:\Users\xdx\AppData\Local\fnm_multishells\35628_1765962137406\node.exe" start_be_cheestard-termina...
+Process 8180 terminated successfully
+Process termination completed: 1 successful, 0 failed
+Starting backend server...
+[HTTP-MCP-INFO] Starting Cheestard Terminal Interactive Streamable HTTP MCP Server...
+[HTTP-MCP-INFO] Disabled MCP tools via config: fix_bug_with_codex
+使用编译后的前端文件，路径: D:/CodeRelated/cheestard-terminal-interactive/frontend/dist
+当前工作目录: D:\CodeRelated\cheestard-terminal-interactive
+__dirname: D:\CodeRelated\cheestard-terminal-interactive\dist
+[HTTP-MCP-INFO] Cheestard Terminal Interactive Streamable HTTP MCP Server started successfully
+[HTTP-MCP-INFO] Server listening on http://127.0.0.1:1106/mcp
+[HTTP-MCP-INFO] Server capabilities:
+[HTTP-MCP-INFO] - create_terminal: Create new Cheestard Terminal Interactive sessions
+[HTTP-MCP-INFO] - write_terminal: Send input to terminal sessions
+[HTTP-MCP-INFO] - read_terminal: Read output from terminal sessions
+[HTTP-MCP-INFO] - list_terminals: List all active terminal sessions
+[HTTP-MCP-INFO] - kill_terminal: Terminate terminal sessions
+[HTTP-MCP-INFO] 
+[HTTP-MCP-INFO] Resources available:
+[HTTP-MCP-INFO] - terminal://list: List of all terminals
+[HTTP-MCP-INFO] - terminal://output/{terminalId}: Terminal output
+[HTTP-MCP-INFO] - terminal://stats: Manager statistics
+[HTTP-MCP-INFO] 
+[HTTP-MCP-INFO] No prompts available
+[HTTP-MCP-INFO] 
+[HTTP-MCP-INFO] Health check available at: http://127.0.0.1:1106/health
+[HTTP-MCP-INFO] Creating new session and MCP server
+[MCP-INFO] Using shared TerminalManager instance
+[MCP-DEBUG] Checking if tool "interact_with_terminal" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "interact_with_terminal" is ENABLED
+[MCP-DEBUG] Checking if tool "fix_bug_with_codex" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "fix_bug_with_codex" is DISABLED
+[MCP-INFO] Tool "fix_bug_with_codex" is disabled
+[MCP-INFO] Services auto-start disabled to prevent recursion
+[HTTP-MCP-INFO] MCP server connected to transport
+[HTTP-MCP-INFO] Session initialized: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Creating new session and MCP server
+[MCP-INFO] Using shared TerminalManager instance
+[MCP-DEBUG] Checking if tool "interact_with_terminal" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "interact_with_terminal" is ENABLED
+[MCP-DEBUG] Checking if tool "fix_bug_with_codex" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "fix_bug_with_codex" is DISABLED
+[MCP-INFO] Tool "fix_bug_with_codex" is disabled
+[MCP-INFO] Services auto-start disabled to prevent recursion
+[HTTP-MCP-INFO] MCP server connected to transport
+[HTTP-MCP-INFO] Session initialized: 70d2e754-fa13-432e-8673-58c80ae694e9
+[HTTP-MCP-INFO] Reusing existing session: 70d2e754-fa13-432e-8673-58c80ae694e9
+[HTTP-MCP-INFO] Reusing existing session: 70d2e754-fa13-432e-8673-58c80ae694e9
+[HTTP-MCP-INFO] Reusing existing session: 70d2e754-fa13-432e-8673-58c80ae694e9
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: blacklist-test-1765962632812 (PID: 7232)
+[MCP-INFO] Terminal created: blacklist-test-1765962632812 (PID: 7232)
+[HTTP-MCP-INFO] Reusing existing session: 70d2e754-fa13-432e-8673-58c80ae694e9
+[MCP-INFO] Terminal killed: blacklist-test-1765962632812 (signal: SIGTERM)
+[MCP-INFO] Terminal killed: blacklist-test-1765962632812 (signal: SIGTERM)
+[HTTP-MCP-INFO] Ignoring benign uncaughtException from PTY (EPIPE / AttachConsole failed) after terminal kill.
+[MCP-INFO] Terminal exited: blacklist-test-1765962632812 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: blacklist-test-1765962632812 (code: undefined, signal: undefined)
+[HTTP-MCP-INFO] Creating new session and MCP server
+[MCP-INFO] Using shared TerminalManager instance
+[MCP-DEBUG] Checking if tool "interact_with_terminal" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "interact_with_terminal" is ENABLED
+[MCP-DEBUG] Checking if tool "fix_bug_with_codex" is disabled. DISABLED_TOOLS="fix_bug_with_codex"
+[MCP-DEBUG] Disabled tools list: [ 'fix_bug_with_codex' ]
+[MCP-DEBUG] Tool "fix_bug_with_codex" is DISABLED
+[MCP-INFO] Tool "fix_bug_with_codex" is disabled
+[MCP-INFO] Services auto-start disabled to prevent recursion
+[HTTP-MCP-INFO] MCP server connected to transport
+[HTTP-MCP-INFO] Session initialized: 03735e59-d651-438a-97ef-83ecbd960c34
+[HTTP-MCP-INFO] Reusing existing session: 03735e59-d651-438a-97ef-83ecbd960c34
+[HTTP-MCP-INFO] Reusing existing session: 03735e59-d651-438a-97ef-83ecbd960c34
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: interactive-test-1765962633259 (PID: 33224)
+[MCP-INFO] Terminal created: interactive-test-1765962633259 (PID: 33224)
+[MCP-INFO] Terminal created: interactive-test-1765962633259 (PID: 33224)
+[HTTP-MCP-INFO] Reusing existing session: 03735e59-d651-438a-97ef-83ecbd960c34
+[HTTP-MCP-INFO] Reusing existing session: 03735e59-d651-438a-97ef-83ecbd960c34
+[MCP-INFO] Terminal killed: interactive-test-1765962633259 (signal: SIGTERM)
+[MCP-INFO] Terminal killed: interactive-test-1765962633259 (signal: SIGTERM)
+[MCP-INFO] Terminal killed: interactive-test-1765962633259 (signal: SIGTERM)
+D:\CodeRelated\cheestard-terminal-interactive\node_modules\node-pty\lib\conpty_console_list_agent.js:17
+var consoleProcessList = getConsoleProcessList(shellPid);
+                         ^
+System.Management.Automation.RemoteException
+Error: AttachConsole failed
+    at Object.<anonymous> (D:\CodeRelated\cheestard-terminal-interactive\node_modules\node-pty\lib\conpty_console_list_agent.js:17:26)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+    at node:internal/main/run_main_module:28:49
+System.Management.Automation.RemoteException
+Node.js v20.19.5
+[MCP-INFO] Terminal exited: interactive-test-1765962633259 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: interactive-test-1765962633259 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: interactive-test-1765962633259 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal cleaned up: da9b0d57-a73f-4d78-9135-7684c8cfe957
+[MCP-INFO] Terminal cleaned up: da9b0d57-a73f-4d78-9135-7684c8cfe957
+[MCP-INFO] Terminal cleaned up: da9b0d57-a73f-4d78-9135-7684c8cfe957
+[MCP-INFO] Terminal cleaned up: 89b87ded-590f-4a1f-b496-8dca949736ea
+[MCP-INFO] Terminal cleaned up: 89b87ded-590f-4a1f-b496-8dca949736ea
+[MCP-INFO] Terminal cleaned up: 89b87ded-590f-4a1f-b496-8dca949736ea
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: ccr-code2 (PID: 30456)
+[MCP-INFO] Terminal created: ccr-code2 (PID: 30456)
+[MCP-INFO] Terminal created: ccr-code2 (PID: 30456)
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: ccr-code-terminal (PID: 33108)
+[MCP-INFO] Terminal created: ccr-code-terminal (PID: 33108)
+[MCP-INFO] Terminal created: ccr-code-terminal (PID: 33108)
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[MCP-INFO] Terminal killed: ccr-code-terminal (signal: SIGTERM)
+[MCP-INFO] Terminal killed: ccr-code-terminal (signal: SIGTERM)
+[MCP-INFO] Terminal killed: ccr-code-terminal (signal: SIGTERM)
+D:\CodeRelated\cheestard-terminal-interactive\node_modules\node-pty\lib\conpty_console_list_agent.js:17
+var consoleProcessList = getConsoleProcessList(shellPid);
+                         ^
+System.Management.Automation.RemoteException
+Error: AttachConsole failed
+    at Object.<anonymous> (D:\CodeRelated\cheestard-terminal-interactive\node_modules\node-pty\lib\conpty_console_list_agent.js:17:26)
+    at Module._compile (node:internal/modules/cjs/loader:1521:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+    at node:internal/main/run_main_module:28:49
+System.Management.Automation.RemoteException
+Node.js v20.19.5
+[MCP-INFO] Terminal exited: ccr-code-terminal (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: ccr-code-terminal (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: ccr-code-terminal (code: undefined, signal: undefined)
+[WEB-UI] WebSocket client disconnected
+[MCP-INFO] Terminal killed: ccr-code2 (signal: SIGTERM)
+[MCP-INFO] Terminal killed: ccr-code2 (signal: SIGTERM)
+[MCP-INFO] Terminal killed: ccr-code2 (signal: SIGTERM)
+[HTTP-MCP-INFO] Ignoring benign uncaughtException from PTY (EPIPE / AttachConsole failed) after terminal kill.
+[MCP-INFO] Terminal exited: ccr-code2 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: ccr-code2 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal exited: ccr-code2 (code: undefined, signal: undefined)
+[MCP-INFO] Terminal cleaned up: bb6222b0-d4c0-4aea-b297-b99ca2c1cbe1
+[MCP-INFO] Terminal cleaned up: bb6222b0-d4c0-4aea-b297-b99ca2c1cbe1
+[MCP-INFO] Terminal cleaned up: bb6222b0-d4c0-4aea-b297-b99ca2c1cbe1
+[MCP-INFO] Terminal cleaned up: c5617d9a-8f27-4163-80be-263a7df09e8f
+[MCP-INFO] Terminal cleaned up: c5617d9a-8f27-4163-80be-263a7df09e8f
+[MCP-INFO] Terminal cleaned up: c5617d9a-8f27-4163-80be-263a7df09e8f
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+Setting encoding on Windows is not supported
+[MCP-INFO] Terminal created: ccr-code-terminal (PID: 18316)
+[MCP-INFO] Terminal created: ccr-code-terminal (PID: 18316)
+[MCP-INFO] Terminal created: ccr-code-terminal (PID: 18316)
+[WEB-UI] WebSocket client connected
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254
+[HTTP-MCP-INFO] Reusing existing session: 47f5b8a3-a3e1-4ecf-9791-28c2fecf1254

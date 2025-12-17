@@ -2,7 +2,7 @@
 app:
   language: 'zh'
   # 是否显示顶部标题 / Whether to show top title
-  showTitle: true
+  showTitle: false
 
 # 服务器配置 / Server Configuration
 server:
@@ -39,11 +39,27 @@ mcp:
   commandBlacklist:
     # 是否不区分命令大小写 / Whether to ignore command case when matching
     caseInsensitive: true
-    # 规则列表：每条规则可指定 command 与 message（不填 message 则使用默认提示）
-    # Rules: each rule supports command and optional message (default message will be used if message is empty)
+    # 黑名单规则列表：每条规则可指定 command 与 message（不填 message 则使用默认提示）
+    # BLACKLIST: each rule supports command and optional message (default message will be used if message is empty)
     rules:
-      - command: 'write-host'
-        message: 'XXXXX'
+      # Windows PowerShell 高危命令 / Windows PowerShell dangerous commands
+      - command: 'Remove-Item -Path C:\'
+        message: ''
+      - command: 'Remove-Item -Path D:\'
+        message: ''
+      - command: 'Remove-Item -Path E:\'
+        message: ''
+      - command: 'Remove-Item -Path F:\'
+        message: ''
+      - command: 'Format-Volume -DriveLetter C'
+        message: ''
+      # 类 Unix（Linux/macOS）终端 高危命令 / Unix-like (Linux/macOS) terminal dangerous commands
+      - command: 'rm -rf /'
+        message: ''
+      - command: 'rm -rf /mnt/'
+        message: ''
+      - command: 'dd if=/dev/zero'
+        message: ''
   allowedHosts: 
     - '127.0.0.1'
     - 'localhost'

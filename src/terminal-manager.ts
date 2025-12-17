@@ -175,6 +175,8 @@ export class TerminalManager extends EventEmitter {
         shell: resolvedShell,
         cwd,
         env,
+        cols,
+        rows,
         created: new Date(),
         lastActivity: new Date(),
         status: 'active',
@@ -287,12 +289,15 @@ export class TerminalManager extends EventEmitter {
     }
 
     try {
-      // 如果输入不以换行符结尾，自动添加换行符以执行命令。
-      // 对多行输入（例如粘贴到 vim 插入模式）默认不自动追加，避免多余回车导致状态错乱。
-      // Auto-append newline when input doesn't end with a newline.
-      // For multi-line input (e.g., pasting into vim insert mode), default to NO auto-append to avoid extra Enter.
+      // 如果输入不以换行符结尾，自动添加回车以执行命令。
+      // 对“多行输入”默认不自动追加，避免粘贴到全屏程序（vim）时多余回车导致状态错乱；
+      // 但对“类对话交互程序”（如 Claude Code）多行消息往往需要最终回车提交，因此默认仍追加。
+      // Auto-append Enter (CR) when input doesn't end with a newline.
+      // For multi-line input we default to NO auto-append to avoid breaking fullscreen apps (vim),
+      // but for chat-like interactive apps (e.g., Claude Code) multi-line messages typically need a final Enter to submit.
       const hasMultiline = input.includes('\n') || input.includes('\r\n');
-      const autoAppend = appendNewline ?? (hasMultiline ? false : this.shouldAutoAppendNewline(input));
+      const isChatLikeInteractive = this.isLikelyChatInteractiveSession(session);
+      const autoAppend = appendNewline ?? (hasMultiline ? isChatLikeInteractive : this.shouldAutoAppendNewline(input));
       const needsNewline = autoAppend && !input.endsWith('\n') && !input.endsWith('\r');
       const newlineChar = '\r';
       const inputWithAutoNewline = needsNewline ? input + newlineChar : input;
@@ -319,6 +324,78 @@ export class TerminalManager extends EventEmitter {
       terminalError.terminalName = terminalName;
       throw terminalError;
     }
+  }
+
+  /**
+   * 判断终端是否“可能处于交互式程序中”（如 Claude Code / vim / nano）。
+   * Detect whether terminal is likely in an interactive app (e.g., Claude Code / vim / nano).
+   */
+  public isTerminalInInteractiveMode(terminalName: string): boolean {
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
+    if (!session) {
+      return false;
+    }
+    if (session.alternateScreen) {
+      return true;
+    }
+    const raw = session.rawOutput || '';
+    const tail = raw.length > 4000 ? raw.slice(raw.length - 4000) : raw;
+    return this.isLikelyInteractiveTail(tail);
+  }
+
+  private isLikelyChatInteractiveSession(session: TerminalSession): boolean {
+    if (session.alternateScreen) {
+      return false;
+    }
+    const raw = session.rawOutput || '';
+    const tail = raw.length > 4000 ? raw.slice(raw.length - 4000) : raw;
+    return this.isLikelyChatInteractiveTail(tail);
+  }
+
+  private isLikelyChatInteractiveTail(tail: string): boolean {
+    if (!tail) {
+      return false;
+    }
+    // Claude Code 常见提示语 / Common Claude Code markers
+    if (/ctrl-g\s+to\s+edit\s+prompt/i.test(tail)) {
+      return true;
+    }
+    if (/claude\s*code/i.test(tail)) {
+      return true;
+    }
+    // Claude CLI/TUI 常见提示 / Common Claude CLI/TUI markers
+    if (/\bmissing\s+api\s+key\b/i.test(tail) || /run\s*\/login/i.test(tail)) {
+      return true;
+    }
+    if (/\?\s*for\s*shortcuts/i.test(tail)) {
+      return true;
+    }
+    if (/\bclaude\b/i.test(tail)) {
+      return true;
+    }
+    // Claude Code 运行时状态提示 / Runtime status hints from Claude Code
+    if (/\bschlepping\b/i.test(tail) || /\bcalculating\b/i.test(tail)) {
+      return true;
+    }
+    return false;
+  }
+
+  private isLikelyInteractiveTail(tail: string): boolean {
+    if (!tail) {
+      return false;
+    }
+    if (this.isLikelyChatInteractiveTail(tail)) {
+      return true;
+    }
+    // vim / nano 等全屏/交互程序特征 / vim / nano interactive markers
+    if (/--\s*insert\s*--/i.test(tail) || /--\s*normal\s*--/i.test(tail)) {
+      return true;
+    }
+    if (/\bnano\b/i.test(tail)) {
+      return true;
+    }
+    return false;
   }
 
   private normalizeNewlines(value: string): string {
@@ -484,6 +561,49 @@ export class TerminalManager extends EventEmitter {
         };
       }
 
+      // 交互式 TUI（如 claude）即使不进入备用屏幕，也会大量使用光标移动/清屏来“重绘界面”，
+      // 这会导致基于“行追加”的 OutputBuffer 输出大量重复或看不到最新屏幕状态。
+      // 因此在 smart/auto/full 下，优先从 rawOutput 渲染一个“屏幕快照”，避免强制 raw fallback。
+      // Interactive TUIs (e.g., claude) may redraw using cursor movement/erase without alternate screen,
+      // which makes line-append buffers noisy or miss the latest screen. For smart/auto/full, render a screen snapshot from rawOutput.
+      if (!session.alternateScreen && (mode === undefined || mode === 'auto' || mode === 'smart' || mode === 'full')) {
+        const rawText = session.rawOutput || '';
+        const tail = rawText.length > 4000 ? rawText.slice(rawText.length - 4000) : rawText;
+        const isInteractive = this.isLikelyInteractiveTail(tail);
+        const hasAnsiControls = rawText.includes('\x1b[') || rawText.includes('\x1b]');
+        if (isInteractive && hasAnsiControls) {
+          const rawTailChars = Math.min(rawText.length, 120000);
+          const rawTail = rawTailChars > 0 ? rawText.slice(rawText.length - rawTailChars) : '';
+          const cols = session.cols ?? this.config.defaultCols;
+          const rows = session.rows ?? this.config.defaultRows;
+          const output = this.renderAnsiScreenSnapshot(rawTail, cols, rows, maxLines);
+
+          const totalBytes = Buffer.byteLength(output, 'utf8');
+          const estimatedTokens = Math.ceil(output.length / 4);
+          const latestEntries = outputBuffer.getLatest(1);
+          const nextCursor = latestEntries[0]?.sequence ?? cursorPosition;
+
+          return {
+            output,
+            totalLines: outputBuffer.getStats().totalLines,
+            hasMore: false,
+            since: nextCursor,
+            cursor: nextCursor,
+            truncated: rawText.length > rawTailChars,
+            stats: {
+              totalBytes,
+              estimatedTokens,
+              linesShown: output ? output.split('\n').length : 0,
+              linesOmitted: 0
+            },
+            status: {
+              ...this.buildReadStatus(session),
+              alternateScreen: Boolean(session.alternateScreen)
+            }
+          };
+        }
+      }
+
       if (selectedMode && selectedMode !== 'full') {
         const smartOptions: any = {
           since: cursorPosition,
@@ -547,6 +667,248 @@ export class TerminalManager extends EventEmitter {
       terminalError.terminalName = terminalName;
       throw terminalError;
     }
+  }
+
+  private renderAnsiScreenSnapshot(rawInput: string, cols: number, rows: number, maxLines: number): string {
+    // 轻量 ANSI 屏幕渲染：尽量还原“当前屏幕”，用于交互式 TUI 的可读输出
+    // Lightweight ANSI screen rendering: approximate a "current screen snapshot" for interactive TUIs
+    const safeCols = Math.max(20, Math.min(300, Math.floor(cols || 80)));
+    const safeRows = Math.max(10, Math.min(200, Math.floor(rows || 24)));
+    const linesToReturn = Math.max(1, Math.min(Math.floor(maxLines || safeRows), safeRows));
+
+    const blankLine = () => new Array<string>(safeCols).fill(' ');
+    const screen: string[][] = Array.from({ length: safeRows }, () => blankLine());
+
+    let curRow = 0;
+    let curCol = 0;
+    let savedRow = 0;
+    let savedCol = 0;
+
+    const clampRow = (r: number) => Math.max(0, Math.min(safeRows - 1, r));
+    const clampCol = (c: number) => Math.max(0, Math.min(safeCols - 1, c));
+
+    const scrollIfNeeded = () => {
+      if (curRow < safeRows) return;
+      while (curRow >= safeRows) {
+        screen.shift();
+        screen.push(blankLine());
+        curRow--;
+      }
+    };
+
+    const clearLine = (r: number) => {
+      if (r < 0 || r >= safeRows) return;
+      screen[r] = blankLine();
+    };
+
+    const clearLineFromCursor = (r: number, c: number) => {
+      if (r < 0 || r >= safeRows) return;
+      const line = screen[r]!;
+      for (let x = clampCol(c); x < safeCols; x++) {
+        line[x] = ' ';
+      }
+    };
+
+    const clearLineToCursor = (r: number, c: number) => {
+      if (r < 0 || r >= safeRows) return;
+      const line = screen[r]!;
+      for (let x = 0; x <= clampCol(c); x++) {
+        line[x] = ' ';
+      }
+    };
+
+    const clearScreenFromCursor = (r: number, c: number) => {
+      // Clear current line from cursor to end, then all lines below
+      clearLineFromCursor(r, c);
+      for (let rr = r + 1; rr < safeRows; rr++) {
+        clearLine(rr);
+      }
+    };
+
+    const clearScreenToCursor = (r: number, c: number) => {
+      // Clear all lines above, then current line up to cursor
+      for (let rr = 0; rr < r; rr++) {
+        clearLine(rr);
+      }
+      clearLineToCursor(r, c);
+    };
+
+    const clearScreen = () => {
+      for (let r = 0; r < safeRows; r++) {
+        clearLine(r);
+      }
+    };
+
+    const writeChar = (ch: string) => {
+      if (!ch) return;
+      if (curCol >= safeCols) {
+        curCol = 0;
+        curRow++;
+        scrollIfNeeded();
+      }
+      screen[curRow]![curCol] = ch;
+      curCol++;
+      if (curCol >= safeCols) {
+        curCol = 0;
+        curRow++;
+        scrollIfNeeded();
+      }
+    };
+
+    const parseParams = (paramStr: string): number[] => {
+      const cleaned = (paramStr || '').replace(/^\?/, '');
+      if (!cleaned) return [];
+      return cleaned
+        .split(';')
+        .map((s) => Number.parseInt(s, 10))
+        .filter((n) => Number.isFinite(n));
+    };
+
+    for (let i = 0; i < rawInput.length; i++) {
+      const ch = rawInput[i]!;
+
+      if (ch === '\x1b') {
+        const next = rawInput[i + 1];
+        if (next === '[') {
+          // CSI sequence
+          let j = i + 2;
+          while (j < rawInput.length) {
+            const cj = rawInput[j]!;
+            // Final byte is in @-~ range
+            if (cj >= '@' && cj <= '~') {
+              const params = rawInput.slice(i + 2, j);
+              const final = cj;
+              const nums = parseParams(params);
+              const n1 = nums[0] ?? 0;
+              const n2 = nums[1] ?? 0;
+
+              switch (final) {
+                case 'A': // CUU
+                  curRow = clampRow(curRow - (n1 || 1));
+                  break;
+                case 'B': // CUD
+                  curRow = clampRow(curRow + (n1 || 1));
+                  break;
+                case 'C': // CUF
+                  curCol = clampCol(curCol + (n1 || 1));
+                  break;
+                case 'D': // CUB
+                  curCol = clampCol(curCol - (n1 || 1));
+                  break;
+                case 'G': // CHA
+                  curCol = clampCol((n1 || 1) - 1);
+                  break;
+                case 'H': // CUP
+                case 'f': { // HVP
+                  const r = (n1 || 1) - 1;
+                  const c = (n2 || 1) - 1;
+                  curRow = clampRow(r);
+                  curCol = clampCol(c);
+                  break;
+                }
+                case 'J': // ED
+                  // ED: 0=cursor->end, 1=start->cursor, 2=all
+                  if (n1 === 2) {
+                    clearScreen();
+                  } else if (n1 === 1) {
+                    clearScreenToCursor(curRow, curCol);
+                  } else {
+                    clearScreenFromCursor(curRow, curCol);
+                  }
+                  break;
+                case 'K': // EL
+                  // EL: 0=cursor->end, 1=start->cursor, 2=all
+                  if (n1 === 2) {
+                    clearLine(curRow);
+                  } else if (n1 === 1) {
+                    clearLineToCursor(curRow, curCol);
+                  } else {
+                    clearLineFromCursor(curRow, curCol);
+                  }
+                  break;
+                case 's': // SCP
+                  savedRow = curRow;
+                  savedCol = curCol;
+                  break;
+                case 'u': // RCP
+                  curRow = clampRow(savedRow);
+                  curCol = clampCol(savedCol);
+                  break;
+                default:
+                  break;
+              }
+
+              i = j;
+              break;
+            }
+            j++;
+          }
+          continue;
+        }
+        if (next === ']') {
+          // OSC sequence: skip until BEL or ST (ESC \)
+          let j = i + 2;
+          while (j < rawInput.length) {
+            const cj = rawInput[j]!;
+            if (cj === '\x07') {
+              break;
+            }
+            if (cj === '\x1b' && rawInput[j + 1] === '\\') {
+              j++;
+              break;
+            }
+            j++;
+          }
+          i = j;
+          continue;
+        }
+        if (next === '7') { // DECSC
+          savedRow = curRow;
+          savedCol = curCol;
+          i++;
+          continue;
+        }
+        if (next === '8') { // DECRC
+          curRow = clampRow(savedRow);
+          curCol = clampCol(savedCol);
+          i++;
+          continue;
+        }
+        continue;
+      }
+
+      if (ch === '\r') {
+        curCol = 0;
+        continue;
+      }
+      if (ch === '\n') {
+        curRow++;
+        curCol = 0;
+        scrollIfNeeded();
+        continue;
+      }
+      if (ch === '\b' || ch === '\u007f') {
+        curCol = clampCol(curCol - 1);
+        screen[curRow]![curCol] = ' ';
+        continue;
+      }
+      if (ch === '\t') {
+        const nextStop = curCol + (8 - (curCol % 8));
+        curCol = clampCol(nextStop);
+        continue;
+      }
+
+      const code = ch.charCodeAt(0);
+      if ((code >= 0 && code < 32) || code === 127) {
+        continue;
+      }
+
+      writeChar(ch);
+    }
+
+    const rendered = screen.map((line) => line.join('').replace(/\s+$/g, ''));
+    const tail = rendered.slice(Math.max(0, rendered.length - linesToReturn));
+    return tail.join('\n').replace(/\n{4,}/g, '\n\n').trimEnd();
   }
 
   /**

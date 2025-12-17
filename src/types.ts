@@ -8,6 +8,10 @@ export interface TerminalSession {
   shell: string;
   cwd: string;
   env: Record<string, string>;
+  // 终端尺寸（列/行）
+  // Terminal size (cols/rows)
+  cols?: number;
+  rows?: number;
   created: Date;
   lastActivity: Date;
   status: 'active' | 'inactive' | 'terminated';

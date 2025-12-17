@@ -131,6 +131,96 @@ async function testCommandBlacklist() {
   }
 }
 
+// 测试交互式终端提示：不应作为 Error 返回 / Test interactive-terminal notice: must NOT be returned as Error
+async function testInteractiveTerminalNotice() {
+  console.log('Testing interactive terminal notice...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+
+  const terminalId = `interactive-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    // 先启动一个短暂的长任务，让终端处于“正在运行”状态 / Start a short long-running task to put terminal in "running" state
+    await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'Start-Sleep -Seconds 5',
+            appendNewline: true,
+            waitForOutput: 0
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    // 紧接着发送“新命令执行”，应返回提示而不是 error / Immediately send a "new command execution", should return a notice (not error)
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'Get-Date',
+            appendNewline: true,
+            waitForOutput: 0
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const textBlock = (result.content || []).find((c) => c.type === 'text');
+    const text = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
+    const expected = '该终端进入了交互式终端，请根据终端内容做出合理行动';
+    const warnings = result.structuredContent && Array.isArray(result.structuredContent.warnings) ? result.structuredContent.warnings : [];
+    const inputEcho = result.structuredContent && typeof result.structuredContent.input === 'string' ? result.structuredContent.input : '';
+
+    if (result.isError === true) {
+      console.log('❌ Interactive notice incorrectly returned as error');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (!text.includes(expected)) {
+      console.log('❌ Interactive notice message missing from text response');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (!warnings.includes(expected)) {
+      console.log('❌ Interactive notice missing from structured warnings');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (!inputEcho.includes('Get-Date')) {
+      console.log('❌ Interactive notice returned but input was not processed');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ Interactive notice attached and input processed (expected)');
+    }
+
+    // Cleanup: terminate the test terminal / 清理：终止测试终端
+    await client
+      .request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'interact_with_terminal',
+            arguments: { killTerminal: true, terminalId }
+          }
+        },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ Interactive notice test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 
 // 运行所有测试 / Run all tests
 async function runTests() {
@@ -138,6 +228,7 @@ async function runTests() {
   
   await testBackendConnectivity();
   await testCommandBlacklist();
+  await testInteractiveTerminalNotice();
 
   
   console.log('=== Tests completed ===');

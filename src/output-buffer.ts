@@ -283,17 +283,14 @@ export class OutputBuffer extends EventEmitter {
 
       switch (finalChar) {
         case 'K':
-        case 'J':
-        case 'G':
-        case 'D':
-        case 'C': {
-          // When we receive erase/move sequences after a newline, ensure we
-          // operate on the current (possibly new) line instead of mutating the
-          // previously finalized entry.
-          const line = this.touchCurrentLine(newEntries);
-          if (line) {
-            line.content = '';
-            markUpdated(line);
+        case 'J': {
+          // 交互式应用常用清屏/清行序列（如 ESC[K），这里做最小语义处理：
+          // 仅当当前行已存在时清空该行，避免无内容时创建空行污染输出。
+          // Interactive apps often use clear-line/screen sequences (e.g., ESC[K).
+          // Minimal semantic: clear current line only if it already exists, to avoid creating empty lines.
+          if (this.currentLineEntry) {
+            this.currentLineEntry.content = '';
+            markUpdated(this.currentLineEntry);
           }
           break;
         }
@@ -335,6 +332,32 @@ export class OutputBuffer extends EventEmitter {
         this.handleEscapeSequence(sequence, newEntries, markUpdated);
         i = nextIndex;
         continue;
+      }
+
+      // 控制字符处理（交互式程序常见）：移除控制字符但尽量保留可见文本
+      // Control character handling (common in interactive apps): remove controls but preserve visible text
+      if (char === '\b' || char === '\u007f') {
+        // Backspace / DEL: delete the last visible character on the current line
+        // 退格/DEL：删除当前行最后一个可见字符
+        const line = this.touchCurrentLine(newEntries, true);
+        if (line && line.content.length > 0) {
+          line.content = line.content.slice(0, -1);
+          markUpdated(line);
+        }
+        continue;
+      }
+      if (char === '\u0007' || char === '\u000c') {
+        // Bell / Form feed: ignore
+        // 响铃/换页：忽略
+        continue;
+      }
+      const code = char.charCodeAt(0);
+      if ((code >= 0 && code < 32) || code === 127) {
+        // Keep TAB/LF/CR (handled elsewhere); drop other C0 controls to improve readability
+        // 保留 TAB/LF/CR（已在别处分支处理），其余控制字符丢弃以提升可读性
+        if (char !== '\t' && char !== '\n' && char !== '\r') {
+          continue;
+        }
       }
 
       if (char === '\r') {

@@ -1,0 +1,50 @@
+app:
+  language: zh
+  showTitle: true
+server:
+  host: 127.0.0.1
+  port: 1106
+  cors:
+    origin:
+      - http://localhost:1107
+      - http://127.0.0.1:1107
+    credentials: true
+terminal:
+  defaultShell: pwsh.exe
+  fontSize: 14
+  fontFamily: Consolas, "Courier New", monospace
+  maxBufferSize: 10000
+  sessionTimeout: 86400000
+  defaultEnv: {}
+  enableUserControl: false
+mcp:
+  enableDnsRebindingProtection: false
+  enableServerSelectionTool: true
+  disabledTools:
+    - fix_bug_with_codex
+  commandBlacklist:
+    caseInsensitive: true
+    rules:
+      - command: Remove-Item -Path C:\
+        message: ''
+      - command: Remove-Item -Path D:\
+        message: ''
+      - command: Remove-Item -Path E:\
+        message: ''
+      - command: Format-Volume -DriveLetter C
+        message: ''
+      - command: rm -rf /
+        message: ''
+      - command: rm -rf /mnt/
+        message: ''
+      - command: dd if=/dev/zero
+        message: ''
+  allowedHosts:
+    - 127.0.0.1
+    - localhost
+    - localhost:1106
+logging:
+  level: info
+  enableConsole: true
+  enableFile: false
+  filePath: ./logs/app.log

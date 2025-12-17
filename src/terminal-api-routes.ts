@@ -333,24 +333,13 @@ export class TerminalApiRoutes {
           return;
         }
 
-        // 读取现有配置以保留其他设置 / Read existing config to preserve other settings
-        const existingConfig = configManager.getAll();
-
-        // 合并配置，只更新提供的字段 / Merge config, only update provided fields
-        const mergedConfig = {
-          ...existingConfig,
-          ...newConfig
-        };
-
-        // 保存配置 / Save configuration
-        for (const [key, value] of Object.entries(newConfig)) {
-          await configManager.set(key, value);
-        }
+        // 保存配置（尽量保留 config.yml 的注释与格式）/ Save config (best-effort preserving comments & formatting in config.yml)
+        await configManager.applyPartialConfig(newConfig);
 
         return {
           success: true,
           message: 'Configuration saved successfully',
-          config: mergedConfig
+          config: configManager.getAll()
         };
       } catch (error) {
         console.error('Error saving config:', error);

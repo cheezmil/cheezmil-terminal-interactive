@@ -3,7 +3,6 @@ import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import yaml from 'js-yaml';
 import { TerminalManager } from './terminal-manager.js';
 import { configManager } from './config-manager.js';
 
@@ -287,28 +286,11 @@ export class WebInterfaceServer {
    * Setup settings related API routes
    */
   private setupSettingsRoutes(): void {
-    const configPath = path.resolve(process.cwd(), 'config.yml');
-
     // 获取设置 / Get settings
     this.fastify.get('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        // 检查配置文件是否存在 / Check if config file exists
-        try {
-          await fs.access(configPath);
-        } catch {
-          // 文件不存在，返回默认设置 / File doesn't exist, return default settings
-          return {
-            language: 'zh'
-          };
-        }
-
-        // 读取配置文件 / Read config file
-        const configContent = await fs.readFile(configPath, 'utf8');
-        const config = yaml.load(configContent) as any;
-        
-        return {
-          language: config.language || 'zh'
-        };
+        // 返回完整配置 / Return full configuration
+        return configManager.getAll();
       } catch (error) {
         console.error('Failed to read settings:', error);
         reply.status(500).send({
@@ -322,40 +304,20 @@ export class WebInterfaceServer {
     // 保存设置 / Save settings
     this.fastify.post('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const { language } = request.body as any;
-
-        if (!language || (language !== 'zh' && language !== 'en')) {
+        const patch = request.body as any;
+        if (!patch || typeof patch !== 'object') {
           reply.status(400).send({
-            error: 'Invalid language setting'
+            error: 'Invalid configuration data'
           });
           return;
         }
 
-        // 读取现有配置 / Read existing configuration
-        let config: any = {};
-        try {
-          const configContent = await fs.readFile(configPath, 'utf8');
-          config = yaml.load(configContent) as any || {};
-        } catch {
-          // 文件不存在或读取失败，使用空配置
-          // File doesn't exist or read failed, use empty config
-        }
-
-        // 更新语言设置 / Update language setting
-        config.language = language;
-
-        // 写入配置文件 / Write config file
-        const yamlContent = yaml.dump(config, {
-          indent: 2,
-          lineWidth: 120
-        });
-        
-        await fs.writeFile(configPath, yamlContent, 'utf8');
+        // 保存配置（尽量保留 config.yml 的注释与格式）/ Save config (best-effort preserving comments & formatting in config.yml)
+        await configManager.applyPartialConfig(patch);
 
         return {
           success: true,
-          message: 'Settings saved successfully',
-          language
+          message: 'Settings saved successfully'
         };
       } catch (error) {
         console.error('Failed to save settings:', error);
@@ -370,12 +332,7 @@ export class WebInterfaceServer {
     // 重置设置 / Reset settings
     this.fastify.delete('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        // 删除配置文件 / Delete config file
-        try {
-          await fs.unlink(configPath);
-        } catch {
-          // 文件不存在，忽略错误 / File doesn't exist, ignore error
-        }
+        await configManager.reset();
 
         return {
           success: true,

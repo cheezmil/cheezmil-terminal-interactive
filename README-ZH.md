@@ -64,7 +64,7 @@ url = "http://localhost:1106/mcp"
 - **Claude Code**:
 ```json
     "CTI": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "http://localhost:1106/mcp"
     }
 ```

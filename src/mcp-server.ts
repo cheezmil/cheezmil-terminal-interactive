@@ -37,6 +37,154 @@ export class CheestardTerminalInteractiveServer {
   private backendProcess: any;
   private frontendProcess: any;
 
+  private encodeSpecialOperationToInput(op: string): string | null {
+    // 特殊按键/操作到终端输入序列的映射
+    // Map special operations to terminal input sequences
+    const normalized = (op || '')
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/-/g, '+');
+
+    switch (normalized) {
+      case 'ctrl_c':
+      case 'ctrl+c':
+        return '\u0003';
+      case 'ctrl_z':
+      case 'ctrl+z':
+        return '\u001a';
+      case 'ctrl_d':
+      case 'ctrl+d':
+        return '\u0004';
+      case 'esc':
+      case 'escape':
+        return '\u001b';
+      case 'enter':
+      case 'return':
+        return '\r';
+      case 'double_esc':
+      case 'esc+esc':
+        return '\u001b\u001b';
+      default:
+        return null;
+    }
+  }
+
+  private encodeKeyTokenToInput(tokenRaw: string): string | null {
+    // 支持尽可能多的快捷键/按键名称（大小写不敏感，允许 ctrl_c/ctrl+c/ctrl c 等）
+    // Support as many key names as possible (case-insensitive; allows ctrl_c/ctrl+c/ctrl c)
+    const token = (tokenRaw || '').trim();
+    if (!token) return null;
+
+    const normalized = token
+      .toLowerCase()
+      .replace(/_/g, '+')
+      .replace(/\s+/g, '')
+      .replace(/-/g, '+');
+
+    const bySpecial = this.encodeSpecialOperationToInput(normalized);
+    if (bySpecial) return bySpecial;
+
+    // 直接字符 / Raw single character
+    if (normalized.length === 1) {
+      return token;
+    }
+
+    // u+001b / 0x1b 形式 / u+001b / 0x1b forms
+    const uPlus = normalized.match(/^u\+([0-9a-f]{2,6})$/i);
+    if (uPlus && uPlus[1]) {
+      const codePoint = Number.parseInt(uPlus[1], 16);
+      if (Number.isFinite(codePoint)) return String.fromCodePoint(codePoint);
+    }
+    const hex = normalized.match(/^0x([0-9a-f]{2,6})$/i);
+    if (hex && hex[1]) {
+      const code = Number.parseInt(hex[1], 16);
+      if (Number.isFinite(code)) return String.fromCharCode(code);
+    }
+
+    // 常用控制键 / Common control keys
+    switch (normalized) {
+      case 'tab':
+        return '\t';
+      case 'shift+tab':
+        return '\u001b[Z';
+      case 'backspace':
+        return '\u007f';
+      case 'delete':
+      case 'del':
+        return '\u001b[3~';
+      case 'insert':
+      case 'ins':
+        return '\u001b[2~';
+      case 'home':
+        return '\u001b[H';
+      case 'end':
+        return '\u001b[F';
+      case 'pageup':
+      case 'pgup':
+        return '\u001b[5~';
+      case 'pagedown':
+      case 'pgdn':
+        return '\u001b[6~';
+      case 'up':
+      case 'arrowup':
+        return '\u001b[A';
+      case 'down':
+      case 'arrowdown':
+        return '\u001b[B';
+      case 'right':
+      case 'arrowright':
+        return '\u001b[C';
+      case 'left':
+      case 'arrowleft':
+        return '\u001b[D';
+    }
+
+    // Function keys / 功能键
+    const fn = normalized.match(/^f(\d{1,2})$/);
+    if (fn && fn[1]) {
+      const n = Number.parseInt(fn[1], 10);
+      switch (n) {
+        case 1: return '\u001bOP';
+        case 2: return '\u001bOQ';
+        case 3: return '\u001bOR';
+        case 4: return '\u001bOS';
+        case 5: return '\u001b[15~';
+        case 6: return '\u001b[17~';
+        case 7: return '\u001b[18~';
+        case 8: return '\u001b[19~';
+        case 9: return '\u001b[20~';
+        case 10: return '\u001b[21~';
+        case 11: return '\u001b[23~';
+        case 12: return '\u001b[24~';
+      }
+    }
+
+    // Ctrl+<letter> / Ctrl+<字母>
+    const ctrlLetter = normalized.match(/^ctrl\+([a-z])$/);
+    if (ctrlLetter && ctrlLetter[1]) {
+      const code = ctrlLetter[1].charCodeAt(0) - 96; // a->1 ... z->26
+      return String.fromCharCode(code);
+    }
+    if (normalized === 'ctrl+space') {
+      return '\u0000';
+    }
+
+    // Alt+<char>：通常为 ESC 前缀 / Alt+<char> usually prefixed by ESC
+    const altChar = normalized.match(/^alt\+(.+)$/);
+    if (altChar && altChar[1]) {
+      const rest = altChar[1];
+      if (rest.length === 1) {
+        return '\u001b' + rest;
+      }
+      const altSpecial = this.encodeKeyTokenToInput(rest);
+      if (altSpecial) {
+        return '\u001b' + altSpecial;
+      }
+    }
+
+    return null;
+  }
+
   constructor() {
     // 创建 MCP 服务器
     this.server = new McpServer(
@@ -555,9 +703,22 @@ Fix tool: OpenAI Codex
         input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
         appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
         waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.'),
-        
+
+        // 一次性按键序列参数 / One-shot key sequence parameters
+        // 允许 AI 在一次调用里发送多个按键，并给出每个按键之间的间隔时间
+        // Allow sending multiple keys in one call with per-key delays
+        keys: z.string().optional().describe('Comma-separated key tokens (e.g., \"esc,esc,enter\" or \"ctrl+u,backspace,enter\").'),
+        keyDelayMs: z.number().optional().describe('Default delay in milliseconds between key tokens when using keys/keySequence (default: 30ms).'),
+        keySequence: z.array(
+          z.object({
+            type: z.enum(['key', 'text']).describe('Item type: key or text.'),
+            value: z.string().describe('Key token (e.g., enter/esc/up/ctrl+c) or text to type.'),
+            delayMsAfter: z.number().optional().describe('Delay after this item (ms). If omitted, uses keyDelayMs.')
+          })
+        ).optional().describe('Explicit sequence of keys/text with optional per-item delays.'),
+
         // 特殊操作参数 / Special operation parameters
-        specialOperation: z.enum(['ctrl_c', 'ctrl_z', 'ctrl_d']).optional().describe('Special operation to send to terminal (e.g., ctrl_c for interrupt). Use this instead of typing \"Ctrl+C\" in input field.'),
+        specialOperation: z.enum(['ctrl_c', 'ctrl_z', 'ctrl_d', 'esc', 'enter', 'double_esc']).optional().describe('Special operation to send to terminal (e.g., ctrl_c, enter, esc, double_esc). Prefer keys/keySequence for complex combos.'),
         
         // 读取参数 / Parameters for reading from terminal
         since: z.number().optional().describe('Line number to start reading from (default: 0)'),
@@ -572,7 +733,14 @@ Fix tool: OpenAI Codex
       // Here we cast server to any to avoid deep generic instantiation issues
       (this.server as any).tool(
         'interact_with_terminal',
-        `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。也可以列出所有活跃的终端会话。`,
+        `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。也可以列出所有活跃的终端会话。
+
+交互式应用（Claude Code / vim 等）提示：
+- 发送回车：specialOperation: "enter"（或 keys: "enter"）
+- 发送 ESC：specialOperation: "esc"（或 keys: "esc"）
+- 双击 ESC：specialOperation: "double_esc"（或 keys: "esc,esc"）
+- 如果检测到交互式终端且你使用 input + appendNewline（默认 true），服务端会自动等价转换为 keySequence（text + enter），以提升交互式程序下的提交成功率
+- 复杂组合键：使用 keys 或 keySequence 一次性发送，并通过 keyDelayMs / delayMsAfter 指定每个按键之间的间隔时间；程序内部会按顺序逐个写入到 PTY。`,
         interactWithTerminalSchema,
       {
         title: 'Interact with Terminal',
@@ -583,7 +751,7 @@ Fix tool: OpenAI Codex
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
           input, appendNewline, waitForOutput,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
-          specialOperation
+          specialOperation, keys, keyDelayMs, keySequence
         } = args;
         try {
           // 如果请求列出所有终端，则执行list操作并返回
@@ -699,12 +867,11 @@ Fix tool: OpenAI Codex
             terminalCreated
           };
           
-          // 检查是否在input字段中输入了"Ctrl+C"等字符串，如果是则记录警告但继续执行
-          let hasWarning = false;
-          let warningMessage = '';
+          // 收集警告/提示信息并附加到最终响应（不阻断执行）
+          // Collect warnings/notices and attach them to the final response (do not block execution)
+          const warnings: string[] = [];
           if (input && (input.toLowerCase().includes('ctrl+c') || input.toLowerCase().includes('ctrl c'))) {
-            hasWarning = true;
-            warningMessage = `⚠️ 警告：检测到您在input字段中输入了"Ctrl+C"。
+            warnings.push(`⚠️ 警告：检测到您在input字段中输入了"Ctrl+C"。
 
 正确的使用方法：
 - 使用 specialOperation: "ctrl_c" 参数来发送中断信号
@@ -720,52 +887,116 @@ Fix tool: OpenAI Codex
 
 当前输入将被原样发送到终端，但可能不会产生预期的中断效果。
 
----`;
+---`);
           }
 
           // 处理特殊操作
+          const defaultKeyDelay = typeof keyDelayMs === 'number' && Number.isFinite(keyDelayMs)
+            ? Math.max(0, Math.floor(keyDelayMs))
+            : 30;
+
           let actualInput = input;
-          if (specialOperation) {
-            switch (specialOperation) {
-              case 'ctrl_c':
-                actualInput = '\u0003'; // ASCII码 for Ctrl+C
-                break;
-              case 'ctrl_z':
-                actualInput = '\u001a'; // ASCII码 for Ctrl+Z
-                break;
-              case 'ctrl_d':
-                actualInput = '\u0004'; // ASCII码 for Ctrl+D
-                break;
+          let resolvedKeySequence: Array<{ data: string; delayMsAfter: number; kind: 'key' | 'text' }> | null = null;
+
+          if (Array.isArray(keySequence) && keySequence.length > 0) {
+            const seq: Array<{ data: string; delayMsAfter: number; kind: 'key' | 'text' }> = [];
+            for (let i = 0; i < keySequence.length; i++) {
+              const item = keySequence[i];
+              const delayMsAfter = typeof item?.delayMsAfter === 'number' && Number.isFinite(item.delayMsAfter)
+                ? Math.max(0, Math.floor(item.delayMsAfter))
+                : defaultKeyDelay;
+              if (item?.type === 'text') {
+                seq.push({ data: String(item.value ?? ''), delayMsAfter, kind: 'text' });
+                continue;
+              }
+              if (item?.type === 'key') {
+                const encoded = this.encodeKeyTokenToInput(String(item.value ?? ''));
+                if (!encoded) {
+                  return {
+                    content: [{ type: 'text', text: `Unknown key token in keySequence: "${item.value}".` }],
+                    structuredContent: { isError: true, reason: 'UNKNOWN_KEY_TOKEN', token: item.value, terminalId: actualTerminalId },
+                    isError: true
+                  } as CallToolResult;
+                }
+                seq.push({ data: encoded, delayMsAfter, kind: 'key' });
+                continue;
+              }
+              return {
+                content: [{ type: 'text', text: 'Invalid keySequence item: type must be \"key\" or \"text\".' }],
+                structuredContent: { isError: true, reason: 'INVALID_KEY_SEQUENCE_ITEM', terminalId: actualTerminalId },
+                isError: true
+              } as CallToolResult;
+            }
+            // 最后一项默认不再延迟 / No delay after the last item by default
+            if (seq.length > 0) {
+              seq[seq.length - 1]!.delayMsAfter = 0;
+            }
+            resolvedKeySequence = seq;
+          } else if (keys && String(keys).trim()) {
+            const rawTokens = String(keys).split(',').map(t => t.trim()).filter(Boolean);
+            const seq: Array<{ data: string; delayMsAfter: number; kind: 'key' | 'text' }> = [];
+            for (let i = 0; i < rawTokens.length; i++) {
+              const t = rawTokens[i]!;
+              // text: 前缀可直接输入文本 / text: prefix allows raw text typing
+              if (/^text:/i.test(t)) {
+                seq.push({ data: t.slice('text:'.length), delayMsAfter: defaultKeyDelay, kind: 'text' });
+                continue;
+              }
+              const encoded = this.encodeKeyTokenToInput(t);
+              if (!encoded) {
+                return {
+                  content: [{ type: 'text', text: `Unknown key token in keys: "${t}".` }],
+                  structuredContent: { isError: true, reason: 'UNKNOWN_KEY_TOKEN', token: t, terminalId: actualTerminalId },
+                  isError: true
+                } as CallToolResult;
+              }
+              seq.push({ data: encoded, delayMsAfter: defaultKeyDelay, kind: 'key' });
+            }
+            if (seq.length > 0) {
+              seq[seq.length - 1]!.delayMsAfter = 0;
+            }
+            resolvedKeySequence = seq;
+          } else if (specialOperation) {
+            const encoded = this.encodeSpecialOperationToInput(String(specialOperation));
+            if (encoded) {
+              actualInput = encoded;
+            }
+          } else if (actualInput && appendNewline !== false) {
+            // 交互式应用下，直接用 input+appendNewline 有时会导致回车“被吞”或行为不稳定；
+            // 这里自动转换为 keySequence（text + enter），让写入路径与按键一致。
+            // In interactive apps, input+appendNewline can be unreliable; convert to keySequence (text + enter).
+            let isInteractive = false;
+            try {
+              isInteractive = this.terminalManager.isTerminalInInteractiveMode(actualTerminalId);
+            } catch {
+              isInteractive = false;
+            }
+            if (isInteractive) {
+              const text = String(actualInput).replace(/(\r\n|\r|\n)+$/g, '');
+              resolvedKeySequence = [
+                { data: text, delayMsAfter: defaultKeyDelay, kind: 'text' },
+                { data: '\r', delayMsAfter: 0, kind: 'key' }
+              ];
+              structuredContent.autoKeySequence = true;
             }
           }
 
           // 如果提供了输入或特殊操作，则发送到终端
-          if (actualInput) {
-            // 若终端已进入交互/忙碌状态，则拒绝“新命令执行”，避免把新命令误送进交互程序
-            // If terminal is interactive/busy, refuse "new command execution" to avoid sending commands into an interactive program
-            const trimmedInput = actualInput.trim();
-            const isControlOnly = /^[\u0000-\u001F\u007F]+$/.test(trimmedInput);
+          if (actualInput || resolvedKeySequence) {
+            // 若终端已进入交互/忙碌状态：不再阻断输入，只附带提示信息并继续写入
+            // If terminal is interactive/busy: no longer block input; attach a notice and continue writing
+            const trimmedInput = actualInput ? actualInput.trim() : '';
+            const isControlOnly = Boolean(actualInput) && /^[\u0000-\u001F\u007F]+$/.test(trimmedInput);
             const intendsExecute = appendNewline !== false;
-            if (!isControlOnly && intendsExecute && !specialOperation) {
+            if (!isControlOnly && intendsExecute && !specialOperation && !resolvedKeySequence) {
               try {
                 const status = this.terminalManager.getTerminalReadStatus(actualTerminalId);
                 const awaitingInput = this.terminalManager.isTerminalAwaitingInput(actualTerminalId);
                 if (status.alternateScreen || status.isRunning || awaitingInput) {
-                  return {
-                    content: [
-                      {
-                        type: 'text',
-                        text: '该终端进入了交互状态，请交互或新开终端，否则新的输入命令无法执行'
-                      }
-                    ],
-                    structuredContent: {
-                      terminalId: actualTerminalId,
-                      interactive: true,
-                      awaitingInput,
-                      status
-                    },
-                    isError: true
-                  } as CallToolResult;
+                  warnings.push('该终端进入了交互式终端，请根据终端内容做出合理行动');
+                  structuredContent.interactive = true;
+                  structuredContent.awaitingInput = awaitingInput;
+                  structuredContent.status = status;
                 }
               } catch {
                 // Ignore status errors and proceed / 忽略状态获取失败，继续执行
@@ -774,29 +1005,41 @@ Fix tool: OpenAI Codex
 
             // 命令黑名单拦截：命中则严格禁止执行
             // Command blacklist: strictly refuse execution when matched
-            const blacklist = this.checkCommandBlacklist(actualInput);
-            if (blacklist.blocked) {
-              return {
-                content: [
-                  {
-                    type: 'text',
-                    text: blacklist.message || 'Command blocked.'
-                  }
-                ],
-                structuredContent: {
-                  blocked: true,
-                  blockedCommand: blacklist.command || null,
-                  terminalId: actualTerminalId
-                },
-                isError: true
-              } as CallToolResult;
+            const blacklistTargets: string[] = [];
+            if (typeof actualInput === 'string' && actualInput) {
+              blacklistTargets.push(actualInput);
+            }
+            if (resolvedKeySequence) {
+              for (const item of resolvedKeySequence) {
+                if (item.kind === 'text' && item.data) {
+                  blacklistTargets.push(item.data);
+                }
+              }
+            }
+            for (const candidate of blacklistTargets) {
+              const blacklist = this.checkCommandBlacklist(candidate);
+              if (blacklist.blocked) {
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: blacklist.message || 'Command blocked.'
+                    }
+                  ],
+                  structuredContent: {
+                    blocked: true,
+                    blockedCommand: blacklist.command || null,
+                    terminalId: actualTerminalId
+                  },
+                  isError: true
+                } as CallToolResult;
+              }
             }
 
-            const writeOptions: any = {
-              terminalName: actualTerminalId,
-              input: actualInput
-            };
-            if (appendNewline !== undefined) {
+            const writeOptions: any = resolvedKeySequence
+              ? { terminalName: actualTerminalId, input: '' }
+              : { terminalName: actualTerminalId, input: actualInput };
+            if (!resolvedKeySequence && appendNewline !== undefined) {
               writeOptions.appendNewline = appendNewline;
             }
             
@@ -818,10 +1061,30 @@ Fix tool: OpenAI Codex
               currentCursor = 0;
             }
             
-            await this.terminalManager.writeToTerminal(writeOptions);
+            if (resolvedKeySequence) {
+              // keys/keySequence 模式下总是按“原始按键”写入：不自动追加换行
+              // In keys/keySequence mode always write raw keys: no auto newline
+              for (const item of resolvedKeySequence) {
+                if (!item.data) continue;
+                await this.terminalManager.writeToTerminal({
+                  terminalName: actualTerminalId,
+                  input: item.data,
+                  appendNewline: false
+                });
+                if (item.delayMsAfter > 0) {
+                  await new Promise(resolve => setTimeout(resolve, item.delayMsAfter));
+                }
+              }
+              structuredContent.keys = keys;
+              structuredContent.keyDelayMs = defaultKeyDelay;
+              structuredContent.keySequence = keySequence;
+              structuredContent.appendNewline = false;
+            } else {
+              await this.terminalManager.writeToTerminal(writeOptions);
+              structuredContent.appendNewline = appendNewline;
+            }
             
             structuredContent.input = actualInput;
-            structuredContent.appendNewline = appendNewline;
             if (specialOperation) {
               structuredContent.specialOperation = specialOperation;
             }
@@ -847,11 +1110,6 @@ Fix tool: OpenAI Codex
               const outputResult = await this.terminalManager.readFromTerminal(readOptions);
               
               responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
-              
-              // 如果有警告信息，添加到响应中
-              if (hasWarning) {
-                responseText = `${warningMessage}\n\n${responseText}`;
-              }
               
               structuredContent = {
                 ...structuredContent,
@@ -945,6 +1203,14 @@ Fix tool: OpenAI Codex
             responseText = terminalCreated
               ? `Terminal "${actualTerminalId}" created and ready.\n\n${responseText}`
               : responseText;
+          }
+
+          // 将提示/警告信息附加到最终文本响应中（不影响 structuredContent 的机器可读数据）
+          // Attach notices/warnings to final text response (without affecting machine-readable structuredContent)
+          if (warnings.length > 0) {
+            const warningText = warnings.join('\n\n');
+            responseText = responseText ? `${warningText}\n\n${responseText}` : warningText;
+            structuredContent.warnings = warnings;
           }
           
           return {

@@ -638,6 +638,35 @@ async function setupFrontendApiRoutes(fastify: FastifyInstance): Promise<void> {
  * Setup settings related API routes
  */
 async function setupSettingsRoutes(fastify: FastifyInstance): Promise<void> {
+  // 重新从磁盘加载配置 / Reload config from disk
+  fastify.get('/api/settings/reload', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await configManager.reloadFromDisk();
+
+      // 根据配置更新禁用工具环境变量（影响 MCP 工具启用/禁用判断）
+      // Update disabled tools env var from config (affects MCP tool enable/disable)
+      const mcpConfig = configManager.getMcpConfig();
+      if (mcpConfig?.disabledTools && Array.isArray(mcpConfig.disabledTools) && mcpConfig.disabledTools.length > 0) {
+        process.env.DISABLED_TOOLS = mcpConfig.disabledTools.join(',');
+      } else {
+        delete process.env.DISABLED_TOOLS;
+      }
+
+      return {
+        success: true,
+        message: 'Configuration reloaded from disk',
+        config: configManager.getAll()
+      };
+    } catch (error) {
+      console.error('Failed to reload settings:', error);
+      reply.status(500).send({
+        error: 'Failed to reload settings',
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return;
+    }
+  });
+
   // 获取设置 / Get settings
   fastify.get('/api/settings', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -667,24 +696,13 @@ async function setupSettingsRoutes(fastify: FastifyInstance): Promise<void> {
         return;
       }
 
-      // 读取现有配置以保留其他设置 / Read existing config to preserve other settings
-      const existingConfig = configManager.getAll();
-
-      // 合并配置，只更新提供的字段 / Merge config, only update provided fields
-      const mergedConfig = {
-        ...existingConfig,
-        ...newConfig
-      };
-
-      // 保存配置 / Save configuration
-      for (const [key, value] of Object.entries(newConfig)) {
-        await configManager.set(key, value);
-      }
+      // 保存配置（尽量保留 config.yml 的注释与格式）/ Save config (best-effort preserving comments & formatting in config.yml)
+      await configManager.applyPartialConfig(newConfig);
 
       return {
         success: true,
         message: 'Configuration saved successfully',
-        config: mergedConfig
+        config: configManager.getAll()
       };
     } catch (error) {
       console.error('Failed to save settings:', error);

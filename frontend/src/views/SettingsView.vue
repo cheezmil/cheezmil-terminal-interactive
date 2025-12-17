@@ -100,7 +100,9 @@ const goBack = () => {
 const loadConfiguration = async () => {
   try {
     isLoading.value = true
-    await settingsStore.loadFullConfig()
+    // 进入设置页时强制后端从磁盘重载 config.yml，确保外部修改能立即生效
+    // Force backend to reload config.yml from disk when entering settings page to apply external edits immediately
+    await settingsStore.loadFullConfig({ reloadFromDisk: true })
 
     // 使用前端默认模板与后端返回配置深度合并，确保嵌套对象始终存在
     // Deep-merge frontend default template with backend config to ensure nested objects always exist

@@ -163,13 +163,20 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // 获取完整配置 / Get complete configuration
-  const loadFullConfig = async (): Promise<void> => {
+  const loadFullConfig = async (options?: { reloadFromDisk?: boolean }): Promise<void> => {
     try {
       isLoading.value = true
       
       // 从后端API获取完整配置 / Get complete configuration from backend API
       try {
         // Use dynamic API service / 使用动态API服务
+        if (options?.reloadFromDisk) {
+          try {
+            await settingsApi.reload()
+          } catch (error) {
+            console.warn('Failed to reload config from disk:', error)
+          }
+        }
         const response = await settingsApi.get()
         if (response.ok) {
           const config: any = await response.json()

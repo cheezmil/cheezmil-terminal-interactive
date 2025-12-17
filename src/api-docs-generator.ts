@@ -221,6 +221,20 @@ export class ApiDocsGenerator {
 
     // 设置相关API / Settings related APIs
     this.apiEndpoints.set('settings', {
+      reload: {
+        method: 'GET',
+        path: '/api/settings/reload',
+        description: '从磁盘重新加载配置 / Reload configuration from disk',
+        parameters: {},
+        response: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' },
+            config: { type: 'object' }
+          }
+        }
+      },
       get: {
         method: 'GET',
         path: '/api/settings',
@@ -232,7 +246,8 @@ export class ApiDocsGenerator {
             app: { type: 'object' },
             server: { type: 'object' },
             terminal: { type: 'object' },
-            language: { type: 'string' }
+            mcp: { type: 'object' },
+            logging: { type: 'object' }
           }
         }
       },

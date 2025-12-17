@@ -2,7 +2,7 @@
 app:
   language: 'zh'
   # 是否显示顶部标题 / Whether to show top title
-  showTitle: true
+  showTitle: false
 
 # 服务器配置 / Server Configuration
 server:
@@ -42,25 +42,21 @@ mcp:
     # 黑名单规则列表：每条规则可指定 command 与 message（不填 message 则使用默认提示）
     # BLACKLIST: each rule supports command and optional message (default message will be used if message is empty)
     rules:
-      - command: 'write-host'
+      - command: Remove-Item -Path C:\
         message: ''
-      # Windows PowerShell 高危命令 / Windows PowerShell dangerous commands
-      - command: 'Remove-Item -Path C:\'
+      - command: Remove-Item -Path D:\
         message: ''
-      - command: 'Remove-Item -Path D:\'
+      - command: Remove-Item -Path E:\
         message: ''
-      - command: 'Remove-Item -Path E:\'
+      - command: Remove-Item -Path F:\
         message: ''
-      - command: 'Remove-Item -Path F:\'
+      - command: Format-Volume -DriveLetter C
         message: ''
-      - command: 'Format-Volume -DriveLetter C'
+      - command: rm -rf /
         message: ''
-      # 类 Unix（Linux/macOS）终端 高危命令 / Unix-like (Linux/macOS) terminal dangerous commands
-      - command: 'rm -rf /'
+      - command: rm -rf /mnt/
         message: ''
-      - command: 'rm -rf /mnt/'
-        message: ''
-      - command: 'dd if=/dev/zero'
+      - command: dd if=/dev/zero
         message: ''
   allowedHosts: 
     - '127.0.0.1'
