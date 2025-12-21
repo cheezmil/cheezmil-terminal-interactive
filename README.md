@@ -1,4 +1,4 @@
-# cheezmil Terminal Interactive MCP Server
+# Cheezmil Terminal Interactive MCP Server
 
 [中文文档](README-ZH.md)
 
@@ -165,7 +165,7 @@ node start_fe_cheezmil-terminal-interactive.mjs
 
 ## Comparison of Terminal Interaction Features in Mainstream AI Programming Tools as of November 3, 2025 (If there are errors, please let me know to correct them 🥲):
 
-| Feature | cheezmil Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
+| Feature | Cheezmil Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
 |---------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
 | Input ctrl+c | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Input enter | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
