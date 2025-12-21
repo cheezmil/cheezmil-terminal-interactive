@@ -1,4 +1,4 @@
-# AI 使用指南：cheezmil Terminal Interactive MCP
+# AI 使用指南：Cheezmil Terminal Interactive MCP
 
 ## 📋 概述
 

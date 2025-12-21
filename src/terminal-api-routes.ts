@@ -375,9 +375,9 @@ export class TerminalApiRoutes {
     // API 文档 / API documentation
     fastify.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
       return {
-        name: 'cheezmil Terminal Interactive REST API',
+        name: 'Cheezmil Terminal Interactive REST API',
         version: '1.0.0',
-        description: 'REST API for managing cheezmil Terminal Interactive sessions',
+        description: 'REST API for managing Cheezmil Terminal Interactive sessions',
         endpoints: {
           'GET /health': 'Health check and stats',
           'POST /api/terminals': 'Create a new terminal session',

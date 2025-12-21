@@ -67,7 +67,7 @@ function log(message: string) {
  * Streamable HTTP MCP server main entry point
  */
 async function main() {
-  log('Starting cheezmil Terminal Interactive Streamable HTTP MCP Server...');
+  log('Starting Cheezmil Terminal Interactive Streamable HTTP MCP Server...');
 
   // 获取服务器配置 / Get server configuration
   const serverConfig = configManager.getServerConfig();
@@ -247,10 +247,10 @@ async function main() {
 
   try {
     await fastify.listen({ port, host });
-    log(`cheezmil Terminal Interactive Streamable HTTP MCP Server started successfully`);
+    log(`Cheezmil Terminal Interactive Streamable HTTP MCP Server started successfully`);
     log(`Server listening on http://${host}:${port}/mcp`);
     log('Server capabilities:');
-    log('- create_terminal: Create new cheezmil Terminal Interactive sessions');
+    log('- create_terminal: Create new Cheezmil Terminal Interactive sessions');
     log('- write_terminal: Send input to terminal sessions');
     log('- read_terminal: Read output from terminal sessions');
     log('- list_terminals: List all active terminal sessions');

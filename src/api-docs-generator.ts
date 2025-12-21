@@ -326,7 +326,7 @@ export class ApiDocsGenerator {
     const baseUrl = `http://${serverConfig.host}:${serverConfig.port}`;
 
     const docs: any = {
-      name: 'cheezmil Terminal Interactive API',
+      name: 'Cheezmil Terminal Interactive API',
       version: '1.0.0',
       baseUrl,
       description: 'RESTful API for managing terminal sessions and application settings',

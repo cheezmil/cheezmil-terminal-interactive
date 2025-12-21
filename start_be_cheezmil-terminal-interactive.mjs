@@ -4,15 +4,26 @@ import { fileURLToPath } from 'url';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { createRequire } from 'module';
-import moduleLoader, { importModule } from './start_assist_load_npm_global_package.mjs';
 
 // 在ES模块中创建require函数
 const require = createRequire(import.meta.url);
 
+// 可选依赖加载器（不再依赖 start_assist_load_npm_global_package.mjs） / Optional dependency loader (no external helper file)
+function importOptionalCjs(moduleId) {
+  try {
+    // Prefer resolving from project first / 优先从项目上下文解析
+    const resolved = require.resolve(moduleId, { paths: [process.cwd(), __dirname] });
+    return require(resolved);
+  } catch (e1) {
+    // Fallback to Node default resolution / 退回到 Node 默认解析
+    return require(moduleId);
+  }
+}
+
 // 动态加载iconv-lite模块
 let iconv = null;
 try {
-    iconv = importModule('iconv-lite');
+    iconv = importOptionalCjs('iconv-lite');
     console.log('✅ iconv-lite loaded successfully via dynamic module loader');
 } catch (error) {
     console.log('Warning: iconv-lite not available, Chinese error messages may not display correctly');

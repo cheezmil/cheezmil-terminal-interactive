@@ -127,7 +127,7 @@ onMounted(() => {
               v-if="showTitle"
               class="text-xl font-bold font-serif-luxury bg-gradient-luxury bg-clip-text text-transparent"
             >
-              cheezmil Terminal Interactive
+              Cheezmil Terminal Interactive
             </h1>
           </div>
           
