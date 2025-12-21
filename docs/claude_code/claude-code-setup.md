@@ -117,7 +117,7 @@ find ~ -name ".claude.json" 2>/dev/null
 
 ---
 
-## 添加 cheestard-terminal-interactive MCP
+## 添加 cheezmil-terminal-interactive MCP
 
 ### 配置示例
 
@@ -126,7 +126,7 @@ find ~ -name ".claude.json" 2>/dev/null
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "node",
       "args": [
@@ -150,7 +150,7 @@ find ~ -name ".claude.json" 2>/dev/null
   "theme": "dark",
   "hasCompletedOnboarding": true,
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "node",
       "args": [
@@ -191,10 +191,10 @@ vim ~/.claude.json
 
 ### 步骤 3: 添加配置
 
-在 `mcpServers` 对象中添加 cheestard-terminal-interactive 配置：
+在 `mcpServers` 对象中添加 cheezmil-terminal-interactive 配置：
 
 ```json
-"cheestard-terminal-interactive": {
+"cheezmil-terminal-interactive": {
   "type": "stdio",
   "command": "node",
   "args": [
@@ -233,7 +233,7 @@ claude
 ```
 ✔  Found 1 MCP server
 
-• cheestard-terminal-interactive: connected
+• cheezmil-terminal-interactive: connected
 ```
 
 ---
@@ -245,7 +245,7 @@ claude
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "node",
       "args": [
@@ -285,7 +285,7 @@ claude
 
 **症状：**
 ```
-✗ cheestard-terminal-interactive: disconnected
+✗ cheezmil-terminal-interactive: disconnected
 ```
 
 **解决方案：**
@@ -362,7 +362,7 @@ chmod +x /Users/admin/Desktop/node-pty/dist/index.js
 
 ---
 
-## 使用 cheestard-terminal-interactive MCP
+## 使用 cheezmil-terminal-interactive MCP
 
 ### 验证工具可用
 
@@ -383,7 +383,7 @@ chmod +x /Users/admin/Desktop/node-pty/dist/index.js
 ### 测试基本功能
 
 ```
-请使用 cheestard-terminal-interactive 创建一个终端会话，然后执行 ls -la 命令
+请使用 cheezmil-terminal-interactive 创建一个终端会话，然后执行 ls -la 命令
 ```
 
 Claude Code 应该能够：
@@ -402,7 +402,7 @@ Claude Code 应该能够：
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": { ... }
+    "cheezmil-terminal-interactive": { ... }
   }
 }
 ```
@@ -420,7 +420,7 @@ Claude Code 应该能够：
   "projects": {
     "/path/to/specific/project": {
       "mcpServers": {
-        "cheestard-terminal-interactive": { ... }
+        "cheezmil-terminal-interactive": { ... }
       }
     }
   }
@@ -462,12 +462,12 @@ Claude Code 应该能够：
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "cheestard-terminal-interactive"
+        "cheezmil-terminal-interactive"
       ]
     }
   }
@@ -479,21 +479,21 @@ Claude Code 应该能够：
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "cmd",
       "args": [
         "/c",
         "npx",
         "-y",
-        "cheestard-terminal-interactive"
+        "cheezmil-terminal-interactive"
       ]
     }
   }
 }
 ```
 
-> **提示**：若已全局安装 `cheestard-terminal-interactive`，可将 `command`
+> **提示**：若已全局安装 `cheezmil-terminal-interactive`，可将 `command`
 >（或在 Windows 中将 `args`）修改为直接调用可执行文件，并删除 `-y` 参数。
 
 ### 完整配置
@@ -503,12 +503,12 @@ Claude Code 应该能够：
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "cheestard-terminal-interactive"
+        "cheezmil-terminal-interactive"
       ],
       "env": {
         "MAX_BUFFER_SIZE": "10000",
@@ -524,14 +524,14 @@ Claude Code 应该能够：
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "type": "stdio",
       "command": "cmd",
       "args": [
         "/c",
         "npx",
         "-y",
-        "cheestard-terminal-interactive"
+        "cheezmil-terminal-interactive"
       ],
       "env": {
         "MAX_BUFFER_SIZE": "10000",
@@ -566,7 +566,7 @@ claude --mcp-debug
 
 ```bash
 # 直接运行 MCP 服务器测试
-npx -y cheestard-terminal-interactive
+npx -y cheezmil-terminal-interactive
 ```
 
 如果服务器正常，应该等待输入（这是正常的，因为它是 stdio 模式）。
@@ -602,4 +602,4 @@ npx -y cheestard-terminal-interactive
 
 ---
 
-**配置完成后，你就可以在 Claude Code 中使用 cheestard-terminal-interactive MCP 来执行长时间运行的命令了！** 🎉
+**配置完成后，你就可以在 Claude Code 中使用 cheezmil-terminal-interactive MCP 来执行长时间运行的命令了！** 🎉

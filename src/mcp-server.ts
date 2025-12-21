@@ -30,7 +30,7 @@ import { spawn } from 'child_process';
  * MCP 服务器实现
  * 将终端管理功能暴露为 MCP 工具和资源
  */
-export class CheestardTerminalInteractiveServer {
+export class cheezmilTerminalInteractiveServer {
   private server: McpServer;
   private terminalManager: TerminalManager;
   private webUiManager: WebUIManager;
@@ -270,7 +270,7 @@ export class CheestardTerminalInteractiveServer {
     // 创建 MCP 服务器
     this.server = new McpServer(
       {
-        name: 'cheestard-terminal-interactive-server',
+        name: 'cheezmil-terminal-interactive-server',
         version: '1.0.0',
         icons: [
           {

@@ -342,7 +342,7 @@ async function killBackendProcesses() {
             
             // 避免杀死当前启动脚本进程（通过PID已经排除了自己）
             // 但允许杀死同名的其他进程实例
-            const isCurrentScript = cmdLine.includes('start_be_cheestard-terminal-interactive.mjs') &&
+            const isCurrentScript = cmdLine.includes('start_be_cheezmil-terminal-interactive.mjs') &&
                                   processPid === currentPid;
             if (isCurrentScript) {
                 console.log(`  -> 跳过当前启动脚本进程`);
@@ -373,7 +373,7 @@ async function killBackendProcesses() {
                 'src/http-server.js',
                 'src/index.js',
                 'src/mcp-server.js',
-                'start_be_cheestard-terminal-interactive.mjs'
+                'start_be_cheezmil-terminal-interactive.mjs'
             ];
             
             const isRelatedProcess = projectPathPatterns.some(pattern =>
@@ -385,10 +385,10 @@ async function killBackendProcesses() {
             
             // 额外安全检查：确保进程确实在运行我们的项目
             // 通过检查命令行中是否包含项目相关关键词或者路径
-            const projectKeywords = ['cheestard', 'terminal', 'interactive'];
+            const projectKeywords = ['cheezmil', 'terminal', 'interactive'];
             const hasProjectKeyword = projectKeywords.some(keyword =>
                 cmdLine.includes(keyword.toLowerCase())
-            ) || cmdLine.includes('cheestard-terminal-interactive');
+            ) || cmdLine.includes('cheezmil-terminal-interactive');
             
             if (!hasProjectKeyword) {
                 console.log(`  -> 缺少项目关键词，跳过`);

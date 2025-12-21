@@ -159,10 +159,10 @@ async function killBackendProcesses() {
                 const processId = parts[2].trim();
                 
                 // Find backend-related processes, but exclude current process
-                if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_be_dev_cheestard-terminal-interactive.mjs')) {
+                if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_be_dev_cheezmil-terminal-interactive.mjs')) {
                     const isRelatedProcess = commandLine.includes('dist/index.js') ||
                                            commandLine.includes('dist/http-server.js');
-                    const isCurrentProject = commandLine.includes('cheestard-terminal-interactive');
+                    const isCurrentProject = commandLine.includes('cheezmil-terminal-interactive');
                     
                     if (isRelatedProcess && isCurrentProject) {
                         processes.push({

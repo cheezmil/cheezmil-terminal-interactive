@@ -6,7 +6,7 @@ server locally:
 - `list-tools.mjs` – start the MCP server over stdio and print the available
   tool names.
 - `list-tools-details.mjs` – same as above, but dumps the full tool metadata.
-- `test-cheestard-terminal-interactive.mjs` – creates a terminal in `test/`, runs a few
+- `test-cheezmil-terminal-interactive.mjs` – creates a terminal in `test/`, runs a few
   commands (`pwd`, `ls`), inspects stats, and cleans up.
 
 Run them with `node` from the repository root, for example:

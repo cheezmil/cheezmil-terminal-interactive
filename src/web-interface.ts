@@ -41,7 +41,7 @@ export class WebInterfaceServer {
     // Static file service - directly use compiled frontend files
     // 使用硬编码的绝对路径确保正确找到前端文件
     // Use hardcoded absolute path to ensure correct frontend files are found
-    const frontendDistPath = 'D:/CodeRelated/cheestard-terminal-interactive/frontend/dist';
+    const frontendDistPath = 'D:/CodeRelated/cheezmil-terminal-interactive/frontend/dist';
     this.fastify.register(import('@fastify/static'), {
       root: frontendDistPath,
       prefix: '/'
@@ -76,7 +76,7 @@ export class WebInterfaceServer {
     // 终端详情页 - 旧的HTML处理
     // Terminal details page - old HTML handling
     this.fastify.get('/terminal/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-      const indexPath = 'D:/CodeRelated/cheestard-terminal-interactive/frontend/dist/index.html';
+      const indexPath = 'D:/CodeRelated/cheezmil-terminal-interactive/frontend/dist/index.html';
       return reply.sendFile(indexPath);
     });
 
@@ -85,7 +85,7 @@ export class WebInterfaceServer {
     this.fastify.get('*', async (request: FastifyRequest, reply: FastifyReply) => {
       // 所有非API路径都返回编译后的Vue应用
       // All non-API paths return the compiled Vue application
-      const indexPath = 'D:/CodeRelated/cheestard-terminal-interactive/frontend/dist/index.html';
+      const indexPath = 'D:/CodeRelated/cheezmil-terminal-interactive/frontend/dist/index.html';
       return reply.sendFile(indexPath);
     });
   }

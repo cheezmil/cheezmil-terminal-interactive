@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
-import { CheestardTerminalInteractiveServer } from './mcp-server.js';
+import { cheezmilTerminalInteractiveServer } from './mcp-server.js';
 import { TerminalManager } from './terminal-manager.js';
 import { TerminalApiRoutes } from './terminal-api-routes.js';
 import { configManager } from './config-manager.js';
@@ -20,7 +20,7 @@ import yaml from 'js-yaml';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export { CheestardTerminalInteractiveServer } from './mcp-server.js';
+export { cheezmilTerminalInteractiveServer } from './mcp-server.js';
 export { TerminalManager } from './terminal-manager.js';
 export { WebUIManager } from './web-ui-manager.js';
 export { WebInterfaceServer } from './web-interface.js';
@@ -67,7 +67,7 @@ function log(message: string) {
  * Streamable HTTP MCP server main entry point
  */
 async function main() {
-  log('Starting Cheestard Terminal Interactive Streamable HTTP MCP Server...');
+  log('Starting cheezmil Terminal Interactive Streamable HTTP MCP Server...');
 
   // 获取服务器配置 / Get server configuration
   const serverConfig = configManager.getServerConfig();
@@ -144,7 +144,7 @@ async function main() {
 
   // Map to store transports by session ID
   const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-  const mcpServers: { [sessionId: string]: CheestardTerminalInteractiveServer } = {};
+  const mcpServers: { [sessionId: string]: cheezmilTerminalInteractiveServer } = {};
 
   // Handle POST requests for client-to-server communication
   fastify.post('/mcp', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -152,7 +152,7 @@ async function main() {
       // Check for existing session ID
       const sessionId = request.headers['mcp-session-id'] as string | undefined;
       let transport: StreamableHTTPServerTransport;
-      let mcpServer: CheestardTerminalInteractiveServer;
+      let mcpServer: cheezmilTerminalInteractiveServer;
 
       if (sessionId && transports[sessionId] && mcpServers[sessionId]) {
         // Reuse existing transport
@@ -164,7 +164,7 @@ async function main() {
         log('Creating new session and MCP server');
         
         // Create MCP server instance first
-        mcpServer = new CheestardTerminalInteractiveServer();
+        mcpServer = new cheezmilTerminalInteractiveServer();
         const server = mcpServer.getServer();
         
         transport = new StreamableHTTPServerTransport({
@@ -247,10 +247,10 @@ async function main() {
 
   try {
     await fastify.listen({ port, host });
-    log(`Cheestard Terminal Interactive Streamable HTTP MCP Server started successfully`);
+    log(`cheezmil Terminal Interactive Streamable HTTP MCP Server started successfully`);
     log(`Server listening on http://${host}:${port}/mcp`);
     log('Server capabilities:');
-    log('- create_terminal: Create new Cheestard Terminal Interactive sessions');
+    log('- create_terminal: Create new cheezmil Terminal Interactive sessions');
     log('- write_terminal: Send input to terminal sessions');
     log('- read_terminal: Read output from terminal sessions');
     log('- list_terminals: List all active terminal sessions');
@@ -363,7 +363,7 @@ async function setupStaticFilesAndRoutes(fastify: FastifyInstance): Promise<void
   // Static file service - directly use compiled frontend files
   // 使用硬编码的绝对路径确保正确找到前端文件
   // Use hardcoded absolute path to ensure correct frontend files are found
-  const frontendDistPath = 'D:/CodeRelated/cheestard-terminal-interactive/frontend/dist';
+  const frontendDistPath = 'D:/CodeRelated/cheezmil-terminal-interactive/frontend/dist';
   fastify.register(import('@fastify/static'), {
     root: frontendDistPath,
     prefix: '/',
@@ -389,7 +389,7 @@ async function setupStaticFilesAndRoutes(fastify: FastifyInstance): Promise<void
   // 终端详情页 - 旧的HTML处理
   // Terminal details page - old HTML handling
   fastify.get('/terminal/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    const indexPath = 'D:/CodeRelated/cheestard-terminal-interactive/frontend/dist/index.html';
+    const indexPath = 'D:/CodeRelated/cheezmil-terminal-interactive/frontend/dist/index.html';
     return reply.sendFile(indexPath);
   });
 }

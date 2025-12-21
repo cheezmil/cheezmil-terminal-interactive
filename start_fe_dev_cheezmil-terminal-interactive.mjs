@@ -198,12 +198,12 @@ async function killFrontendProcesses() {
                     const processId = parts[2].trim();
                     
                     // 查找前端相关进程，但排除当前进程
-                    if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')) {
+                    if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_fe_dev_cheezmil-terminal-interactive.mjs')) {
                         const isFrontendProcess = commandLine.includes('vite') ||
                                                 commandLine.includes('dev') ||
                                                 commandLine.includes('frontend') ||
                                                 commandLine.includes(`:${PORT}`);
-                        const isCurrentProject = commandLine.includes('cheestard-terminal-interactive');
+                        const isCurrentProject = commandLine.includes('cheezmil-terminal-interactive');
                         
                         if (isFrontendProcess && isCurrentProject) {
                             processes.push({
@@ -265,7 +265,7 @@ async function killFrontendProcesses() {
                             commandLine.includes('dev') ||
                             commandLine.includes('frontend') ||
                             commandLine.includes(`:${PORT}`) ||
-                            commandLine.includes('start_fe_dev_cheestard-terminal-interactive.mjs')
+                            commandLine.includes('start_fe_dev_cheezmil-terminal-interactive.mjs')
                         )) {
                             processes.push({
                                 pid: pid,

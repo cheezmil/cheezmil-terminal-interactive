@@ -13,7 +13,7 @@
 重新加载名为CTM的Mcphub服务器
 
 .NOTES
-Author: cheestard
+Author: cheezmil
 Date: 2025-12-10
 API说明：依赖本地运行的Mcphub服务（端口1035）
 #>

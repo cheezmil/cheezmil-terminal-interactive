@@ -40,7 +40,7 @@ node dist/http-server.js
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "transport": "streamable_http",
       "url": "http://localhost:1106/mcp",
       "headers": {
@@ -132,7 +132,7 @@ node dist/http-server.js
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "command": "node",
       "args": ["dist/index.js"]
     }
@@ -144,7 +144,7 @@ node dist/http-server.js
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "transport": "streamable_http",
       "url": "http://localhost:1106/mcp"
     }

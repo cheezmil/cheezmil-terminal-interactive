@@ -237,11 +237,11 @@ async function killFrontendProcesses() {
                         const processId = parts[2].trim();
                         
                         // 更具体 - 只针对与我们的项目明显相关的进程
-                        if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_fe_cheestard-terminal-interactive.mjs')) {
+                        if (commandLine && parseInt(processId) !== currentPid && !commandLine.includes('start_fe_cheezmil-terminal-interactive.mjs')) {
                             const isFrontendProcess = commandLine.includes('vite') ||
                                                     commandLine.includes('npm') && commandLine.includes('dev') ||
                                                     commandLine.includes(`:${PORT}`);
-                            const isCurrentProject = commandLine.includes('cheestard-terminal-interactive') ||
+                            const isCurrentProject = commandLine.includes('cheezmil-terminal-interactive') ||
                                                    commandLine.includes('frontend');
                             
                             if (isFrontendProcess && isCurrentProject) {
@@ -334,7 +334,7 @@ async function killFrontendProcesses() {
                             if (pid && pid !== currentPid && (
                                 (commandLine.includes('vite') && commandLine.includes('frontend')) ||
                                 (commandLine.includes('npm') && commandLine.includes('dev') && commandLine.includes('frontend')) ||
-                                commandLine.includes('start_fe_cheestard-terminal-interactive.mjs') ||
+                                commandLine.includes('start_fe_cheezmil-terminal-interactive.mjs') ||
                                 (commandLine.includes(`:${PORT}`) && (commandLine.includes('vite') || commandLine.includes('frontend')))
                             )) {
                                 processes.push({
@@ -385,7 +385,7 @@ async function startFrontend() {
     // 检查是否存在编译后的产物
     const distPath = path.join(FRONTEND_DIR, 'dist');
     if (!existsSync(distPath)) {
-      console.error('Error: Frontend build not found. Please run "node start_build_fe_cheestard-terminal-interactive.mjs" first.');
+      console.error('Error: Frontend build not found. Please run "node start_build_fe_cheezmil-terminal-interactive.mjs" first.');
       process.exit(1);
     }
 

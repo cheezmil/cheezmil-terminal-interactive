@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "command": "cmd",
       "args": [
         "/c",
         "node",
-        "d:/CodeRelated/cheestard-terminal-interactive/dist/index.js"
+        "d:/CodeRelated/cheezmil-terminal-interactive/dist/index.js"
       ],
       "env": {
         "MAX_BUFFER_SIZE": "10000",

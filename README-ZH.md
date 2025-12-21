@@ -1,8 +1,6 @@
-# Cheestard Terminal Interactive MCP Server
+# cheezmil Terminal Interactive MCP Server
 
 [Chinese README](README-ZH.md)
-
-#### 本工具能让AI控制多个终端，并通过 MCP（模型上下文协议）进行交互，解决一些AI编程工具的终端卡住不再继续下一步的问题，实现持久化终端会话管理，即使AI编程工具不小心关闭，终端也会保持继续运行，提升自动化任务进行的成功概率。
 
 
 ## 有什么理由使用本项目
@@ -15,18 +13,23 @@
 ## 使用方法
 ### 运行后端
 > ⚠️ 由于 `node-pty` 的缘故，Windows 用户目前需要使用不大于 Node.js 20 的版本才能正常使用，所以为了方便使用我将安装编译运行脚本都使用了20.19.5，请务必安装好`https://github.com/Schniz/fnm`，否则将无法使用，除非你每个项目都使用同一个nodejs不过这是不太可能的因为本文档列举的某个AI编程工具或比较热门的MCP工具用到了nodejs22+。
+> 若您是Windows用户，强烈推荐安装Powershell7而不是系统默认自带的Powershell可避免一些乱码问题。https://github.com/powershell/powershell/releases
 
 先fork本项目，方便您提交PR贡献，然后再
 ```bash
-git clone https://github.com/<你的github用户名>/cheestard-terminal-interactive.git
+git clone https://github.com/<你的github用户名>/cheezmil-terminal-interactive.git
 ```
 ```bash
 # 安装依赖
 node start_install.mjs
 ```
 ```bash
+# build后端
+start_build_be_cheezmil-terminal-interactive.mjs
+```
+```bash
 # 运行后端
-node start_be_cheestard-terminal-interactive.mjs
+node start_be_cheezmil-terminal-interactive.mjs
 ```
 
 
@@ -73,14 +76,14 @@ url = "http://localhost:1106/mcp"
 除了配置文件方式外，Claude Code 还支持使用命令行快速添加 MCP 服务器：
 
 ```bash
-# 添加 cheestard-terminal-interactive 服务器
-claude mcp add cheestard-terminal-interactive --scope user --type streamable-http --url http://localhost:1106/mcp
+# 添加 cheezmil-terminal-interactive 服务器
+claude mcp add cheezmil-terminal-interactive --scope user --type streamable-http --url http://localhost:1106/mcp
 
 # 列出已配置的 MCP 服务器
 claude mcp list
 
 # 移除 MCP 服务器
-claude mcp remove cheestard-terminal-interactive
+claude mcp remove cheezmil-terminal-interactive
 ```
 
 **命令行参数说明：**
@@ -151,7 +154,11 @@ claude mcp remove cheestard-terminal-interactive
 
 ### 🌐 Web 管理界面使用方式
 ```bash
-node start_fe_cheestard-terminal-interactive.mjs
+# build前端
+start_build_fe_cheezmil-terminal-interactive.mjs
+```
+```bash
+node start_fe_cheezmil-terminal-interactive.mjs
 ```
 
 ## 免责声明
@@ -161,7 +168,7 @@ node start_fe_cheestard-terminal-interactive.mjs
 
 ## 截至2025-11-03，主流AI编程工具终端交互功能对比（如有错误，请告诉我修正🥲）：
 
-| 功能 | Cheestard Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
+| 功能 | cheezmil Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
 |------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
 | 输入ctrl+c | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | 输入回车 | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |

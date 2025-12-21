@@ -24,7 +24,7 @@ export class VersionService {
     this.versionFilePath = options?.versionFilePath ?? path.join(process.cwd(), 'VERSION');
     this.remoteVersionUrl =
       options?.remoteVersionUrl ??
-      'https://raw.githubusercontent.com/cheestard/cheestard-terminal-interactive/refs/heads/main/VERSION';
+      'https://raw.githubusercontent.com/cheezmil/cheezmil-terminal-interactive/refs/heads/main/VERSION';
   }
 
   /**

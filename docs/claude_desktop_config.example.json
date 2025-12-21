@@ -1,15 +1,15 @@
 {
   "_notes": [
     "Copy the section matching your operating system into your claude_desktop_config.json",
-    "Remove the other section(s) after merging so only one cheestard-terminal-interactive entry remains"
+    "Remove the other section(s) after merging so only one cheezmil-terminal-interactive entry remains"
   ],
   "macOS_linux": {
     "mcpServers": {
-      "cheestard-terminal-interactive": {
+      "cheezmil-terminal-interactive": {
         "command": "npx",
         "args": [
           "-y",
-          "cheestard-terminal-interactive"
+          "cheezmil-terminal-interactive"
         ],
         "env": {
           "MAX_BUFFER_SIZE": "10000",
@@ -22,13 +22,13 @@
   },
   "windows": {
     "mcpServers": {
-      "cheestard-terminal-interactive": {
+      "cheezmil-terminal-interactive": {
         "command": "cmd",
         "args": [
           "/c",
           "npx",
           "-y",
-          "cheestard-terminal-interactive"
+          "cheezmil-terminal-interactive"
         ],
         "env": {
           "MAX_BUFFER_SIZE": "10000",

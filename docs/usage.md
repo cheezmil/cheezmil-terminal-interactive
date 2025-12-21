@@ -1,8 +1,8 @@
-# AI 使用指南：Cheestard Terminal Interactive MCP
+# AI 使用指南：cheezmil Terminal Interactive MCP
 
 ## 📋 概述
 
-本文档专为 AI 助手（Claude、Codex CLI 等）编写，指导如何使用 **cheestard-terminal-interactive MCP** 来执行长时间运行的命令（如 `npm start`、`npm run dev`、服务器启动等），避免进程阻塞和超时问题。
+本文档专为 AI 助手（Claude、Codex CLI 等）编写，指导如何使用 **cheezmil-terminal-interactive MCP** 来执行长时间运行的命令（如 `npm start`、`npm run dev`、服务器启动等），避免进程阻塞和超时问题。
 
 ---
 
@@ -17,7 +17,7 @@
 - 任何需要持续输出的命令
 
 ### ✅ 解决方案
-使用 **cheestard-terminal-interactive MCP** 的 7 个工具来管理这些长时间运行的进程：
+使用 **cheezmil-terminal-interactive MCP** 的 7 个工具来管理这些长时间运行的进程：
 1. `create_terminal` - 创建持久终端会话（支持自定义环境变量）
 2. `create_terminal_basic` - 面向受限客户端的精简创建入口
 3. `write_terminal` - 向终端发送命令
@@ -615,7 +615,7 @@ setInterval(() => {
 
 ## 🎯 总结
 
-使用 cheestard-terminal-interactive MCP 的核心思想：
+使用 cheezmil-terminal-interactive MCP 的核心思想：
 
 1. **创建** → 持久终端会话
 2. **发送** → 命令立即返回，不阻塞

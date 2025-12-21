@@ -1,7 +1,7 @@
-# Windows 下配置 cheestard-terminal-interactive MCP（Claude Code）
+# Windows 下配置 cheezmil-terminal-interactive MCP（Claude Code）
 
 本文档面向 **Windows 10/11 用户**，演示如何在 Claude Code 中启用
-`cheestard-terminal-interactive` MCP 服务器。提供两种方式：
+`cheezmil-terminal-interactive` MCP 服务器。提供两种方式：
 
 - **项目级配置（推荐）** — 每个项目独立，易于共享
 - **全局配置** — 直接写入 `~/.claude.json`
@@ -25,13 +25,13 @@
 ```json
 {
   "mcpServers": {
-    "cheestard-terminal-interactive": {
+    "cheezmil-terminal-interactive": {
       "command": "cmd",
       "args": [
         "/c",
         "npx",
         "-y",
-        "cheestard-terminal-interactive"
+        "cheezmil-terminal-interactive"
       ],
       "env": {
         "MAX_BUFFER_SIZE": "10000",
@@ -53,17 +53,17 @@ claude
 4. **出现新 MCP 服务器提示时选择选项 1**：
 
 ```
-New MCP server found in .mcp.json: cheestard-terminal-interactive
+New MCP server found in .mcp.json: cheezmil-terminal-interactive
 
 ❯ 1. Use this and all future MCP servers in this project
   2. Use this MCP server
   3. Continue without using this MCP server
 ```
 
-完成后，`cheestard-terminal-interactive` 即可在当前项目使用。
+完成后，`cheezmil-terminal-interactive` 即可在当前项目使用。
 
-> 📌 **提示**：如已全局安装 `cheestard-terminal-interactive`，可将
-> `args` 改为 `"cheestard-terminal-interactive"` 并移除 `-y`。
+> 📌 **提示**：如已全局安装 `cheezmil-terminal-interactive`，可将
+> `args` 改为 `"cheezmil-terminal-interactive"` 并移除 `-y`。
 
 ---
 
@@ -73,7 +73,7 @@ New MCP server found in .mcp.json: cheestard-terminal-interactive
 
 ### 步骤 1：编写辅助脚本
 
-创建 `add_cheestard_terminal_interactive.py`（路径自定义），内容如下：
+创建 `add_cheezmil_terminal_interactive.py`（路径自定义），内容如下：
 
 ```python
 import json
@@ -107,9 +107,9 @@ projects.setdefault(project_path, {
     "hasClaudeMdExternalIncludesWarningShown": False
 })
 
-projects[project_path]['mcpServers']['cheestard-terminal-interactive'] = {
+projects[project_path]['mcpServers']['cheezmil-terminal-interactive'] = {
     "command": "cmd",
-    "args": ["/c", "npx", "-y", "cheestard-terminal-interactive"],
+    "args": ["/c", "npx", "-y", "cheezmil-terminal-interactive"],
     "env": {
         "MAX_BUFFER_SIZE": "10000",
         "SESSION_TIMEOUT": "86400000",
@@ -121,7 +121,7 @@ projects[project_path]['mcpServers']['cheestard-terminal-interactive'] = {
 with open(config_path, 'w', encoding='utf-8') as f:
     json.dump(config, f, indent=2, ensure_ascii=False)
 
-print(f"\n✓ 成功为项目 {project_path} 添加 cheestard-terminal-interactive MCP 服务器配置")
+print(f"\n✓ 成功为项目 {project_path} 添加 cheezmil-terminal-interactive MCP 服务器配置")
 print("\n配置内容:")
 print(json.dumps(projects[project_path]['mcpServers'], indent=2, ensure_ascii=False))
 ```
@@ -137,7 +137,7 @@ project_path = r'C:\\Users\\alice\\Desktop\\my-project'
 ### 步骤 3：运行脚本
 
 ```powershell
-python .\add_cheestard_terminal_interactive.py
+python .\add_cheezmil_terminal_interactive.py
 ```
 
 脚本会自动备份原有 `~/.claude.json` 并写入新配置。
@@ -156,7 +156,7 @@ claude
 - **命令行**：`claude mcp list`
 - **Claude Code 内**：输入 `/mcp` 查看服务器状态
 
-出现 `cheestard-terminal-interactive` 即表示配置成功。
+出现 `cheezmil-terminal-interactive` 即表示配置成功。
 
 ---
 
@@ -167,7 +167,7 @@ claude
 在 Windows 上执行：
 
 ```powershell
-claude mcp add cheestard-terminal-interactive --env MAX_BUFFER_SIZE=10000 -- cmd /c npx -y cheestard-terminal-interactive
+claude mcp add cheezmil-terminal-interactive --env MAX_BUFFER_SIZE=10000 -- cmd /c npx -y cheezmil-terminal-interactive
 ```
 
 会出现：
@@ -200,12 +200,12 @@ with open(config_path, 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 if project_path in config.get('projects', {}):
-    config['projects'][project_path]['mcpServers'].pop('cheestard-terminal-interactive', None)
+    config['projects'][project_path]['mcpServers'].pop('cheezmil-terminal-interactive', None)
 
 with open(config_path, 'w', encoding='utf-8') as f:
     json.dump(config, f, indent=2, ensure_ascii=False)
 
-print('✓ 已删除 cheestard-terminal-interactive MCP 配置')
+print('✓ 已删除 cheezmil-terminal-interactive MCP 配置')
 ```
 
 ### Q4：配置文件位置？

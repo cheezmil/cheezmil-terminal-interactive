@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Thanks for your interest in improving Cheestard Terminal Interactive MCP Server! This
+Thanks for your interest in improving cheezmil Terminal Interactive MCP Server! This
 project follows a light-weight process so contributions remain easy to make and
 review.
 

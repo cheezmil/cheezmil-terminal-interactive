@@ -1,8 +1,6 @@
-# Cheestard Terminal Interactive MCP Server
+# cheezmil Terminal Interactive MCP Server
 
 [中文文档](README-ZH.md)
-
-#### This tool enables AI to control multiple terminals and interact through MCP (Model Context Protocol), solving the issue of AI programming tools getting stuck in terminals and not proceeding to the next step. It achieves persistent terminal session management - even if AI programming tools are accidentally closed, terminals will continue running, improving the success rate of automated tasks.
 
 ## Why Use This Project
 - Currently, various mainstream AI programming tools get stuck when executing certain commands like `npm run dev`, causing the terminal to block. In such cases, AI doesn't receive timely feedback. Some AI programming tools have a hardcoded 2-minute timeout, and even after timeout, they can't see any terminal information. Some can see messages after timeout, while others get completely stuck. This project saves time wasted on getting stuck.
@@ -18,15 +16,19 @@
 First fork this project for easy PR contributions, then:
 
 ```bash
-git clone https://github.com/<your-github-username>/cheestard-terminal-interactive.git
+git clone https://github.com/<your-github-username>/cheezmil-terminal-interactive.git
 ```
 ```bash
 # Install dependencies
 node start_install.mjs
 ```
 ```bash
+# Build backend
+start_build_be_cheezmil-terminal-interactive.mjs
+```
+```bash
 # Run backend
-node start_be_cheestard-terminal-interactive.mjs
+node start_be_cheezmil-terminal-interactive.mjs
 ```
 
 ### ⚙️ MCP Client Configuration
@@ -63,7 +65,7 @@ url = "http://localhost:1106/mcp"
 - **Claude Code**:
 ```json
     "CTI": {
-      "type": "streamable-http",
+      "type": "http",
       "url": "http://localhost:1106/mcp"
     }
 ```
@@ -72,19 +74,19 @@ url = "http://localhost:1106/mcp"
 In addition to the configuration file method, Claude Code also supports using the command line to quickly add MCP servers:
 
 ```bash
-# Add cheestard-terminal-interactive server
-claude mcp add cheestard-terminal-interactive --scope user --type streamable-http --url http://localhost:1106/mcp
+# Add cheezmil-terminal-interactive server
+claude mcp add cheezmil-terminal-interactive --scope user --type http --url http://localhost:1106/mcp
 
 # List configured MCP servers
 claude mcp list
 
 # Remove MCP server
-claude mcp remove cheestard-terminal-interactive
+claude mcp remove cheezmil-terminal-interactive
 ```
 
 **Command Line Parameter Description:**
 - `--scope user`: Set configuration scope to user level
-- `--type streamable-http`: Specify transport type as streamable-http
+- `--type http`: Specify transport type as http
 - `--url http://localhost:1106/mcp`: Specify server address
 
 For complex configurations, it's recommended to directly edit the configuration file:
@@ -150,7 +152,11 @@ For complex configurations, it's recommended to directly edit the configuration 
 
 ### 🌐 Web Management Interface Usage
 ```bash
-node start_fe_cheestard-terminal-interactive.mjs
+# Build frontend
+start_build_fe_cheezmil-terminal-interactive.mjs
+```
+```bash
+node start_fe_cheezmil-terminal-interactive.mjs
 ```
 
 ## Disclaimer
@@ -159,7 +165,7 @@ node start_fe_cheestard-terminal-interactive.mjs
 
 ## Comparison of Terminal Interaction Features in Mainstream AI Programming Tools as of November 3, 2025 (If there are errors, please let me know to correct them 🥲):
 
-| Feature | Cheestard Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
+| Feature | cheezmil Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
 |---------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
 | Input ctrl+c | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Input enter | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |

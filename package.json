@@ -1,12 +1,12 @@
 {
-  "name": "cheestard-terminal-interactive",
+  "name": "cheezmil-terminal-interactive",
   "version": "0.0.1",
   "description": "A tool for managing interactive terminal sessions.",
   "main": "dist/http-server.js",
   "types": "dist/http-server.d.ts",
   "bin": {
-    "cheestard-terminal-interactive": "dist/http-server.js",
-    "cheestard-terminal-interactive-http": "dist/http-server.js"
+    "cheezmil-terminal-interactive": "dist/http-server.js",
+    "cheezmil-terminal-interactive-http": "dist/http-server.js"
   },
   "files": [
     "dist",
@@ -86,7 +86,7 @@
     "session",
     "node-pty"
   ],
-  "author": "cheestard",
+  "author": "cheezmil",
   "license": "MIT",
   "dependencies": {
     "@fastify/cors": "^11.1.0",
