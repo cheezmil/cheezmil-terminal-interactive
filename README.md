@@ -75,13 +75,11 @@ In addition to the configuration file method, Claude Code also supports using th
 
 ```bash
 # Add cheezmil-terminal-interactive server
-claude mcp add cheezmil-terminal-interactive --scope user --type http --url http://localhost:1106/mcp
+claude mcp add CTI --scope user --type http --url http://localhost:1106/mcp
 
 # List configured MCP servers
 claude mcp list
 
-# Remove MCP server
-claude mcp remove cheezmil-terminal-interactive
 ```
 
 **Command Line Parameter Description:**

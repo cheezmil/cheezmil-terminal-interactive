@@ -77,13 +77,11 @@ url = "http://localhost:1106/mcp"
 
 ```bash
 # 添加 cheezmil-terminal-interactive 服务器
-claude mcp add cheezmil-terminal-interactive --scope user --type streamable-http --url http://localhost:1106/mcp
+claude mcp add CTI --scope user --type streamable-http --url http://localhost:1106/mcp
 
 # 列出已配置的 MCP 服务器
 claude mcp list
 
-# 移除 MCP 服务器
-claude mcp remove cheezmil-terminal-interactive
 ```
 
 **命令行参数说明：**
