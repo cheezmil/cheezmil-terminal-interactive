@@ -21,3 +21,8 @@ start_be_cheezmil-terminal-interactive.pid
 start_be_cheezmil-terminal-interactive.log
 start_fe_cheezmil-terminal-interactive.pid
 AGENTS.md
+.kilocode/
+.roo/
+.claude/
+.vscode/
+logs/
