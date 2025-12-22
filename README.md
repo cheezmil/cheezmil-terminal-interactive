@@ -8,10 +8,15 @@
 - You might want one codex to control other claude code instances.
 - You might think, "Why not just output all terminal content to a file for AI to read?" However, this consumes an additional API request. Moreover, AI doesn't know which commands need to be output to a file or where the file should be located. You would need to manually write clear prompts to tell AI, otherwise it will still get stuck, which is quite troublesome.
 - In certain situations, you might need to restart codex cli or claude code to apply some settings, but you don't want to lose running terminal tasks.
+- Sometimes, even with prompts instructing AI on how to run commands, AI might forget and execute commands you don't want. You can add these commands to a blacklist with an additional prompt to strengthen the guidance for AI on correct operations.
+- Claude Code already has background tasks, so why do you still need this project? First, background tasks require explicit prompts to be called, otherwise they need to be triggered manually; background tasks require additional prompts with a fixed timeout that cannot be flexibly recognized; background tasks don't respond quickly to small tasks and often take several minutes to react, affecting efficiency. Additionally, there are redundant background tasks still receiving terminal destruction information. If your script has operations to terminate old instances, Claude Code starts to go crazy, checking and restarting scripts randomly, wasting time. (December 22, 2025)
+- This project provides Windows users with the following functionality: using wsl.exe or ssh root@127.0.0.1 as shell to directly input native Linux commands, reducing the probability of errors often encountered with wsl "input some file modification commands" or ssh root@127.0.0.1 "input some file modification commands".
 
 ## Usage
 ### Running the Backend
 > ⚠️ Due to `node-pty`, Windows users currently need to use Node.js version 20 or lower to work properly. For convenience, I've set all installation, compilation, and running scripts to use 20.19.5. Please make sure to install `https://github.com/Schniz/fnm`, otherwise it won't work unless you use the same Node.js version for all projects, which is unlikely since some AI programming tools or popular MCP tools mentioned in this documentation require Node.js 22+.
+
+> If you are a Windows user, it is strongly recommended to install PowerShell 7 instead of the system default PowerShell to avoid some encoding issues. https://github.com/powershell/powershell/releases
 
 First fork this project for easy PR contributions, then:
 
@@ -75,7 +80,7 @@ In addition to the configuration file method, Claude Code also supports using th
 
 ```bash
 # Add cheezmil-terminal-interactive server
-claude mcp add CTI --scope user --type http --url http://localhost:1106/mcp
+claude mcp add CTI --scope user --type streamable-http --url http://localhost:1106/mcp
 
 # List configured MCP servers
 claude mcp list
@@ -84,7 +89,7 @@ claude mcp list
 
 **Command Line Parameter Description:**
 - `--scope user`: Set configuration scope to user level
-- `--type http`: Specify transport type as http
+- `--type streamable-http`: Specify transport type as streamable-http
 - `--url http://localhost:1106/mcp`: Specify server address
 
 For complex configurations, it's recommended to directly edit the configuration file:
@@ -161,7 +166,7 @@ node start_fe_cheezmil-terminal-interactive.mjs
 - Due to varying levels of intelligence in different AI models when judging dangerous commands and different prompt guidance, AI sometimes cannot determine whether certain commands are dangerous, such as some recursive file deletion commands. Please manually execute some more dangerous commands or clearly specify dangerous commands for me to handle. Regardless of what commands are executed through this project, you are responsible for any adverse consequences.
 - Do not allow direct internet access to this project deployed on your computer, otherwise you are responsible for any adverse consequences.
 
-## Comparison of Terminal Interaction Features in Mainstream AI Programming Tools as of November 3, 2025 (If there are errors, please let me know to correct them 🥲):
+## Comparison of Terminal Interaction Features in Mainstream AI Programming Tools as of 2025-11-03 (If there are errors, please let me know to correct them 🥲):
 
 | Feature | Cheezmil Terminal Interactive | Claude Code | Codex | Antigravity | Cursor | Cline | Roocode | Kilocode | Gemini CLI | Qwen Code | iFlow CLI | Open Code | windsurf | Warp | Augment | Goose | Crush |
 |---------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
