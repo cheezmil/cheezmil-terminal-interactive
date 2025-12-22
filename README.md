@@ -41,7 +41,7 @@ node start_be_cheezmil-terminal-interactive.mjs
 ```plaintext
 Always use the CTI MCP terminal tool to execute commands. Do not use the tool functions that come with the system prompt to execute commands.
 ```
-> Note: If CTI is not running, AI will intelligently automatically use the original tool functions that come with the AI programming tool to execute commands. If you never tell it about the CTI tool, AI will likely never use CTI.
+> Of course, you can also ask your AI programming tool what the system's built-in command execution tool function is called, and then customize a prompt for it to combine CTI with the "system's built-in command execution tool function". If CTI is not running, AI will intelligently automatically use the original tool functions that come with the AI programming tool to execute commands. If you never tell it about the CTI tool, AI will likely never use CTI.
 
 #### All MCP clients that support Streamable HTTP can be used. Configuration will vary slightly for different MCP clients. Please refer to the corresponding client's official documentation. Here are simple examples:
 
