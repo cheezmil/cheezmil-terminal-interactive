@@ -1,0 +1,256 @@
+/*
+  VS Code integrated terminal visual layer (scoped) / VS Code 集成终端视觉层（作用域隔离）
+
+  Notes / 说明：
+  - VS Code integrated terminal IS based on xterm.js. There is no "VS Code terminal without xterm.js".
+    VS Code 的集成终端本质上就是 xterm.js，因此“不用xterm.js但要1:1 VS Code终端”在技术上不成立。
+  - What we can do here is: replicate VS Code's DOM structure + terminal.css + xterm.css customizations
+    (scoped), so the look/feel matches 1:1 as close as possible.
+    我们在这里能做的是：复刻 VS Code 的 DOM 结构 + terminal.css + xterm.css 定制（并做作用域隔离），
+    让观感尽可能 1:1 接近。
+  - Keep this "visual only": do not tweak font metrics via CSS; use xterm options for font size/line height.
+    仅做视觉层：不要通过CSS改字体度量，字体大小/行高用xterm配置控制。
+*/
+
+/* Container + CSS variables / 容器与变量 */
+.cti-vscode-terminal {
+  --vscode-terminal-background: #1e1e1e;
+  --vscode-terminal-foreground: #cccccc;
+  --vscode-terminal-border: rgba(255, 255, 255, 0.08);
+  --vscode-terminal-tab-activeBorder: #0e639c;
+  --vscode-terminal-dropBackground: rgba(14, 99, 156, 0.18);
+  --vscode-editorGroup-dropBackground: rgba(14, 99, 156, 0.18);
+  --vscode-panel-background: #1e1e1e;
+  --vscode-editorPane-background: #1e1e1e;
+  --vscode-sideBar-background: #1e1e1e;
+  --vscode-focusBorder: #007fd4;
+  --vscode-scrollbar-shadow: #000;
+
+  height: 100%;
+  width: 100%;
+}
+
+/* Guard against global typography styles leaking into terminal (critical for character spacing) /
+   防止全局排版样式泄漏到终端（对字符间距至关重要） */
+.cti-vscode-terminal,
+.cti-vscode-terminal * {
+  letter-spacing: normal;
+  font-variant-ligatures: normal;
+  text-rendering: auto;
+}
+
+/* ===== VS Code terminal.css (scoped subset) / VS Code terminal.css（作用域子集） ===== */
+.cti-vscode-terminal .monaco-workbench .pane-body.integrated-terminal {
+  align-content: flex-start;
+  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  background-color: transparent !important;
+  user-select: initial;
+  -webkit-user-select: initial;
+  position: relative;
+  z-index: 0; /* Create stacking context before terminal canvases / 给canvas创建层叠上下文 */
+}
+
+.cti-vscode-terminal .monaco-workbench .pane-body.integrated-terminal .terminal-wrapper {
+  display: block;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--vscode-terminal-background, var(--vscode-panel-background));
+  position: relative;
+}
+
+.cti-vscode-terminal .monaco-workbench .xterm .xterm-helper-textarea:focus {
+  /* Override the general vscode style applies `opacity:1!important` to textareas /
+     覆盖可能让textarea变可见的全局样式 */
+  opacity: 0 !important;
+}
+
+.cti-vscode-terminal .monaco-workbench .xterm {
+  /* All terminals have at least 20px left padding for the gutter / 左侧gutter */
+  padding-left: 20px;
+}
+
+.cti-vscode-terminal .monaco-workbench .xterm .xterm-scrollable-element {
+  /* Extend mouse events to the edge of the scroll bar / 鼠标事件覆盖到滚动条边缘 */
+  margin-left: -20px;
+  padding-left: 20px;
+}
+
+.cti-vscode-terminal .monaco-workbench .pane-body.integrated-terminal .xterm {
+  /* Bottom align the terminal within the split pane / 底部对齐 */
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.cti-vscode-terminal .monaco-workbench .pane-body.integrated-terminal .xterm-viewport {
+  z-index: 30;
+  box-sizing: border-box;
+}
+
+.cti-vscode-terminal .monaco-workbench .pane-body.integrated-terminal .xterm-screen {
+  z-index: 31;
+}
+
+.cti-vscode-terminal .xterm .xterm-screen {
+  cursor: text;
+}
+
+.cti-vscode-terminal .xterm .xterm-accessibility {
+  z-index: 32 !important;
+  pointer-events: none;
+}
+
+.cti-vscode-terminal .xterm.enable-mouse-events .xterm-screen {
+  cursor: default;
+}
+.cti-vscode-terminal .xterm.xterm-cursor-pointer .xterm-screen {
+  cursor: pointer;
+}
+.cti-vscode-terminal .xterm.column-select.focus .xterm-screen {
+  cursor: crosshair;
+}
+
+/* ===== VS Code xterm.css essentials (scoped) / VS Code xterm.css 关键规则（作用域隔离） ===== */
+.cti-vscode-terminal .xterm {
+  cursor: text;
+  position: relative;
+  user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+}
+
+.cti-vscode-terminal .xterm.focus,
+.cti-vscode-terminal .xterm:focus {
+  outline: none;
+}
+
+.cti-vscode-terminal .xterm .xterm-helpers {
+  position: absolute;
+  top: 0;
+  z-index: 5;
+}
+
+.cti-vscode-terminal .xterm .xterm-helper-textarea {
+  padding: 0;
+  border: 0;
+  margin: 0;
+  position: absolute;
+  opacity: 0;
+  left: -9999em;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: -5;
+  white-space: nowrap;
+  overflow: hidden;
+  resize: none;
+}
+
+.cti-vscode-terminal .xterm .composition-view {
+  background: #000;
+  color: #fff;
+  display: none;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 1;
+}
+.cti-vscode-terminal .xterm .composition-view.active {
+  display: block;
+}
+
+.cti-vscode-terminal .xterm .xterm-viewport {
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.cti-vscode-terminal .xterm .xterm-screen {
+  position: relative;
+}
+
+.cti-vscode-terminal .xterm .xterm-screen canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.cti-vscode-terminal .xterm-char-measure-element {
+  display: inline-block;
+  visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: -9999em;
+  line-height: normal;
+}
+
+.cti-vscode-terminal .xterm-dim {
+  opacity: 1 !important;
+}
+
+/* Decorations (minimal) / 装饰层（最小） */
+.cti-vscode-terminal .xterm-screen .xterm-decoration-container .xterm-decoration {
+  z-index: 6;
+  position: absolute;
+}
+.cti-vscode-terminal .xterm-decoration-overview-ruler {
+  z-index: 8;
+  position: absolute;
+  top: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+/* Background + selection / 背景与选择 */
+.cti-vscode-terminal .xterm,
+.cti-vscode-terminal .xterm .xterm-viewport,
+.cti-vscode-terminal .xterm .xterm-screen {
+  background: var(--vscode-terminal-background) !important;
+}
+.cti-vscode-terminal .xterm ::selection {
+  background: rgba(90, 90, 90, 0.6);
+}
+
+/* Enforce VS Code-like character spacing / 强制接近 VS Code 的字符间距 */
+.cti-vscode-terminal .xterm-rows {
+  letter-spacing: 0px !important;
+}
+
+/* Scrollbar styling (VS Code-like) / 滚动条（接近VS Code） */
+.cti-vscode-terminal .xterm .xterm-viewport::-webkit-scrollbar {
+  width: 12px;
+}
+.cti-vscode-terminal .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  border: 3px solid rgba(0, 0, 0, 0);
+  background-clip: content-box;
+}
+.cti-vscode-terminal .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  background-clip: content-box;
+}
+.cti-vscode-terminal .xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus ring (VS Code-ish) / 聚焦描边（接近VS Code） */
+.cti-vscode-terminal .xterm.focus::before,
+.cti-vscode-terminal .xterm:focus::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  border: 1px solid transparent;
+}
+.cti-vscode-terminal .xterm.focus::before {
+  border-color: var(--vscode-focusBorder);
+}

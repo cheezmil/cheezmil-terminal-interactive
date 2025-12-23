@@ -6,6 +6,7 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 import 'xterm/css/xterm.css'
+import './styles/vscode-terminal.css'
 
 const app = createApp(App)
 

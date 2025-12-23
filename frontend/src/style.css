@@ -905,27 +905,29 @@ button.p-button:has(.p-button-icon) .p-button-label {
   background: #27c93f;
 }
 
-/* xterm.js global styles (visual only) / xterm.js 全局样式优化（仅视觉相关，不影响字体度量） */
-.xterm {
+/* xterm.js global styles (visual only) / xterm.js 全局样式优化（仅视觉相关，不影响字体度量）
+   NOTE: These global overrides break VS Code-like theming; keep them scoped to the legacy luxury view only. /
+   注意：这些全局覆盖会干扰VS Code风格主题，现仅保留在旧的奢华视图作用域下。 */
+.cti-luxury-terminal .xterm {
   /* 仅控制背景，不修改内边距和字体度量，避免影响选择坐标
      Only control background here; do not change padding or font metrics to avoid breaking selection coordinates */
   background: #000000 !important;
   border-radius: 0 !important;
 }
 
-.xterm-viewport,
-.xterm-screen {
+.cti-luxury-terminal .xterm-viewport,
+.cti-luxury-terminal .xterm-screen {
   background: #000000 !important;
 }
 
 /* xterm.js viewport scrollbar style / xterm.js 视口滚动条样式 */
-.xterm-viewport::-webkit-scrollbar {
+.cti-luxury-terminal .xterm-viewport::-webkit-scrollbar {
   width: 8px;
   height: 8px;
   background-color: #000000;
 }
 
-.xterm-viewport::-webkit-scrollbar-thumb {
+.cti-luxury-terminal .xterm-viewport::-webkit-scrollbar-thumb {
   background-color: #4b5563;
   border-radius: 4px;
 }

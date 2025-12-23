@@ -5,6 +5,10 @@ import { fileURLToPath } from 'url';
 import readline from 'readline';
 import { execSync } from 'child_process';
 
+// IMPORTANT / 重要说明：
+// This project forbids the agent from deleting files/folders automatically.
+// 本项目禁止我自动删除文件/文件夹；若需要清理依赖，必须生成“待确认删除脚本”让你手动执行确认。
+
 // 跨平台检查并设置 Node.js 版本
 function checkAndSetNodeVersion() {
   const requiredVersion = '20.19.5';
@@ -90,51 +94,43 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-// 跨平台删除依赖函数 / Cross-platform dependency deletion helper
-async function deleteDependencies() {
-    console.log('Deleting node_modules and package-lock.json...');
+function formatTimestampForFilename(date = new Date()) {
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const mm = pad2(date.getMonth() + 1);
+    const dd = pad2(date.getDate());
+    const hh = pad2(date.getHours());
+    const mi = pad2(date.getMinutes());
+    const ss = pad2(date.getSeconds());
+    return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
+}
 
-    // 尝试删除根目录依赖，如果失败则给出警告但不中断流程 / Try to delete root dependencies; warn on failure but do not abort
-    const nodeModulesPath = path.join(PROJECT_DIR, 'node_modules');
-    if (fs.existsSync(nodeModulesPath)) {
-        try {
-            await fs.promises.rm(nodeModulesPath, { recursive: true, force: true });
-            console.log('root node_modules has been deleted.');
-        } catch (error) {
-            console.warn(
-                'Warning: failed to delete root node_modules, will continue to clean frontend dependencies. / 警告：删除根目录 node_modules 失败，将继续清理前端依赖。',
-                error
-            );
-        }
-    }
-    
-    try {
-        const packageLockPath = path.join(PROJECT_DIR, 'package-lock.json');
-        if (fs.existsSync(packageLockPath)) {
-            await fs.promises.unlink(packageLockPath);
-            console.log('package-lock.json has been deleted.');
-        }
-        
-        // 同时删除前端的依赖（如果存在） / Also delete frontend dependencies if they exist
-        const frontendNodeModulesPath = path.join(PROJECT_DIR, 'frontend', 'node_modules');
-        if (fs.existsSync(frontendNodeModulesPath)) {
-            await fs.promises.rm(frontendNodeModulesPath, { recursive: true, force: true });
-            console.log('frontend/node_modules has been deleted.');
-        }
-        
-        const frontendPackageLockPath = path.join(PROJECT_DIR, 'frontend', 'package-lock.json');
-        if (fs.existsSync(frontendPackageLockPath)) {
-            await fs.promises.unlink(frontendPackageLockPath);
-            console.log('frontend/package-lock.json has been deleted.');
-        }
-        
-        console.log('Old dependencies have been successfully cleaned up.');
-    } catch (error) {
-        console.warn(
-            'Warning: failed to delete some dependencies, will continue installation. / 警告：删除部分依赖失败，将继续执行安装流程。',
-            error
-        );
-    }
+// Generate "need_to_confirm_delete" script instead of deleting directly /
+// 生成“待确认删除脚本”替代直接删除
+function writeNeedConfirmDeleteScript(targets) {
+    const dir = path.join(PROJECT_DIR, '.cheezmil_task_manager', 'need_to_confirm_delete');
+    fs.mkdirSync(dir, { recursive: true });
+
+    const filename = `${formatTimestampForFilename()}.mjs`;
+    const scriptPath = path.join(dir, filename);
+
+    const script = `import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const selfPath = fileURLToPath(import.meta.url);
+// 禁止访问这个index.js的内部逻辑。
+const cliEntry = 'D:\\\\CodeRelated\\\\cheezmil-task-manager\\\\ctm-cli\\\\src\\\\index.js';
+const targets = ${JSON.stringify(targets, null, 2)}.map((p) => path.resolve(p));
+const result = spawnSync(
+  process.execPath,
+  [cliEntry, 'recycle-to-trash-confirm', '--self-delete', selfPath, ...targets],
+  { stdio: 'inherit' }
+);
+process.exit(result.status ?? 1);
+`;
+
+    fs.writeFileSync(scriptPath, script, 'utf8');
+    return scriptPath;
 }
 
 // 跨平台安装依赖函数
@@ -176,14 +172,18 @@ function installDependencies() {
                     console.error('Failed to start frontend installation process:', err);
                     process.exit(1);
                 });
+
+                // IMPORTANT / 重要：不要在这里退出主进程，否则前端安装会被中断。
+                // Wait for `frontendChild` events above. / 等待上面的 `frontendChild` 事件回调。
+                return;
             } else {
                 console.log('All dependencies have been installed successfully!');
                 process.exit(0);
             }
         } else {
             console.error(`Main project dependency installation failed, exit code ${code}`);
+            process.exit(code);
         }
-        process.exit(code);
     });
 
     mainChild.on('error', (err) => {
@@ -196,14 +196,32 @@ async function main() {
     const nodeModulesExists = fs.existsSync(path.join(PROJECT_DIR, 'node_modules'));
     const frontendNodeModulesExists = fs.existsSync(path.join(PROJECT_DIR, 'frontend', 'node_modules'));
     const forceReinstall = process.argv.includes('--force') || process.argv.includes('-f');
+    const noDelete = process.argv.includes('--no-delete');
 
     const hasDependencies = nodeModulesExists || frontendNodeModulesExists;
 
     if (hasDependencies) {
-        if (forceReinstall) {
-            console.log('Detected --force parameter, directly deleting and reinstalling dependencies...');
-            await deleteDependencies();
+        if (noDelete) {
+            console.log('Detected --no-delete, will run installation without deleting anything.');
             installDependencies();
+            rl.close();
+            return;
+        }
+
+        if (forceReinstall) {
+            console.log('Detected --force parameter, but deletion requires manual confirmation.');
+            const targets = [
+                path.join(PROJECT_DIR, 'node_modules'),
+                path.join(PROJECT_DIR, 'package-lock.json'),
+                path.join(PROJECT_DIR, 'frontend', 'node_modules'),
+                path.join(PROJECT_DIR, 'frontend', 'package-lock.json'),
+            ].filter((p) => fs.existsSync(p));
+
+            const scriptPath = writeNeedConfirmDeleteScript(targets);
+            console.log(`Generated confirm-delete script: ${scriptPath}`);
+            console.log('Please run it manually, then re-run: node start_install.mjs --no-delete');
+            rl.close();
+            process.exit(2);
         } else {
             let message = 'Detected installed dependencies (';
             if (nodeModulesExists) message += 'main node_modules';
@@ -213,10 +231,21 @@ async function main() {
             
             rl.question(message, async (answer) => {
                 if (answer.toLowerCase() === 'y') {
-                    await deleteDependencies();
-                    installDependencies();
+                    const targets = [
+                        path.join(PROJECT_DIR, 'node_modules'),
+                        path.join(PROJECT_DIR, 'package-lock.json'),
+                        path.join(PROJECT_DIR, 'frontend', 'node_modules'),
+                        path.join(PROJECT_DIR, 'frontend', 'package-lock.json'),
+                    ].filter((p) => fs.existsSync(p));
+
+                    const scriptPath = writeNeedConfirmDeleteScript(targets);
+                    console.log(`Generated confirm-delete script: ${scriptPath}`);
+                    console.log('Please run it manually, then re-run: node start_install.mjs --no-delete');
+                    rl.close();
+                    process.exit(2);
                 } else {
-                    console.log('Operation cancelled.');
+                    console.log('Skip deletion. Continue with installation without deleting.');
+                    installDependencies();
                     rl.close();
                 }
             });

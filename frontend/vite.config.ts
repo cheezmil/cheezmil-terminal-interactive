@@ -63,6 +63,11 @@ export default defineConfig({
   },
   server: {
     port: Number(process.env.FRONTEND_PORT) || 1107,
+    // Disable caching to avoid stale index.html referencing old hashed bundles /
+    // 禁用缓存，避免 index.html 被缓存后仍引用旧的 hash 资源导致“刷新后样式/字符间距变回去”
+    headers: {
+      'Cache-Control': 'no-store',
+    },
     proxy: {
       '/api': {
         target: `http://127.0.0.1:${process.env.MCP_PORT || 1106}`, // MCP服务器地址
@@ -73,6 +78,11 @@ export default defineConfig({
   },
   preview: {
     port: Number(process.env.FRONTEND_PORT) || 1107,
+    // Disable caching to ensure refresh always picks the latest dist build /
+    // 禁用缓存，确保刷新总能拿到最新的dist构建结果
+    headers: {
+      'Cache-Control': 'no-store',
+    },
     proxy: {
       '/api': {
         target: `http://127.0.0.1:${process.env.MCP_PORT || 1106}`, // MCP服务器地址

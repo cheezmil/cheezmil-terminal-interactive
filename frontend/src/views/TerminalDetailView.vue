@@ -56,12 +56,64 @@ const canSendTerminalInput = computed(() => {
   return enableUserControl === true
 })
 
+// Wait for browser fonts to settle before xterm measures character size.
+// Fixes the “refresh then large character spacing” issue caused by late font loading /
+// 等待浏览器字体稳定后再让 xterm 测量字符尺寸。
+// 解决“刷新后字符间距变大”的问题：通常是字体晚加载导致 xterm 误测 cell 宽度
+const waitForFontsReady = async (timeoutMs = 800) => {
+  try {
+    const fonts = (document as any).fonts as FontFaceSet | undefined
+    if (fonts && fonts.ready && typeof (fonts.ready as any).then === 'function') {
+      await Promise.race([fonts.ready as unknown as Promise<void>, new Promise<void>((r) => setTimeout(r, timeoutMs))])
+      return
+    }
+  } catch {
+    // ignore
+  }
+  // Fallback: wait a couple of frames to let layout settle / 回退：等待两帧让布局稳定
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
+// Preload font by touching it in the DOM / 通过DOM触发字体加载（尤其是 @font-face 场景）
+const preloadTerminalFont = (fontFamily: string, fontSizePx: number) => {
+  try {
+    const span = document.createElement('span')
+    span.textContent = 'mmmmmmmmmm'
+    span.style.position = 'fixed'
+    span.style.left = '-9999px'
+    span.style.top = '0'
+    span.style.visibility = 'hidden'
+    span.style.fontFamily = fontFamily
+    span.style.fontSize = `${fontSizePx}px`
+    document.body.appendChild(span)
+    requestAnimationFrame(() => {
+      try {
+        span.remove()
+      } catch {
+        // ignore
+      }
+    })
+  } catch {
+    // ignore
+  }
+}
+
 // 初始化终端
 const setupTerminal = () => {
   try {
+    // Default to VS Code Windows-like stack to avoid font flip before config loads /
+    // 默认使用接近 VS Code Windows 的字体栈，避免配置未加载时字体来回切换
+    const defaultFontFamily = 'Consolas, \"Courier New\", monospace'
+    const vscodeFontFamily = settingsStore.configData?.terminal?.fontFamily || defaultFontFamily
+    const vscodeFontSize = Number(settingsStore.configData?.terminal?.fontSize || 14)
+    preloadTerminalFont(vscodeFontFamily, Number.isFinite(vscodeFontSize) ? vscodeFontSize : 14)
     term = new Terminal({
       cursorBlink: true,
-      fontSize: 12,
+      fontFamily: vscodeFontFamily,
+      fontSize: Number.isFinite(vscodeFontSize) ? vscodeFontSize : 14,
+      // VS Code defaults: lineHeight 1, letterSpacing 0 / VS Code 默认：行高 1，字距 0
+      lineHeight: 1,
+      letterSpacing: 0,
       theme: {
         background: '#000000',
         foreground: '#ffffff',
@@ -77,12 +129,103 @@ const setupTerminal = () => {
     fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
 
-    // 获取容器并打开终端
+    // 获取容器并打开终端 / Get container and open xterm
     nextTick(() => {
       const container = document.getElementById('terminal-container')
       if (container && term) {
-        term.open(container)
-        fitAddon?.fit()
+        // Mount into inner host when available to apply VS Code-like wrapper styles /
+        // 优先挂载到内部 host，以便套用类 VS Code wrapper 样式
+        void (async () => {
+          const host = container.querySelector('.cti-xterm-host') as HTMLElement | null
+
+          // Wait for fonts/layout before open+fit to avoid wrong cell width /
+          // 在 open+fit 前等待字体/布局稳定，避免 cell 宽度误测
+          await waitForFontsReady()
+          term.open(host || container)
+
+          // NOTE: Keep xterm's built-in renderer to match VS Code (canvas-based) and avoid incompatible third-party addons /
+          // 注意：保持 xterm 自带渲染器以贴近 VS Code（基于 canvas），并避免不兼容的第三方渲染 addon
+
+          // Fit AFTER fonts ready / 字体就绪后再 fit
+          try {
+            await waitForFontsReady()
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+            fitAddon?.fit()
+            term.refresh(0, term.rows - 1)
+          } catch (error) {
+            console.warn('Failed to fit terminal after fonts ready:', error)
+          }
+
+          // Re-fit once all fonts finish loading (covers slow @font-face) /
+          // 字体最终完成加载后再兜底适配一次（覆盖慢速 @font-face）
+          try {
+            const fonts = (document as any).fonts as FontFaceSet | undefined
+            fonts?.ready
+              ?.then(() => {
+                try {
+                  fitAddon?.fit()
+                  term.refresh(0, term.rows - 1)
+                } catch (e) {
+                  console.warn('Font-ready refit failed:', e)
+                }
+              })
+              .catch(() => {})
+          } catch {
+            // ignore
+          }
+        })()
+
+        // VS Code-like clipboard shortcuts / 类 VS Code 的剪贴板快捷键
+        // - Ctrl+Shift+C: copy selection
+        // - Ctrl+Shift+V: paste clipboard
+        term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+          try {
+            const isCtrlOrCmd = event.ctrlKey || event.metaKey
+            if (!isCtrlOrCmd || !event.shiftKey) {
+              return true
+            }
+
+            const key = (event.key || '').toLowerCase()
+            if (key === 'c') {
+              if (term?.hasSelection()) {
+                const selectedText = term.getSelection()
+                if (selectedText) {
+                  void (async () => {
+                    try {
+                      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                        await navigator.clipboard.writeText(selectedText)
+                      }
+                    } catch (error) {
+                      console.warn('Copy failed:', error)
+                    }
+                  })()
+                }
+              }
+              event.preventDefault()
+              return false
+            }
+
+            if (key === 'v') {
+              void (async () => {
+                try {
+                  if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+                    const text = await navigator.clipboard.readText()
+                    if (text) {
+                      term?.paste(text)
+                    }
+                  }
+                } catch (error) {
+                  console.warn('Paste failed:', error)
+                }
+              })()
+              event.preventDefault()
+              return false
+            }
+          } catch (error) {
+            console.warn('Custom key handler error:', error)
+          }
+          return true
+        })
 
         // 监听窗口大小变化
         window.addEventListener('resize', () => {
@@ -480,10 +623,15 @@ onUnmounted(() => {
             </div>
 
             <!-- 终端容器 -->
-            <div 
-              id="terminal-container"
-              class="terminal-container-wrapper"
-            ></div>
+            <div id="terminal-container" class="terminal-container-wrapper cti-vscode-terminal">
+              <div class="monaco-workbench w-full h-full">
+                <div class="pane-body integrated-terminal w-full h-full">
+                  <div class="terminal-wrapper">
+                    <div class="cti-xterm-host w-full h-full"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>

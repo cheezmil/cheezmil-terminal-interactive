@@ -15,23 +15,11 @@ import { Label } from '@/components/ui/label'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
-import { CanvasAddon } from 'xterm-addon-canvas'
 import { Copy } from 'lucide-vue-next'
 import { useTerminalStore } from '../stores/terminal'
-// import { CanvasAddon } from 'xterm-addon-canvas' // Temporarily disabled to avoid early activation error / 暂时禁用 CanvasAddon 以避免过早激活报错
 import { initializeApiService, terminalApi } from '../services/api-service'
 import { useSettingsStore } from '../stores/settings'
 import SvgIcon from '@/components/ui/svg-icon.vue'
-
-// Temporary CanvasAddon stub to prevent early activation errors before Terminal.open
-// 临时 CanvasAddon 桩类，用于避免在调用 Terminal.open 之前激活导致的报错
-class CanvasAddonStub {
-  activate(_term: any) {}
-  dispose() {}
-}
-// Use stub instead of real CanvasAddon for now
-// 当前使用桩类替代真实 CanvasAddon
-const _unusedCanvasAddonStub: any = CanvasAddonStub
 
 const router = useRouter()
 const { t } = useI18n()
@@ -46,7 +34,12 @@ const ACTIVE_TERMINAL_STORAGE_KEY = 'cti.activeTerminalId'
 const terminals = ref<any[]>([])
 const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
-const terminalInstances = ref<Map<string, { term: Terminal, fitAddon: FitAddon, canvasAddon: CanvasAddon | null, ws: WebSocket | null, hasLiveOutput: boolean }>>(new Map())
+const terminalInstances = ref<
+  Map<
+    string,
+    { term: Terminal; fitAddon: FitAddon; ws: WebSocket | null; hasLiveOutput: boolean }
+  >
+>(new Map())
 
 // Sidebar state / 侧边栏状态
 const isSidebarCollapsed = ref(false)
@@ -154,16 +147,6 @@ const deleteTerminal = async (id: string) => {
         console.warn('Failed to close WebSocket for terminal', id, wsError)
       }
 
-      // 优先尝试单独释放 CanvasAddon，避免其在 term.dispose() 中抛出异常 /
-      // Try disposing CanvasAddon first to avoid it throwing inside term.dispose()
-      try {
-        if (terminalInstance.canvasAddon && typeof terminalInstance.canvasAddon.dispose === 'function') {
-          terminalInstance.canvasAddon.dispose()
-        }
-      } catch (canvasError) {
-        console.warn('Failed to dispose CanvasAddon for terminal', id, canvasError)
-      }
-
       // 最后释放 xterm 实例本身，任何异常都只记录不阻断后续终结逻辑 /
       // Finally dispose the xterm instance itself, log any errors without blocking termination
       try {
@@ -237,6 +220,48 @@ const copyTerminalId = async (terminalId: string) => {
 }
 
 // Initialize terminal instance / 初始化终端实例
+// Wait for browser fonts to settle before xterm measures character size.
+// Fixes the “refresh then large character spacing” issue caused by late font loading /
+// 等待浏览器字体稳定后再让 xterm 测量字符尺寸。
+// 解决“刷新后字符间距变大”的问题：通常是字体晚加载导致 xterm 误测 cell 宽度
+const waitForFontsReady = async (timeoutMs = 800) => {
+  try {
+    const fonts = (document as any).fonts as FontFaceSet | undefined
+    if (fonts && fonts.ready && typeof (fonts.ready as any).then === 'function') {
+      await Promise.race([fonts.ready as unknown as Promise<void>, new Promise<void>((r) => setTimeout(r, timeoutMs))])
+      return
+    }
+  } catch {
+    // ignore
+  }
+  // Fallback: wait a couple of frames to let layout settle / 回退：等待两帧让布局稳定
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
+// Preload font by touching it in the DOM / 通过DOM触发字体加载（尤其是 @font-face 场景）
+const preloadTerminalFont = (fontFamily: string, fontSizePx: number) => {
+  try {
+    const span = document.createElement('span')
+    span.textContent = 'mmmmmmmmmm'
+    span.style.position = 'fixed'
+    span.style.left = '-9999px'
+    span.style.top = '0'
+    span.style.visibility = 'hidden'
+    span.style.fontFamily = fontFamily
+    span.style.fontSize = `${fontSizePx}px`
+    document.body.appendChild(span)
+    requestAnimationFrame(() => {
+      try {
+        span.remove()
+      } catch {
+        // ignore
+      }
+    })
+  } catch {
+    // ignore
+  }
+}
+
 const initializeTerminal = async (terminalId: string) => {
   if (terminalInstances.value.has(terminalId)) {
     return // Already initialized / 已经初始化过了
@@ -267,49 +292,66 @@ const initializeTerminal = async (terminalId: string) => {
       return
     }
 
-    // Clear container completely / 完全清空容器
+    // Clear container only; visual styles are handled by CSS / 仅清空容器；视觉样式交给CSS
     container.innerHTML = ''
     container.style.display = 'block'
     container.style.width = '100%'
     container.style.height = '100%'
-    container.style.backgroundColor = '#000000'
     
     console.log('Container cleared and styled')
 
     // Create xterm instance with VS Code-like defaults / 使用接近 VS Code 的默认配置创建 xterm 实例
+    // IMPORTANT: character spacing is mainly controlled by (fontFamily, fontSize, lineHeight, letterSpacing) /
+    // 重要：字符间距主要由（字体、字号、行高、字距）控制
+    // Default to VS Code Windows-like stack to avoid font flip before config loads /
+    // 默认使用接近 VS Code Windows 的字体栈，避免配置未加载时字体来回切换
+    const defaultFontFamily = 'Consolas, \"Courier New\", monospace'
+    const vscodeFontFamily = settingsStore.configData?.terminal?.fontFamily || defaultFontFamily
+    const vscodeFontSize = Number(settingsStore.configData?.terminal?.fontSize || 14)
+
+    // Ensure font is loaded before xterm measures char size / 确保字体加载后再让 xterm 测量字符尺寸
+    preloadTerminalFont(vscodeFontFamily, Number.isFinite(vscodeFontSize) ? vscodeFontSize : 14)
+    await waitForFontsReady()
     const term = new Terminal({
       cursorBlink: true,
       // VS Code-like monospace font stack / 类似 VS Code 的等宽字体栈
-      fontFamily: '"Cascadia Code", Menlo, Monaco, Consolas, "Courier New", monospace',
-      fontSize: 12,
+      fontFamily: vscodeFontFamily,
+      fontSize: Number.isFinite(vscodeFontSize) ? vscodeFontSize : 14,
+      // VS Code defaults: lineHeight 1, letterSpacing 0 / VS Code 默认：行高 1，字距 0
+      lineHeight: 1,
+      letterSpacing: 0,
+      // VS Code-like scrollback / 接近 VS Code 的回滚缓冲
+      scrollback: 10000,
+      // Keep CRLF consistent / 将 CRLF 统一为 LF，避免渲染异常
+      convertEol: true,
+      // Similar to VS Code defaults / 接近 VS Code 的默认行为
+      cursorStyle: 'block',
+      cursorWidth: 2,
+      windowsMode: true,
       theme: {
         // VS Code dark terminal inspired theme / 借鉴 VS Code 深色终端配色
-        background: '#111827',
-        foreground: '#e5e7eb',
-        cursor: '#facc15',
-        cursorAccent: '#111827',
-        selection: '#374151',
+        background: '#1e1e1e',
+        foreground: '#cccccc',
+        cursor: '#aeafad',
+        cursorAccent: '#1e1e1e',
+        selectionBackground: 'rgba(255, 255, 255, 0.25)',
         black: '#000000',
-        red: '#f87171',
-        green: '#34d399',
-        yellow: '#facc15',
-        blue: '#60a5fa',
-        magenta: '#c4b5fd',
-        cyan: '#22d3ee',
-        white: '#e5e7eb',
-        brightBlack: '#6b7280',
-        brightRed: '#fca5a5',
-        brightGreen: '#86efac',
-        brightYellow: '#fde68a',
-        brightBlue: '#93c5fd',
-        brightMagenta: '#e9d5ff',
-        brightCyan: '#67e8f9',
-        brightWhite: '#ffffff'
+        red: '#cd3131',
+        green: '#0dbc79',
+        yellow: '#e5e510',
+        blue: '#2472c8',
+        magenta: '#bc3fbc',
+        cyan: '#11a8cd',
+        white: '#e5e5e5',
+        brightBlack: '#666666',
+        brightRed: '#f14c4c',
+        brightGreen: '#23d18b',
+        brightYellow: '#f5f543',
+        brightBlue: '#3b8eea',
+        brightMagenta: '#d670d6',
+        brightCyan: '#29b8db',
+        brightWhite: '#e5e5e5'
       },
-      rows: 24,
-      cols: 80,
-      scrollback: 2000,
-      convertEol: true,
       allowProposedApi: true
     })
 
@@ -320,14 +362,64 @@ const initializeTerminal = async (terminalId: string) => {
     term.loadAddon(fitAddon)
     console.log('FitAddon loaded')
 
-    // For maximum selection accuracy we avoid CanvasAddon here and keep DOM renderer only
-    // 为了保证文本选择的精确性，这里不加载 CanvasAddon，仅使用默认 DOM 渲染器
-    const canvasAddon: CanvasAddon | null = null
-
     // Open terminal with delay to ensure DOM is ready / 延迟打开终端确保DOM准备好
     await new Promise(resolve => setTimeout(resolve, 50))
     term.open(container)
     console.log('Terminal opened in container')
+    // NOTE: Keep xterm's built-in renderer to match VS Code (canvas-based) and avoid incompatible third-party addons /
+    // 注意：保持 xterm 自带渲染器以贴近 VS Code（基于 canvas），并避免不兼容的第三方渲染 addon
+
+    // VS Code-like clipboard shortcuts / 类 VS Code 的剪贴板快捷键
+    // - Ctrl+Shift+C: copy selection
+    // - Ctrl+Shift+V: paste clipboard
+    term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      try {
+        const isCtrlOrCmd = event.ctrlKey || event.metaKey
+        if (!isCtrlOrCmd || !event.shiftKey) {
+          return true
+        }
+
+        const key = (event.key || '').toLowerCase()
+        if (key === 'c') {
+          if (term.hasSelection()) {
+            const selectedText = term.getSelection()
+            if (selectedText) {
+              void (async () => {
+                try {
+                  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    await navigator.clipboard.writeText(selectedText)
+                  }
+                } catch (error) {
+                  console.warn('Copy failed:', error)
+                }
+              })()
+            }
+          }
+          event.preventDefault()
+          return false
+        }
+
+        if (key === 'v') {
+          void (async () => {
+            try {
+              if (navigator.clipboard && typeof navigator.clipboard.readText === 'function') {
+                const text = await navigator.clipboard.readText()
+                if (text) {
+                  term.paste(text)
+                }
+              }
+            } catch (error) {
+              console.warn('Paste failed:', error)
+            }
+          })()
+          event.preventDefault()
+          return false
+        }
+      } catch (error) {
+        console.warn('Custom key handler error:', error)
+      }
+      return true
+    })
 
     // 选中文本后右键直接复制 / Right-click to copy when selection exists
     const onContextMenu = async (event: MouseEvent) => {
@@ -366,11 +458,36 @@ const initializeTerminal = async (terminalId: string) => {
     ;(container as any)._ctiContextMenuHandler = onContextMenu
     container.addEventListener('contextmenu', onContextMenu)
     
-    // Fit terminal to container / 适配终端到容器
-    setTimeout(() => {
+    // Fit terminal to container AFTER fonts are ready to avoid wrong cell width /
+    // 在字体就绪后再适配，避免 cell 宽度误测导致“字符被拉开”
+    try {
+      await waitForFontsReady()
+      // Let renderer/layout settle / 再等一等渲染与布局稳定
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
       fitAddon.fit()
-      console.log('Terminal fitted to container')
-    }, 100)
+      term.refresh(0, term.rows - 1)
+      console.log('Terminal fitted to container (fonts-ready)')
+    } catch (error) {
+      console.warn('Failed to fit terminal after fonts ready:', error)
+    }
+
+    // Re-fit once all fonts finish loading (covers slow @font-face) /
+    // 字体最终完成加载后再兜底适配一次（覆盖慢速 @font-face）
+    try {
+      const fonts = (document as any).fonts as FontFaceSet | undefined
+      fonts?.ready
+        ?.then(() => {
+          try {
+            fitAddon.fit()
+            term.refresh(0, term.rows - 1)
+          } catch (e) {
+            console.warn('Font-ready refit failed:', e)
+          }
+        })
+        .catch(() => {})
+    } catch {
+      // ignore
+    }
 
     // 先写入本地缓存的输出（若有），提升切换性能 / Write cached output first (if any) to improve tab switch performance
     const cachedOutput = terminalStore.getTerminalOutput(terminalId)
@@ -414,7 +531,7 @@ const initializeTerminal = async (terminalId: string) => {
     }, 200)
 
     // Save instance early (before WS) / 先保存实例（在 WS 之前），避免历史输出覆盖 live 输出导致渲染乱套
-    const instance = { term, fitAddon, canvasAddon, ws: null as WebSocket | null, hasLiveOutput: false }
+    const instance = { term, fitAddon, ws: null as WebSocket | null, hasLiveOutput: false }
     terminalInstances.value.set(terminalId, instance)
     
     // Also store reference on DOM element for debugging / 也在DOM元素上存储引用以便调试
@@ -475,10 +592,8 @@ const initializeTerminal = async (terminalId: string) => {
       const instance = terminalInstances.value.get(terminalId)
       if (instance) {
         instance.fitAddon.fit()
-        // Also refresh canvas addon on resize / 在调整大小时也刷新canvas addon
-        if (instance.canvasAddon) {
-          instance.term.refresh(0, instance.term.rows - 1)
-        }
+        // Refresh after resize / 调整大小后刷新渲染
+        instance.term.refresh(0, instance.term.rows - 1)
       }
     }
     window.addEventListener('resize', resizeHandler)
@@ -723,6 +838,15 @@ onMounted(async () => {
   try {
     // Initialize API service first / 首先初始化API服务
     await initializeApiService()
+
+    // IMPORTANT: load config before creating xterm instances to keep font metrics stable across refreshes /
+    // 重要：在创建 xterm 实例前加载配置，避免刷新后字体/字号晚到导致字符间距“忽然变样”
+    try {
+      await settingsStore.loadFullConfig()
+    } catch (error) {
+      console.warn('Failed to load full config before terminal init, will fallback to defaults:', error)
+    }
+
     console.log('API service initialized, fetching terminals...')
     fetchTerminals()
 
@@ -933,9 +1057,7 @@ watch(terminals, (newTerminals) => {
                   aria-hidden="true"
                 />
                 <span class="font-semibold text-text-primary font-serif-luxury">{{ activeTerminal?.id || 'Terminal ' + (activeTerminalId || 'N/A') }}</span>
-                <span class="text-xs text-text-secondary font-mono truncate" :title="activeTerminal?.shell">
-                  {{ activeTerminal?.shell || '-' }}
-                </span>
+                <!-- Shell label removed by request / 按需求移除shell显示 -->
               </div>
             </div>
             
@@ -953,16 +1075,23 @@ watch(terminals, (newTerminals) => {
           </header>
 
           <!-- Luxury terminal content / 奢华终端内容 - 占满剩余空间 -->
-          <div class="flex-1 luxury-terminal-container overflow-hidden">
-            <!-- Render a dedicated container for each terminal and toggle visibility by activeTerminalId -->
-            <!-- 为每个终端渲染独立容器，通过 activeTerminalId 切换可见性 -->
+          <div class="flex-1 overflow-hidden">
+            <!-- VS Code-like terminal wrapper (scoped by .cti-vscode-terminal) / 类 VS Code 终端结构（由 .cti-vscode-terminal 限定作用域） -->
             <div
               v-for="terminal in terminals"
               :key="terminal.id"
               v-show="terminal.id === activeTerminalId"
-              :id="`terminal-${terminal.id}`"
-              class="w-full h-full luxury-terminal-viewport"
-            ></div>
+              class="w-full h-full cti-vscode-terminal"
+            >
+              <div class="monaco-workbench w-full h-full">
+                <div class="pane-body integrated-terminal w-full h-full">
+                  <div class="terminal-wrapper">
+                    <!-- xterm host node / xterm 挂载节点 -->
+                    <div :id="`terminal-${terminal.id}`" class="w-full h-full"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -1234,8 +1363,10 @@ watch(terminals, (newTerminals) => {
 }
 
 /* Luxury xterm.js styles aligned with 1Panel (visual only)
-   参考 1Panel 的奢华 xterm.js 样式（仅视觉，不改字体度量） */
-:deep(.xterm) {
+   参考 1Panel 的奢华 xterm.js 样式（仅视觉，不改字体度量）
+   NOTE: kept for history, but scoped to `.cti-luxury-terminal` which is no longer used by default. /
+   注意：保留作历史参考，但已限定到 `.cti-luxury-terminal`（默认不再使用）。 */
+.cti-luxury-terminal :deep(.xterm) {
   height: 100% !important;
   /* 避免使用内边距影响选择坐标，只保持背景等视觉效果 /
      Avoid padding that can affect selection coordinates, keep background-only visuals */
@@ -1246,30 +1377,30 @@ watch(terminals, (newTerminals) => {
 
 /* 仅对外层容器做圆角，不对内部滚动区域施加位移相关样式 /
    Apply border radius only, avoid styles that shift inner coordinate system */
-:deep(.xterm-viewport) {
+.cti-luxury-terminal :deep(.xterm-viewport) {
   background: #000000 !important;
   border-radius: 0.5rem !important;
 }
 
-:deep(.xterm-screen) {
+.cti-luxury-terminal :deep(.xterm-screen) {
   background: #000000 !important;
   border-radius: 0.5rem !important;
 }
 
 /* 使用纯背景颜色高亮选择区域，不改变其几何位置 /
    Use background color only for selection highlight, do not alter geometry */
-:deep(.xterm-selection) {
+.cti-luxury-terminal :deep(.xterm-selection) {
   background: var(--luxury-gold) !important;
   opacity: 0.3 !important;
 }
 
 /* Keep xterm rows visible without changing layout or position
    保持 xterm 行文本可见，但不改变其布局和定位逻辑 */
-:deep(.xterm-rows) {
+.cti-luxury-terminal :deep(.xterm-rows) {
   z-index: 1 !important;
 }
 
-:deep(.xterm-rows > div) {
+.cti-luxury-terminal :deep(.xterm-rows > div) {
   visibility: visible !important;
   opacity: 1 !important;
   color: #ffffff !important;
