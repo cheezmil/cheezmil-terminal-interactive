@@ -1,6 +1,6 @@
 # Cheezmil Terminal Interactive MCP Server
 
-[中文文档](README-ZH.md)
+[Chinese README](README-ZH.md)
 
 ## Why Use This Project
 - Currently, various mainstream AI programming tools get stuck when executing certain commands like `npm run dev`, causing the terminal to block. In such cases, AI doesn't receive timely feedback. Some AI programming tools have a hardcoded 2-minute timeout, and even after timeout, they can't see any terminal information. Some can see messages after timeout, while others get completely stuck. This project saves time wasted on getting stuck.
@@ -24,7 +24,7 @@ First fork this project for easy PR contributions, then:
 git clone https://github.com/<your-github-username>/cheezmil-terminal-interactive.git
 ```
 ```bash
-# Install dependencies
+# Install frontend and backend dependencies
 node start_install.mjs
 ```
 ```bash
@@ -39,7 +39,7 @@ node start_be_cheezmil-terminal-interactive.mjs
 ### ⚙️ MCP Client Configuration
 #### Before configuring MCP clients, it's best to add a rule to your AI programming tool:
 ```plaintext
-Always use the CTI MCP terminal tool to execute commands. Do not use the tool functions that come with the system prompt to execute commands.
+Except for commands that locate and read code files, all other commands must be executed using the CTI MCP terminal tool!
 ```
 > Of course, you can also ask your AI programming tool what the system's built-in command execution tool function is called, and then customize a prompt for it to combine CTI with the "system's built-in command execution tool function". If CTI is not running, AI will intelligently automatically use the original tool functions that come with the AI programming tool to execute commands. If you never tell it about the CTI tool, AI will likely never use CTI.
 

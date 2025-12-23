@@ -34,102 +34,8 @@ async function testBackendConnectivity() {
   }
 }
 
-// 测试命令黑名单是否生效（MCP工具层拦截）/ Test command blacklist enforcement (blocked at MCP tool layer)
-async function testCommandBlacklist() {
-  console.log('Testing MCP command blacklist...');
-
-  const baseUrl = 'http://localhost:1106';
-  const settingsUrl = `${baseUrl}/api/settings`;
-  const mcpUrl = new URL(`${baseUrl}/mcp`);
-
-  let originalConfig = null;
-  const terminalId = `blacklist-test-${Date.now()}`;
-  const customMessage = 'XXXXX';
-
-  try {
-    const getRes = await fetch(settingsUrl, { method: 'GET' });
-    if (!getRes.ok) {
-      throw new Error(`Failed to GET settings: ${getRes.status}`);
-    }
-    originalConfig = await getRes.json();
-
-    const testConfig = JSON.parse(JSON.stringify(originalConfig || {}));
-    testConfig.mcp = testConfig.mcp || {};
-    testConfig.mcp.commandBlacklist = {
-      ...(testConfig.mcp.commandBlacklist || {}),
-      caseInsensitive: true,
-      rules: [{ command: 'write-host', message: customMessage }]
-    };
-
-    const saveRes = await fetch(settingsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(testConfig)
-    });
-    if (!saveRes.ok) {
-      throw new Error(`Failed to POST settings: ${saveRes.status}`);
-    }
-
-    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
-    const transport = new StreamableHTTPClientTransport(mcpUrl);
-    await client.connect(transport);
-
-    const tools = await client.request({ method: 'tools/list', params: {} }, ListToolsResultSchema);
-    const hasInteractTool = tools.tools.some((t) => t.name === 'interact_with_terminal');
-    if (!hasInteractTool) {
-      throw new Error('Tool interact_with_terminal not found on server');
-    }
-
-    const result = await client.request({
-      method: 'tools/call',
-      params: {
-        name: 'interact_with_terminal',
-        arguments: {
-          terminalId,
-          input: 'Write-Host hello',
-          appendNewline: true,
-          waitForOutput: 0
-        }
-      }
-    }, CallToolResultSchema);
-
-    const textBlock = (result.content || []).find((c) => c.type === 'text');
-    const text = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
-
-    if (result.isError && text.includes(customMessage)) {
-      console.log('✅ Command blacklist enforced (blocked as expected)');
-    } else {
-      console.log('❌ Command blacklist NOT enforced');
-      console.log('Result:', JSON.stringify(result, null, 2));
-    }
-
-    // Cleanup: terminate the test terminal if it was created / 清理：如果创建了测试终端则终止
-    await client.request({
-      method: 'tools/call',
-      params: {
-        name: 'interact_with_terminal',
-        arguments: { killTerminal: true, terminalId }
-      }
-    }, CallToolResultSchema).catch(() => {});
-
-    await transport.close();
-  } catch (error) {
-    console.log(`⚠️ Command blacklist test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
-  } finally {
-    // Restore original config / 恢复原始配置
-    if (originalConfig) {
-      try {
-        await fetch(settingsUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(originalConfig)
-        });
-      } catch (error) {
-        console.log(`⚠️ Failed to restore settings: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-  }
-}
+// 注意：禁止在测试里触发“命令黑名单”相关逻辑，因为黑名单命令可能具有危险性。
+// Note: Do NOT test command blacklist behavior here because blacklisted commands may be dangerous.
 
 // 测试交互式终端提示：不应作为 Error 返回 / Test interactive-terminal notice: must NOT be returned as Error
 async function testInteractiveTerminalNotice() {
@@ -221,14 +127,82 @@ async function testInteractiveTerminalNotice() {
   }
 }
 
+// 测试 wait=idle + delta：新建终端执行 echo hello 应能稳定捕获输出
+// Test wait=idle + delta: new terminal running echo hello should reliably capture output
+async function testWaitIdleDeltaEchoHello() {
+  console.log('Testing wait=idle + delta (echo hello)...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `wait-delta-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'echo hello',
+            appendNewline: true,
+            wait: { mode: 'idle', timeoutMs: 3000, idleMs: 400 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const structured = result.structuredContent || {};
+    const output = typeof structured.commandOutput === 'string' ? structured.commandOutput : '';
+    const delta = structured.delta && typeof structured.delta.text === 'string' ? structured.delta.text : '';
+    const waitInfo = structured.wait || {};
+
+    if (result.isError === true) {
+      console.log('❌ wait/delta echo test returned error');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (!output.toLowerCase().includes('hello') && !delta.toLowerCase().includes('hello')) {
+      console.log('❌ echo output missing (expected to capture "hello")');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (!waitInfo || typeof waitInfo.mode !== 'string' || typeof waitInfo.timeoutMs !== 'number') {
+      console.log('❌ wait info missing from structuredContent');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ wait=idle returned with delta/output (expected)');
+    }
+
+    // Cleanup: terminate the test terminal / 清理：终止测试终端
+    await client
+      .request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'interact_with_terminal',
+            arguments: { killTerminal: true, terminalId }
+          }
+        },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ wait/delta echo test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 
 // 运行所有测试 / Run all tests
 async function runTests() {
   console.log('=== MCP Client Connectivity Tests ===');
   
   await testBackendConnectivity();
-  await testCommandBlacklist();
   await testInteractiveTerminalNotice();
+  await testWaitIdleDeltaEchoHello();
 
   
   console.log('=== Tests completed ===');

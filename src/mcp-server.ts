@@ -784,6 +784,16 @@ Fix tool: OpenAI Codex
         input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
         appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
         waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.'),
+        // 等待策略（推荐使用；兼容 waitForOutput） / Wait strategy (recommended; compatible with waitForOutput)
+        wait: z.object({
+          mode: z.enum(['none', 'idle', 'prompt', 'pattern', 'exit']).describe('Wait mode: none|idle|prompt|pattern|exit.'),
+          timeoutMs: z.number().describe('Max wait time in milliseconds. Must be finite; never waits forever.'),
+          idleMs: z.number().optional().describe('Idle time window in ms for mode=idle (default: 900).'),
+          pattern: z.string().optional().describe('Pattern to wait for when mode=pattern.'),
+          patternRegex: z.boolean().optional().describe('Treat pattern as regex (default: false).'),
+          patternCaseSensitive: z.boolean().optional().describe('Case sensitive match for pattern (default: false).'),
+          includeIntermediateOutput: z.boolean().optional().describe('Accumulate delta output during waiting (default: true).')
+        }).partial().optional().describe('Advanced wait strategy. If omitted but waitForOutput provided, it maps to mode=idle.'),
 
         // 一次性按键序列参数 / One-shot key sequence parameters
         // 允许 AI 在一次调用里发送多个按键，并给出每个按键之间的间隔时间
@@ -839,7 +849,7 @@ Fix tool: OpenAI Codex
       async (args: any): Promise<CallToolResult> => {
         const {
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
-          input, appendNewline, waitForOutput,
+          input, appendNewline, waitForOutput, wait,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
           specialOperation, keys, keyDelayMs, keySequence,
           search, searchRegex, caseSensitive, contextLines, maxMatches, searchSince
@@ -956,6 +966,67 @@ Fix tool: OpenAI Codex
           let structuredContent: any = {
             terminalId: actualTerminalId,
             terminalCreated
+          };
+
+          const normalizeOutputText = (text: string, commandInput: string | undefined, enable: boolean): string => {
+            if (!enable || !text) return text;
+            const inputTrimmed = (commandInput ?? '').replace(/\r/g, '').trim();
+            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+            const cleaned: string[] = [];
+            let previousLine: string | null = null;
+            let blankRun = 0;
+            let sawCommandEcho = false;
+
+            for (const rawLine of lines) {
+              const line = rawLine;
+              const trimmed = line.trim();
+
+              if (!trimmed) {
+                blankRun += 1;
+                if (blankRun <= 2) {
+                  cleaned.push(line);
+                }
+                previousLine = line;
+                continue;
+              }
+              blankRun = 0;
+
+              // Collapse consecutive identical lines (common for prompts / redraw)
+              if (previousLine !== null && line === previousLine) {
+                continue;
+              }
+              previousLine = line;
+
+              // Collapse repeated command echo (keep the first one).
+              if (inputTrimmed) {
+                if (trimmed === inputTrimmed || trimmed.endsWith(` ${inputTrimmed}`) || trimmed.endsWith(`> ${inputTrimmed}`)) {
+                  if (sawCommandEcho) {
+                    continue;
+                  }
+                  sawCommandEcho = true;
+                }
+              }
+
+              cleaned.push(line);
+            }
+
+            return cleaned.join('\n').replace(/\n{4,}/g, '\n\n\n').trimEnd();
+          };
+
+          const stripSpinnerChars = (text: string, enable: boolean): string => {
+            if (!enable || !text) return text;
+            let out = text;
+            out = out.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, '');
+            out = out.replace(/[|\/\\-]/g, (match, offset, string) => {
+              const prevChar = offset > 0 ? string[offset - 1] : '';
+              const nextChar = offset < string.length - 1 ? string[offset + 1] : '';
+              if (/[|\/\\-]/.test(prevChar) || /[|\/\\-]/.test(nextChar)) {
+                return '';
+              }
+              return match;
+            });
+            return out;
           };
           
           // 收集警告/提示信息并附加到最终响应（不阻断执行）
@@ -1179,50 +1250,225 @@ Fix tool: OpenAI Codex
             if (specialOperation) {
               structuredContent.specialOperation = specialOperation;
             }
-            
-            // 默认等待输出以确保能看到命令结果，除非明确指定不等待
-            const shouldWaitForOutput = waitForOutput !== undefined ? waitForOutput > 0 : true;
-            
-            // 如果指定了等待时间或使用默认等待，则等待并读取输出
-            if (shouldWaitForOutput) {
-              const waitTimeMs = waitForOutput && waitForOutput > 0 ? Math.round(waitForOutput * 1000) : 1000; // 默认等待1秒
-              await new Promise(resolve => setTimeout(resolve, waitTimeMs));
-              
-              const readOptions: any = {
-                terminalName: actualTerminalId,
-                since: since !== undefined ? since : currentCursor, // 使用写入命令前的光标位置作为起始点
-                maxLines: maxLines || 1000,
-                mode: mode || 'smart', // 默认使用smart模式
-                headLines: headLines || undefined,
-                tailLines: tailLines || undefined,
-                stripSpinner: stripSpinner !== undefined ? stripSpinner : true
-              };
-              
-              const outputResult = await this.terminalManager.readFromTerminal(readOptions);
-              
-              responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${outputResult.output}\n--- End of Command Output ---`;
-              
-              structuredContent = {
-                ...structuredContent,
-                waitForOutput,
-                commandOutput: outputResult.output,
-                readMode: readOptions.mode,
-                totalLines: outputResult.totalLines,
-                hasMore: outputResult.hasMore,
-                truncated: outputResult.truncated
-              };
-              
-              // 添加统计信息
-              if (outputResult.stats) {
-                structuredContent.stats = outputResult.stats;
+
+            // 等待策略：默认使用 idle，且永远不允许无限等待
+            // Wait strategy: default to idle and never wait forever
+            const mappedWait: any = (() => {
+              if (wait && typeof wait === 'object') {
+                return wait;
               }
-              
-              // 添加状态信息
-              if (outputResult.status) {
-                structuredContent.status = outputResult.status;
+              if (waitForOutput !== undefined) {
+                const timeoutMs = Math.max(0, Math.round(Number(waitForOutput) * 1000));
+                return { mode: timeoutMs > 0 ? 'idle' : 'none', timeoutMs, idleMs: 500, includeIntermediateOutput: true };
               }
+              // Default: idle wait to capture command output, safe for long-running processes.
+              return { mode: 'idle', timeoutMs: 2000, idleMs: 900, includeIntermediateOutput: true };
+            })();
+
+            const waitMode = mappedWait.mode ?? 'idle';
+            const waitTimeoutMs = Number.isFinite(mappedWait.timeoutMs) ? Math.max(0, Math.round(mappedWait.timeoutMs)) : 0;
+            const waitIdleMs = Number.isFinite(mappedWait.idleMs) ? Math.max(0, Math.round(mappedWait.idleMs)) : 900;
+            const includeIntermediateOutput = mappedWait.includeIntermediateOutput !== undefined ? Boolean(mappedWait.includeIntermediateOutput) : true;
+
+            const effectiveStripSpinner = stripSpinner !== undefined ? Boolean(stripSpinner) : true;
+            const effectiveMode = mode || 'smart';
+
+            const waitStart = Date.now();
+            const hardDeadline = waitStart + (waitTimeoutMs > 0 ? waitTimeoutMs : 0);
+            const pollIntervalMs = 150;
+
+            let nextSince = since !== undefined ? since : currentCursor;
+            let lastCursor = nextSince;
+            let accumulatedDelta = '';
+            let accumulatedBytes = 0;
+            let accumulatedLines = 0;
+            let hasSeenAnyDelta = false;
+            let lastActivityMs = Date.now();
+            let latestResult: any = null;
+
+            const checkPatternHit = (text: string): boolean => {
+              const pattern = typeof mappedWait.pattern === 'string' ? mappedWait.pattern : '';
+              if (!pattern) return false;
+              const isRegex = Boolean(mappedWait.patternRegex);
+              const isCaseSensitive = Boolean(mappedWait.patternCaseSensitive);
+              try {
+                if (isRegex) {
+                  const flags = isCaseSensitive ? 'm' : 'mi';
+                  const re = new RegExp(pattern, flags);
+                  return re.test(text);
+                }
+                if (isCaseSensitive) {
+                  return text.includes(pattern);
+                }
+                return text.toLowerCase().includes(pattern.toLowerCase());
+              } catch {
+                return false;
+              }
+            };
+
+            const shouldWait = waitMode !== 'none' && waitTimeoutMs > 0;
+            let waitMet = false;
+            let waitReason: 'timeout' | 'idle' | 'prompt' | 'pattern' | 'exit' | 'none' = 'none';
+
+            if (!shouldWait) {
+              waitReason = 'none';
             } else {
-              responseText = `Input sent to terminal ${actualTerminalId} successfully.`;
+              // Poll readFromTerminal with incremental cursor to reduce repeated output.
+              // 轮询增量读取，减少重复输出与调用次数
+              while (Date.now() < hardDeadline) {
+                const readOptions: any = {
+                  terminalName: actualTerminalId,
+                  since: nextSince,
+                  maxLines: maxLines || 1000,
+                  mode: effectiveMode,
+                  headLines: headLines || undefined,
+                  tailLines: tailLines || undefined
+                };
+
+                const outputResult = await this.terminalManager.readFromTerminal(readOptions);
+                latestResult = outputResult;
+
+                const status = outputResult.status || null;
+                if (status && typeof status.lastActivity === 'string') {
+                  const ms = Date.parse(status.lastActivity);
+                  if (Number.isFinite(ms)) {
+                    lastActivityMs = ms;
+                  }
+                }
+
+                const awaitingInput = this.terminalManager.isTerminalAwaitingInput(actualTerminalId);
+
+                // Extract delta text, then normalize/strip to reduce token usage.
+                const rawText = outputResult.output || '';
+                const spinnerStripped = stripSpinnerChars(rawText, effectiveStripSpinner);
+                const normalized = normalizeOutputText(spinnerStripped, actualInput, true);
+
+                const cursor = typeof outputResult.cursor === 'number' ? outputResult.cursor : undefined;
+                if (normalized) {
+                  const cursorAdvanced = cursor !== undefined ? cursor > lastCursor : normalized.length > 0;
+                  if (cursorAdvanced || !hasSeenAnyDelta) {
+                    hasSeenAnyDelta = true;
+                    if (includeIntermediateOutput) {
+                      accumulatedDelta += normalized;
+                      if (!normalized.endsWith('\n')) accumulatedDelta += '\n';
+                      accumulatedBytes += Buffer.byteLength(normalized, 'utf8');
+                      accumulatedLines += normalized.split('\n').length;
+                    }
+                  }
+                }
+
+                if (cursor !== undefined) {
+                  lastCursor = cursor;
+                  nextSince = cursor;
+                }
+
+                if (waitMode === 'pattern') {
+                  if (checkPatternHit(includeIntermediateOutput ? accumulatedDelta : normalized)) {
+                    waitMet = true;
+                    waitReason = 'pattern';
+                    break;
+                  }
+                } else if (waitMode === 'prompt') {
+                  if ((status && status.hasPrompt) || awaitingInput) {
+                    waitMet = true;
+                    waitReason = 'prompt';
+                    break;
+                  }
+                } else if (waitMode === 'exit') {
+                  // Best-effort: only rely on exposed status fields; never block forever.
+                  if (status && status.isRunning === false && hasSeenAnyDelta) {
+                    waitMet = true;
+                    waitReason = 'exit';
+                    break;
+                  }
+                } else if (waitMode === 'idle') {
+                  const idleForMs = Date.now() - lastActivityMs;
+                  if (hasSeenAnyDelta && idleForMs >= waitIdleMs) {
+                    waitMet = true;
+                    waitReason = 'idle';
+                    break;
+                  }
+                }
+
+                await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+              }
+
+              if (!waitMet) {
+                waitReason = 'timeout';
+              }
+            }
+
+            const finalResult = latestResult ?? await this.terminalManager.readFromTerminal({
+              terminalName: actualTerminalId,
+              since: since !== undefined ? since : currentCursor,
+              maxLines: maxLines || 1000,
+              mode: effectiveMode,
+              headLines: headLines || undefined,
+              tailLines: tailLines || undefined
+            });
+
+            const finalOutputRaw = finalResult.output || '';
+            const finalOutput = normalizeOutputText(stripSpinnerChars(finalOutputRaw, effectiveStripSpinner), actualInput, true);
+            const awaitingInput = this.terminalManager.isTerminalAwaitingInput(actualTerminalId);
+            const status = finalResult.status || null;
+
+            // 建议等待模式：尽量让客户端不需要猜 / Recommended wait mode to reduce guesswork
+            let recommendedWaitMode: 'idle' | 'prompt' | 'none' = 'idle';
+            let recommendationReason = 'default';
+            if (awaitingInput || (status && status.hasPrompt)) {
+              recommendedWaitMode = 'prompt';
+              recommendationReason = 'prompt detected';
+            } else if (status && status.isRunning) {
+              recommendedWaitMode = 'idle';
+              recommendationReason = 'command appears running';
+            } else {
+              recommendedWaitMode = 'idle';
+              recommendationReason = 'safe default for long-running processes';
+            }
+
+            responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${finalOutput}\n--- End of Command Output ---`;
+
+            structuredContent = {
+              ...structuredContent,
+              waitForOutput,
+              wait: {
+                mode: waitMode,
+                timeoutMs: waitTimeoutMs,
+                met: waitMet,
+                reason: waitReason
+              },
+              write: {
+                appendedNewline: structuredContent.appendNewline !== undefined ? structuredContent.appendNewline : true,
+                bytesWritten: typeof actualInput === 'string' ? Buffer.byteLength(actualInput, 'utf8') : 0,
+                startedAt: new Date(waitStart).toISOString()
+              },
+              read: {
+                mode: effectiveMode,
+                since: since !== undefined ? since : currentCursor,
+                cursor: finalResult.cursor ?? finalResult.since ?? null,
+                hasMore: Boolean(finalResult.hasMore),
+                truncated: Boolean(finalResult.truncated)
+              },
+              delta: {
+                text: normalizeOutputText(stripSpinnerChars(accumulatedDelta, effectiveStripSpinner), actualInput, true),
+                bytes: accumulatedBytes,
+                lines: accumulatedLines
+              },
+              commandOutput: finalOutput,
+              readMode: effectiveMode,
+              totalLines: finalResult.totalLines,
+              hasMore: finalResult.hasMore,
+              truncated: finalResult.truncated,
+              status: {
+                ...(status || {}),
+                awaitingInput,
+                recommendedWaitMode,
+                recommendationReason
+              }
+            };
+
+            if (finalResult.stats) {
+              structuredContent.stats = finalResult.stats;
             }
           } else {
             // 如果没有输入，则只读取终端输出
@@ -1237,8 +1483,10 @@ Fix tool: OpenAI Codex
             };
             
             const outputResult = await this.terminalManager.readFromTerminal(readOptions);
+            const effectiveStripSpinner = stripSpinner !== undefined ? Boolean(stripSpinner) : true;
+            const cleanedOutput = normalizeOutputText(stripSpinnerChars(outputResult.output || '', effectiveStripSpinner), undefined, true);
             
-            responseText = `Terminal Output (${actualTerminalId}):\n\n${outputResult.output}\n\n--- End of Output ---`;
+            responseText = `Terminal Output (${actualTerminalId}):\n\n${cleanedOutput}\n\n--- End of Output ---`;
             responseText += `\nTotal Lines: ${outputResult.totalLines}\n`;
             responseText += `Has More: ${outputResult.hasMore}\n`;
             responseText += `Next Read Cursor: ${outputResult.cursor ?? outputResult.since}`;
@@ -1252,7 +1500,19 @@ Fix tool: OpenAI Codex
               readMode: readOptions.mode,
               totalLines: outputResult.totalLines,
               hasMore: outputResult.hasMore,
-              truncated: outputResult.truncated
+              truncated: outputResult.truncated,
+              read: {
+                mode: readOptions.mode,
+                since: readOptions.since ?? null,
+                cursor: outputResult.cursor ?? outputResult.since ?? null,
+                hasMore: Boolean(outputResult.hasMore),
+                truncated: Boolean(outputResult.truncated)
+              },
+              delta: {
+                text: cleanedOutput,
+                bytes: Buffer.byteLength(cleanedOutput || '', 'utf8'),
+                lines: (cleanedOutput || '').split('\n').length
+              }
             };
             
             // 添加统计信息
