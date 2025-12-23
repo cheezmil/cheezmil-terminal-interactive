@@ -330,10 +330,11 @@ const initializeTerminal = async (terminalId: string) => {
       windowsMode: true,
       theme: {
         // VS Code dark terminal inspired theme / 借鉴 VS Code 深色终端配色
-        background: '#1e1e1e',
+        // User requested pure black background / 按你的要求改为纯黑背景
+        background: '#000000',
         foreground: '#cccccc',
         cursor: '#aeafad',
-        cursorAccent: '#1e1e1e',
+        cursorAccent: '#000000',
         selectionBackground: 'rgba(255, 255, 255, 0.25)',
         black: '#000000',
         red: '#cd3131',

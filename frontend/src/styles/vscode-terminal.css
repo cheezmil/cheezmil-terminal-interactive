@@ -14,15 +14,16 @@
 
 /* Container + CSS variables / 容器与变量 */
 .cti-vscode-terminal {
-  --vscode-terminal-background: #1e1e1e;
+  /* Match VS Code's pure black terminal background preference / 贴近你要求的纯黑终端背景 */
+  --vscode-terminal-background: #000000;
   --vscode-terminal-foreground: #cccccc;
   --vscode-terminal-border: rgba(255, 255, 255, 0.08);
   --vscode-terminal-tab-activeBorder: #0e639c;
   --vscode-terminal-dropBackground: rgba(14, 99, 156, 0.18);
   --vscode-editorGroup-dropBackground: rgba(14, 99, 156, 0.18);
-  --vscode-panel-background: #1e1e1e;
-  --vscode-editorPane-background: #1e1e1e;
-  --vscode-sideBar-background: #1e1e1e;
+  --vscode-panel-background: #000000;
+  --vscode-editorPane-background: #000000;
+  --vscode-sideBar-background: #000000;
   --vscode-focusBorder: #007fd4;
   --vscode-scrollbar-shadow: #000;
 

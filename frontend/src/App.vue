@@ -16,7 +16,36 @@ const isLoaded = ref(false)
 const terminalStore = useTerminalStore()
 const settingsStore = useSettingsStore()
 
-// 版本信息（来自后端 /api/version）/ Version info from backend /api/version
+// App version injected at build time from repo root VERSION /
+// 构建时从仓库根目录 VERSION 注入的前端版本号
+declare const __CTI_VERSION__: string
+const localVersion = String(__CTI_VERSION__ || '0.0.0').trim() || '0.0.0'
+
+// Compare semver-like versions (e.g. 0.10.0) /
+// 比较类似语义化版本号（例如 0.10.0）
+const compareVersions = (leftVersion: string, rightVersion: string) => {
+  const normalize = (input: string) =>
+    String(input || '')
+      .trim()
+      .replace(/^v/i, '')
+      .split('.')
+      .map((part) => {
+        const n = Number.parseInt(part, 10)
+        return Number.isFinite(n) ? n : 0
+      })
+
+  const leftParts = normalize(leftVersion)
+  const rightParts = normalize(rightVersion)
+  const maxLen = Math.max(leftParts.length, rightParts.length)
+  for (let index = 0; index < maxLen; index += 1) {
+    const left = leftParts[index] ?? 0
+    const right = rightParts[index] ?? 0
+    if (left !== right) return left > right ? 1 : -1
+  }
+  return 0
+}
+
+// 版本信息（远端最新版本来自后端 /api/version）/ Latest version info from backend /api/version
 const versionInfo = ref<{
   currentVersion: string
   latestVersion: string | null
@@ -73,14 +102,21 @@ const loadVersionInfo = async () => {
       throw new Error(await response.text())
     }
     const data = await response.json()
+    const latestVersion = (data.latestVersion ?? null) as string | null
+
+    // Keep current version strictly aligned with local VERSION file /
+    // currentVersion 严格以本地 VERSION 文件为准
+    const updateAvailable =
+      Boolean(latestVersion) && compareVersions(String(latestVersion), localVersion) > 0
     versionInfo.value = {
-      currentVersion: data.currentVersion || '0.0.0',
-      latestVersion: data.latestVersion ?? null,
-      updateAvailable: Boolean(data.updateAvailable)
+      currentVersion: localVersion,
+      latestVersion,
+      updateAvailable
     }
   } catch (error) {
     console.warn('Failed to load version info:', error)
-    versionInfo.value = null
+    // Fallback to local version only / 失败时只显示本地版本
+    versionInfo.value = { currentVersion: localVersion, latestVersion: null, updateAvailable: false }
   }
 }
 

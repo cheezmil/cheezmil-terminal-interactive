@@ -1,12 +1,30 @@
+import fs from 'fs'
 import path from "path"
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 // https://vite.dev/config/
+// Build-time app version from repo root VERSION file /
+// 构建时从仓库根目录 VERSION 文件注入前端版本号
+const CTI_LOCAL_VERSION = (() => {
+  try {
+    const versionPath = path.resolve(__dirname, '..', 'VERSION')
+    const raw = fs.readFileSync(versionPath, 'utf8')
+    const v = raw.trim()
+    return v || '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+})()
+
 export default defineConfig({
   plugins: [
     vue(),
   ],
+  // Inject version constant into the bundle / 注入版本常量到 bundle
+  define: {
+    __CTI_VERSION__: JSON.stringify(CTI_LOCAL_VERSION),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
