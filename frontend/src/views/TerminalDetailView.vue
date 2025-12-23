@@ -5,8 +5,9 @@ import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Terminal } from 'xterm'
-import { FitAddon } from 'xterm-addon-fit'
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import { useSettingsStore } from '../stores/settings'
 
@@ -72,6 +73,50 @@ const waitForFontsReady = async (timeoutMs = 800) => {
   }
   // Fallback: wait a couple of frames to let layout settle / 回退：等待两帧让布局稳定
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
+// Wait for two animation frames (layout + style settle) /
+// 等两帧（让布局与样式稳定）
+const waitForRaf2 = async () => {
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
+// Force xterm to re-measure char size and notify renderer (private API best-effort) /
+// 强制 xterm 重新测量字符尺寸并通知渲染器（尽力而为的私有 API）
+const forceXtermCharMeasure = (targetTerm: Terminal) => {
+  try {
+    const core = (targetTerm as any)?._core
+    core?._charSizeService?.measure?.()
+    core?._renderService?.handleCharSizeChanged?.()
+  } catch {
+    // ignore / 忽略
+  }
+}
+
+// Get DOM renderer's injected letter-spacing (px) on .xterm-rows /
+// 读取 DOM renderer 写入到 .xterm-rows 的行内 letter-spacing（单位 px）
+const getDomRendererLetterSpacingPx = (targetTerm: Terminal) => {
+  try {
+    const rows = targetTerm.element?.querySelector('.xterm-rows') as HTMLElement | null
+    const raw = rows?.style?.letterSpacing || ''
+    const value = Number.parseFloat(raw)
+    return Number.isFinite(value) ? value : 0
+  } catch {
+    return 0
+  }
+}
+
+// Fix the "characters spaced out" issue in DOM renderer by re-measuring when needed /
+// 通过必要时重测字符尺寸，修复 DOM renderer 的“字符被拉开”问题
+const stabilizeDomRendererSpacing = async (targetTerm: Terminal) => {
+  const maxAttempts = 6
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await waitForRaf2()
+    const spacing = getDomRendererLetterSpacingPx(targetTerm)
+    if (spacing <= 1) return
+    forceXtermCharMeasure(targetTerm)
+    targetTerm.refresh(0, Math.max(0, targetTerm.rows - 1))
+  }
 }
 
 // Preload font by touching it in the DOM / 通过DOM触发字体加载（尤其是 @font-face 场景）
@@ -143,8 +188,26 @@ const setupTerminal = () => {
           await waitForFontsReady()
           term.open(host || container)
 
-          // NOTE: Keep xterm's built-in renderer to match VS Code (canvas-based) and avoid incompatible third-party addons /
-          // 注意：保持 xterm 自带渲染器以贴近 VS Code（基于 canvas），并避免不兼容的第三方渲染 addon
+          // Prefer VS Code-like GPU renderer to avoid DOM renderer spacing issues /
+          // 优先使用 VS Code 类似的 GPU 渲染器，避免 DOM 渲染的字距问题
+          try {
+            const webglAddon = new WebglAddon()
+            webglAddon.onContextLoss(() => {
+              try {
+                webglAddon.dispose()
+              } catch {
+                // ignore / 忽略
+              }
+            })
+            term.loadAddon(webglAddon)
+            console.log('WebglAddon loaded')
+          } catch (error) {
+            console.warn('WebglAddon failed, fallback to DOM renderer:', error)
+          }
+
+          // Stabilize DOM renderer spacing (xterm may inject huge letter-spacing when char width is mis-measured) /
+          // 稳定 DOM renderer 的字距（xterm 在字符宽度误测时会写入巨大的 letter-spacing）
+          await stabilizeDomRendererSpacing(term)
 
           // Fit AFTER fonts ready / 字体就绪后再 fit
           try {
@@ -227,9 +290,17 @@ const setupTerminal = () => {
           return true
         })
 
-        // 监听窗口大小变化
+        // 监听窗口大小变化 / Listen for window resize
         window.addEventListener('resize', () => {
-          fitAddon?.fit()
+          if (!term || !fitAddon) return
+          void (async () => {
+            await waitForRaf2()
+            fitAddon.fit()
+            // Force char re-measure on resize to avoid spacing glitches / resize 时强制重测字符尺寸，避免字距异常
+            forceXtermCharMeasure(term)
+            term.refresh(0, Math.max(0, term.rows - 1))
+            await stabilizeDomRendererSpacing(term)
+          })()
         })
       }
     })

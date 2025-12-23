@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { DialogFooter } from '@/components/ui/dialog'
-import { Terminal } from 'xterm'
-import { FitAddon } from 'xterm-addon-fit'
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import { WebglAddon } from '@xterm/addon-webgl'
 import { Copy } from 'lucide-vue-next'
 import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
@@ -238,6 +239,52 @@ const waitForFontsReady = async (timeoutMs = 800) => {
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
 }
 
+// Wait for two animation frames (layout + style settle) /
+// 等两帧（让布局与样式稳定）
+const waitForRaf2 = async () => {
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
+// Force xterm to re-measure char size and notify renderer (private API best-effort) /
+// 强制 xterm 重新测量字符尺寸并通知渲染器（尽力而为的私有 API）
+const forceXtermCharMeasure = (term: Terminal) => {
+  try {
+    const core = (term as any)?._core
+    core?._charSizeService?.measure?.()
+    core?._renderService?.handleCharSizeChanged?.()
+  } catch {
+    // ignore / 忽略
+  }
+}
+
+// Get DOM renderer's injected letter-spacing (px) on .xterm-rows /
+// 读取 DOM renderer 写入到 .xterm-rows 的行内 letter-spacing（单位 px）
+const getDomRendererLetterSpacingPx = (term: Terminal) => {
+  try {
+    const rows = term.element?.querySelector('.xterm-rows') as HTMLElement | null
+    const raw = rows?.style?.letterSpacing || ''
+    const value = Number.parseFloat(raw)
+    return Number.isFinite(value) ? value : 0
+  } catch {
+    return 0
+  }
+}
+
+// Fix the "characters spaced out" issue in DOM renderer by re-measuring when needed /
+// 通过必要时重测字符尺寸，修复 DOM renderer 的“字符被拉开”问题
+const stabilizeDomRendererSpacing = async (term: Terminal) => {
+  // In correct state this should be 0 or very small; when broken it becomes ~cellWidth (e.g. 7.687px) /
+  // 正常时应为 0 或极小；异常时会变成 ~cellWidth（例如 7.687px）
+  const maxAttempts = 6
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    await waitForRaf2()
+    const spacing = getDomRendererLetterSpacingPx(term)
+    if (spacing <= 1) return
+    forceXtermCharMeasure(term)
+    term.refresh(0, Math.max(0, term.rows - 1))
+  }
+}
+
 // Preload font by touching it in the DOM / 通过DOM触发字体加载（尤其是 @font-face 场景）
 const preloadTerminalFont = (fontFamily: string, fontSizePx: number) => {
   try {
@@ -367,8 +414,27 @@ const initializeTerminal = async (terminalId: string) => {
     await new Promise(resolve => setTimeout(resolve, 50))
     term.open(container)
     console.log('Terminal opened in container')
-    // NOTE: Keep xterm's built-in renderer to match VS Code (canvas-based) and avoid incompatible third-party addons /
-    // 注意：保持 xterm 自带渲染器以贴近 VS Code（基于 canvas），并避免不兼容的第三方渲染 addon
+
+    // Prefer VS Code-like GPU renderer to avoid DOM renderer spacing issues /
+    // 优先使用 VS Code 类似的 GPU 渲染器，避免 DOM 渲染的字距问题
+    try {
+      const webglAddon = new WebglAddon()
+      webglAddon.onContextLoss(() => {
+        try {
+          webglAddon.dispose()
+        } catch {
+          // ignore / 忽略
+        }
+      })
+      term.loadAddon(webglAddon)
+      console.log('WebglAddon loaded')
+    } catch (error) {
+      console.warn('WebglAddon failed, fallback to DOM renderer:', error)
+    }
+
+    // Stabilize DOM renderer spacing (xterm may inject huge letter-spacing when char width is mis-measured) /
+    // 稳定 DOM renderer 的字距（xterm 在字符宽度误测时会写入巨大的 letter-spacing）
+    await stabilizeDomRendererSpacing(term)
 
     // VS Code-like clipboard shortcuts / 类 VS Code 的剪贴板快捷键
     // - Ctrl+Shift+C: copy selection
@@ -592,9 +658,15 @@ const initializeTerminal = async (terminalId: string) => {
     const resizeHandler = () => {
       const instance = terminalInstances.value.get(terminalId)
       if (instance) {
-        instance.fitAddon.fit()
-        // Refresh after resize / 调整大小后刷新渲染
-        instance.term.refresh(0, instance.term.rows - 1)
+        void (async () => {
+          await waitForRaf2()
+          instance.fitAddon.fit()
+          // Force char re-measure on resize to avoid spacing glitches / resize 时强制重测字符尺寸，避免字距异常
+          forceXtermCharMeasure(instance.term)
+          // Refresh after resize / 调整大小后刷新渲染
+          instance.term.refresh(0, instance.term.rows - 1)
+          await stabilizeDomRendererSpacing(instance.term)
+        })()
       }
     }
     window.addEventListener('resize', resizeHandler)
@@ -716,7 +788,9 @@ const fitAndRefreshTerminal = async (terminalId: string) => {
   }
   try {
     instance.fitAddon.fit()
+    forceXtermCharMeasure(instance.term)
     instance.term.refresh(0, instance.term.rows - 1)
+    await stabilizeDomRendererSpacing(instance.term)
   } catch (error) {
     console.warn('Failed to fit/refresh terminal', terminalId, error)
   }
