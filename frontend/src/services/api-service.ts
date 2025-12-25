@@ -178,12 +178,14 @@ export const terminalApi = {
     const endpoint = getEndpoint('terminals', 'read').replace(':id', id);
     const url = endpoint.startsWith('http') ? endpoint : `http://localhost:1106${endpoint}`;
     const params = new URLSearchParams();
-    if (options?.since) params.append('since', options.since.toString());
-    if (options?.maxLines) params.append('maxLines', options.maxLines.toString());
+    // 允许 0 值（例如 maxLines=0 表示不限制，since=0 表示从起点）/ Allow 0 values (e.g. maxLines=0 means unlimited, since=0 means from start)
+    if (options && options.since !== undefined) params.append('since', options.since.toString());
+    if (options && options.maxLines !== undefined) params.append('maxLines', options.maxLines.toString());
     if (options?.mode) params.append('mode', options.mode);
-    if (options?.headLines) params.append('headLines', options.headLines.toString());
-    if (options?.tailLines) params.append('tailLines', options.tailLines.toString());
+    if (options && options.headLines !== undefined) params.append('headLines', options.headLines.toString());
+    if (options && options.tailLines !== undefined) params.append('tailLines', options.tailLines.toString());
     if (options?.stripSpinner !== undefined) params.append('stripSpinner', options.stripSpinner.toString());
+    if (options?.direction) params.append('direction', options.direction);
     
     const finalUrl = params.toString() ? `${url}?${params.toString()}` : url;
     return fetch(finalUrl, {

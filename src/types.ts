@@ -57,6 +57,7 @@ export interface TerminalReadOptions {
   headLines?: number | undefined;
   tailLines?: number | undefined;
   stripSpinner?: boolean | undefined;
+  direction?: 'forward' | 'backward' | undefined;
 }
 
 export interface TerminalReadResult {
@@ -116,6 +117,9 @@ export interface OutputBufferEntry {
 export interface BufferReadOptions {
   since?: number | undefined;
   maxLines?: number | undefined;
+  // 读取方向：forward=从旧到新分页；backward=始终取最新（默认行为）/
+  // Read direction: forward=page from old to new; backward=always take latest (default behavior)
+  direction?: 'forward' | 'backward' | undefined;
 }
 
 export interface BufferReadResult {
@@ -176,6 +180,7 @@ export interface ReadTerminalInput {
   headLines?: number;
   tailLines?: number;
   stripSpinner?: boolean;
+  direction?: 'forward' | 'backward';
 }
 
 export interface TerminalStatsInput {

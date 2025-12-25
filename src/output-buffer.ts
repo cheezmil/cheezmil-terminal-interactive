@@ -452,10 +452,12 @@ export class OutputBuffer extends EventEmitter {
    * 读取缓冲区内容
    */
   read(options: BufferReadOptions = {}): BufferReadResult {
-    const { since = 0, maxLines = 1000 } = options;
+    const { since = 0, maxLines = 1000, direction = 'backward' } = options;
 
     const filtered = this.buffer.filter(entry => entry.sequence > since);
-    const entries = maxLines ? filtered.slice(-maxLines) : filtered;
+    const entries = maxLines
+      ? (direction === 'forward' ? filtered.slice(0, maxLines) : filtered.slice(-maxLines))
+      : filtered;
     const truncated = Boolean(maxLines && filtered.length > entries.length);
     const nextCursor = entries.length > 0 ? entries[entries.length - 1]!.sequence : since;
     const hasMore = truncated || (this.oldestSequence > 0 && since > 0 && since < this.oldestSequence);

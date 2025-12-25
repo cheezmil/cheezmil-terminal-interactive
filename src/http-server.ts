@@ -506,13 +506,21 @@ async function setupFrontendApiRoutes(fastify: FastifyInstance): Promise<void> {
         return;
       }
       const query = request.query as any;
-      const { since, maxLines, mode } = query;
+      const { since, maxLines, mode, direction } = query;
+
+      // 允许 0 值（例如 maxLines=0 表示不限制）/ Allow 0 values (e.g. maxLines=0 means unlimited)
+      const parseOptionalInt = (value: unknown): number | undefined => {
+        if (value === undefined) return undefined;
+        const parsed = Number.parseInt(String(value), 10);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
 
       const result = await terminalManager.readFromTerminal({
         terminalName: id,
-        since: since ? parseInt(since) : undefined,
-        maxLines: maxLines ? parseInt(maxLines) : undefined,
-        mode: mode as any
+        since: parseOptionalInt(since),
+        maxLines: parseOptionalInt(maxLines),
+        mode: mode as any,
+        direction: direction as any
       });
 
       return result;

@@ -195,19 +195,29 @@ export class TerminalApiRoutes {
       try {
         const { terminalId } = request.params as { terminalId: string };
         const query = request.query as any;
-        const since = query.since ? parseInt(query.since) : undefined;
-        const maxLines = query.maxLines ? parseInt(query.maxLines) : undefined;
-        const mode = query.mode || undefined;
-        const headLines = query.headLines ? parseInt(query.headLines) : undefined;
-        const tailLines = query.tailLines ? parseInt(query.tailLines) : undefined;
 
+        // 允许 0 值（例如 maxLines=0 表示不限制）/ Allow 0 values (e.g. maxLines=0 means unlimited)
+        const parseOptionalInt = (value: unknown): number | undefined => {
+          if (value === undefined) return undefined;
+          const parsed = Number.parseInt(String(value), 10);
+          return Number.isFinite(parsed) ? parsed : undefined;
+        };
+
+        const since = parseOptionalInt(query.since);
+        const maxLines = parseOptionalInt(query.maxLines);
+        const mode = query.mode || undefined;
+        const headLines = parseOptionalInt(query.headLines);
+        const tailLines = parseOptionalInt(query.tailLines);
+        const direction = query.direction || undefined;
+        
         const result = await this.terminalManager.readFromTerminal({
           terminalName: terminalId!,
-          since: since || undefined,
-          maxLines: maxLines || undefined,
+          since: since ?? undefined,
+          maxLines: maxLines ?? undefined,
           mode: mode as any || undefined,
-          headLines: headLines || undefined,
-          tailLines: tailLines || undefined
+          headLines: headLines ?? undefined,
+          tailLines: tailLines ?? undefined,
+          direction: direction as any || undefined
         });
 
         return result;

@@ -679,43 +679,30 @@ const initializeTerminal = async (terminalId: string) => {
 }
 
 // Load terminal historical output / 加载终端历史输出
+// 分块写入 xterm，避免一次性写入大文本导致卡顿 / Chunked write into xterm to avoid UI stalls on large payloads
+const writeXtermInChunks = async (term: any, text: string) => {
+  if (!term || !text) return
+  const CHUNK_SIZE = 50000
+  for (let offset = 0; offset < text.length; offset += CHUNK_SIZE) {
+    const chunk = text.slice(offset, offset + CHUNK_SIZE)
+    await new Promise<void>((resolve) => {
+      try {
+        term.write(chunk, resolve)
+      } catch {
+        resolve()
+      }
+    })
+    // 让出事件循环，保持页面响应 / Yield to event loop to keep UI responsive
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+}
+
 const loadTerminalOutput = async (terminalId: string) => {
   try {
     console.log(`Loading output for terminal ${terminalId}...`)
     
     // Wait a bit for terminal instance to be fully initialized / 等待一小段时间以确保终端实例完全初始化
     await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Use dynamic API service / 使用动态API服务
-    // 只读取最近一部分历史输出，避免一次性加载过多数据导致切换卡顿
-    // Only fetch the most recent portion of history to avoid laggy tab switches
-    const response = await terminalApi.readOutput(terminalId, {
-      mode: 'tail',
-      tailLines: 200,
-      stripSpinner: true
-    })
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
-      throw new Error('Failed to load output')
-    }
-    const data = await response.json() as { output?: string }
-    console.log(`Output data for terminal ${terminalId}:`, data)
-
-    // 使用后端返回的完整输出内容，避免再次截断导致看不到真实历史
-    // Use full backend output directly to avoid over-truncation hiding real history
-    const output = data.output ?? ''
-
-    // 同步历史输出到 pinia 缓存 / Sync historical output into pinia cache
-    if (output && output.length > 0) {
-      terminalStore.setTerminalOutput(terminalId, output)
-    }
-
-    // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
-    if (!output || output.length === 0) {
-      console.log(`No historical output for terminal ${terminalId}, keep current content`)
-      return
-    }
 
     // Get terminal instance and check if it's ready / 获取终端实例并检查是否就绪
     let retries = 0
@@ -729,31 +716,76 @@ const loadTerminalOutput = async (terminalId: string) => {
       retries++
     }
     
-    if (instance && instance.term && output && output.length > 0) {
-      // 如果已经开始收到实时输出，则不再用历史输出清屏覆盖，避免覆盖命令行位置
-      // If live output has started, avoid clearing and overwriting with history to prevent prompt/input corruption
-      if (instance.hasLiveOutput) {
-        console.log(`Skip writing historical output for terminal ${terminalId} because live output has started`)
-        return
-      }
-      console.log(`Writing ${output.length} characters to terminal ${terminalId}`)
-      
-      // Clear terminal first and then write content
-      instance.term.clear()
-      instance.term.write(output)
-      
-      // Force terminal to refresh
-      instance.term.refresh(0, instance.term.rows - 1)
-      
-      console.log(`Terminal content written successfully`)
-    } else {
-      console.log(`No output available for terminal ${terminalId} or instance not ready`)
-      console.log(`Instance:`, !!instance)
-      console.log(`Term:`, !!(instance && instance.term))
-      console.log(`Output:`, !!(data && data.output))
-      
-      // If we have instance but no output, keep existing content / 没有历史输出时保持现有内容
+    if (!instance || !instance.term) {
+      console.log(`No terminal instance available for ${terminalId}, skip loading history`)
+      return
     }
+
+    // 如果已经开始收到实时输出，则不再用历史输出清屏覆盖，避免覆盖命令行位置
+    // If live output has started, avoid clearing and overwriting with history to prevent prompt/input corruption
+    if (instance.hasLiveOutput) {
+      console.log(`Skip loading historical output for terminal ${terminalId} because live output has started`)
+      return
+    }
+
+    // Use dynamic API service / 使用动态API服务
+    // 读取完整缓冲历史：不允许“省略前面/后续 N 行”的标记出现在前端；采用 forward 分页保证性能 /
+    // Fetch full buffered history: omission markers must not appear in UI; use forward paging for performance
+    const PAGE_LINES = 800
+    const MAX_PAGES = 200
+
+    // Clear terminal first and reset cache / 先清屏并重置缓存
+    instance.term.clear()
+    terminalStore.setTerminalOutput(terminalId, '')
+
+    let cursor = 0
+    let wroteAny = false
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const response = await terminalApi.readOutput(terminalId, {
+        since: cursor,
+        maxLines: PAGE_LINES,
+        mode: 'full',
+        direction: 'forward',
+        stripSpinner: true
+      })
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
+        throw new Error('Failed to load output')
+      }
+
+      const data = await response.json() as { output?: string; hasMore?: boolean; cursor?: number; since?: number }
+      const chunk = data.output ?? ''
+      const nextCursor = typeof data.cursor === 'number'
+        ? data.cursor
+        : (typeof data.since === 'number' ? data.since : cursor)
+
+      if (chunk && chunk.length > 0) {
+        // 后端分页块之间没有自动换行分隔，这里补一个换行避免两段内容粘连 /
+        // Backend chunks don't include a trailing separator between pages; add one to avoid glueing lines
+        const textToWrite = wroteAny ? `\n${chunk}` : chunk
+        await writeXtermInChunks(instance.term, textToWrite)
+        terminalStore.appendTerminalOutput(terminalId, textToWrite)
+        wroteAny = true
+      }
+
+      if (!data.hasMore || nextCursor === cursor) {
+        cursor = nextCursor
+        break
+      }
+      cursor = nextCursor
+    }
+
+    // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
+    if (!wroteAny) {
+      console.log(`No historical output for terminal ${terminalId}, keep current content`)
+      return
+    }
+
+    // Force terminal to refresh / 强制刷新
+    instance.term.refresh(0, instance.term.rows - 1)
+    console.log(`Terminal content written successfully`)
   } catch (error) {
     console.error(`Failed to load output for terminal ${terminalId}:`, error)
   }

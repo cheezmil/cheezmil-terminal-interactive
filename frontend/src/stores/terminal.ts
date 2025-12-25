@@ -80,7 +80,12 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   // 设置终端输出（用于历史加载）/ Set full output (used by history loading)
   const setTerminalOutput = (terminalId: string, output: string) => {
-    terminalOutputs.value[terminalId] = output
+    // 限制最大缓存大小，避免 localStorage 过大（显示仍以 xterm 为准）/
+    // Cap cache size to avoid huge localStorage (xterm remains the source of truth for display)
+    const MAX_CHARS = 200000
+    terminalOutputs.value[terminalId] = output.length > MAX_CHARS
+      ? output.slice(-MAX_CHARS)
+      : output
   }
 
   // 追加终端输出（用于实时 WS 数据）/ Append output (used by realtime WS data)

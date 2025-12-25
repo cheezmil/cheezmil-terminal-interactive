@@ -202,10 +202,20 @@ export class TerminalManager extends EventEmitter {
 
       // 监听 PTY 输出 - 始终使用用户可见的终端名称进行事件广播
       // Listen PTY output - always use human-readable terminal name when emitting events
+      let lastDebugOnDataLogAt = 0;
       ptyProcess.onData((data: string) => {
         setImmediate(() => {
           const now = new Date();
           session.lastActivity = now;
+
+          // 调试：记录收到的原始数据长度与预览（stderr），避免干扰 MCP 通信
+          // Debug: log raw data length & preview (stderr) to avoid polluting MCP communication
+          const nowMs = Date.now();
+          if (nowMs - lastDebugOnDataLogAt >= 250) {
+            lastDebugOnDataLogAt = nowMs;
+            const preview = data.length > 200 ? `${data.slice(0, 200)}...` : data;
+            console.error(`[PTY-DATA][${terminalName}] len=${data.length} preview=${JSON.stringify(preview)}`);
+          }
 
           // 记录原始输出，并检测是否进入/退出备用屏幕（vim 等全屏程序）
           // Record raw output and detect alternate screen enter/exit (fullscreen apps like vim)
@@ -246,6 +256,18 @@ export class TerminalManager extends EventEmitter {
       this.sessions.set(internalId, session);
       this.ptyProcesses.set(internalId, ptyProcess);
       this.outputBuffers.set(internalId, outputBuffer);
+
+      // Windows 下 PTY/Shell 启动有一定延迟，过早写入可能导致“无输出”
+      // On Windows, PTY/Shell startup can lag; writing too early may result in "empty output"
+      if (process.platform === 'win32') {
+        await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+        try {
+          await this.waitForOutputStable(terminalName, 1500, 250);
+        } catch {
+          // 忽略启动阶段的稳定等待失败，避免影响终端创建
+          // Ignore stabilization wait failure during startup to avoid blocking terminal creation
+        }
+      }
 
       // 事件中也使用终端名称，方便日志与前端调试
       // Also emit terminalCreated with terminal name for easier logging & debugging
@@ -496,7 +518,7 @@ export class TerminalManager extends EventEmitter {
    * Read output from terminal - supports terminal names and smart mode
    */
   async readFromTerminal(options: TerminalReadOptions): Promise<TerminalReadResult> {
-    const { terminalName, since = 0, maxLines = 1000, mode, headLines, tailLines } = options;
+    const { terminalName, since = 0, maxLines = 1000, mode, headLines, tailLines, direction } = options;
     
     // 解析终端名称
     // Resolve terminal name
@@ -647,7 +669,7 @@ export class TerminalManager extends EventEmitter {
       }
 
       // 使用原有的读取方法
-      const result = outputBuffer.read({ since: cursorPosition, maxLines });
+      const result = outputBuffer.read({ since: cursorPosition, maxLines, direction });
       const output = result.entries.map(entry => entry.content).join('\n');
 
       return {
@@ -1377,16 +1399,29 @@ export class TerminalManager extends EventEmitter {
       return false;
     }
 
-    const trimmedEnd = line.trimEnd();
+    // 先剥离 ANSI 转义序列再判断，避免提示符被颜色/控制码污染
+    // Strip ANSI escape sequences before prompt detection to avoid false negatives
+    const withoutAnsi = line
+      .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+      .replace(/\x1B\][^\x07]*(\x07|\x1B\\)/g, '')
+      .replace(/\x1B[@-Z\\-_]/g, '');
+
+    const trimmedEnd = withoutAnsi.trimEnd();
     if (!trimmedEnd) {
       return false;
+    }
+
+    // PowerShell prompt: "PS C:\\Path> " / "PS C:\\Path>"
+    // PowerShell 提示符：例如 "PS C:\\Path> " / "PS C:\\Path>"
+    if (/^PS\s+[A-Z]:.*>\s*$/i.test(trimmedEnd)) {
+      return true;
     }
 
     const promptSuffixes = ['$', '#', '%', '>'];
 
     // Common case: prompt ends with symbol and space
     for (const suffix of promptSuffixes) {
-      if (line.endsWith(`${suffix} `)) {
+      if (withoutAnsi.endsWith(`${suffix} `)) {
         const prefix = trimmedEnd.slice(0, -1).trim();
         if (prefix.length > 0) {
           return true;

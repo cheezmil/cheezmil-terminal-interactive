@@ -814,7 +814,9 @@ Fix tool: OpenAI Codex
         // 读取参数 / Parameters for reading from terminal
         since: z.number().optional().describe('Line number to start reading from (default: 0)'),
         maxLines: z.number().optional().describe('Maximum number of lines to read (default: 1000)'),
-        mode: z.enum(['full', 'head', 'tail', 'head-tail', 'smart', 'raw']).optional().describe('Reading mode: full (default), head (first N lines), tail (last N lines), head-tail (first + last N lines), smart (auto best), or raw (tail of raw PTY output; useful for vim/fullscreen apps)'),
+        // 默认使用 this_command_output：仅返回“本次写入 input 后新增的输出”
+        // Default to this_command_output: return only output produced after this call's input is written
+        mode: z.enum(['this_command_output', 'full', 'head', 'tail', 'head-tail', 'smart', 'raw']).optional().describe('Reading mode: this_command_output (default, only output produced by current input), full, head, tail, head-tail, smart (auto best), or raw (tail of raw PTY output; useful for vim/fullscreen apps)'),
         headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
         tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
         stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)'),
@@ -1271,13 +1273,22 @@ Fix tool: OpenAI Codex
             const includeIntermediateOutput = mappedWait.includeIntermediateOutput !== undefined ? Boolean(mappedWait.includeIntermediateOutput) : true;
 
             const effectiveStripSpinner = stripSpinner !== undefined ? Boolean(stripSpinner) : true;
-            const effectiveMode = mode || 'smart';
+            // 未传 mode 时，默认使用 this_command_output（只返回本次命令的输出增量）
+            // If mode is omitted, default to this_command_output (only return delta output for this command)
+            const effectiveMode = mode || 'this_command_output';
+            const effectiveReadModeForTerminalManager = effectiveMode === 'this_command_output' ? 'smart' : effectiveMode;
+
+            // this_command_output：以写入前的 cursor 作为“基准 since”，只读取本次新增输出
+            // this_command_output: use cursor-before-write as baseline, only read new output produced by this write
+            const baselineSince = effectiveMode === 'this_command_output'
+              ? currentCursor
+              : (since !== undefined ? since : currentCursor);
 
             const waitStart = Date.now();
             const hardDeadline = waitStart + (waitTimeoutMs > 0 ? waitTimeoutMs : 0);
             const pollIntervalMs = 150;
 
-            let nextSince = since !== undefined ? since : currentCursor;
+            let nextSince = baselineSince;
             let lastCursor = nextSince;
             let accumulatedDelta = '';
             let accumulatedBytes = 0;
@@ -1313,6 +1324,10 @@ Fix tool: OpenAI Codex
             if (!shouldWait) {
               waitReason = 'none';
             } else {
+              // 写入后强制最小等待，给 node-pty 时间把数据回传到缓冲区，避免“无输出”
+              // Enforce a minimal post-write delay to let node-pty flush data back into buffers (avoid empty output)
+              await new Promise(resolve => setTimeout(resolve, 200));
+
               // Poll readFromTerminal with incremental cursor to reduce repeated output.
               // 轮询增量读取，减少重复输出与调用次数
               while (Date.now() < hardDeadline) {
@@ -1320,7 +1335,7 @@ Fix tool: OpenAI Codex
                   terminalName: actualTerminalId,
                   since: nextSince,
                   maxLines: maxLines || 1000,
-                  mode: effectiveMode,
+                  mode: effectiveReadModeForTerminalManager,
                   headLines: headLines || undefined,
                   tailLines: tailLines || undefined
                 };
@@ -1398,17 +1413,39 @@ Fix tool: OpenAI Codex
               }
             }
 
-            const finalResult = latestResult ?? await this.terminalManager.readFromTerminal({
+            // 注意：轮询会推进 nextSince（用于增量读取），但最终输出需要覆盖 baselineSince -> 当前末尾
+            // Note: polling advances nextSince (for delta reads), but the final output must cover baselineSince -> current end
+            const finalReadSince = effectiveMode === 'this_command_output'
+              ? baselineSince
+              : (since !== undefined ? since : currentCursor);
+
+            const finalResult = await this.terminalManager.readFromTerminal({
               terminalName: actualTerminalId,
-              since: since !== undefined ? since : currentCursor,
+              since: finalReadSince,
               maxLines: maxLines || 1000,
-              mode: effectiveMode,
+              mode: effectiveReadModeForTerminalManager,
               headLines: headLines || undefined,
               tailLines: tailLines || undefined
             });
 
-            const finalOutputRaw = finalResult.output || '';
-            const finalOutput = normalizeOutputText(stripSpinnerChars(finalOutputRaw, effectiveStripSpinner), actualInput, true);
+            const finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, true);
+
+            // 对“本次命令输出”做智能截断：限制返回文本大小（约 32k token 量级）
+            // Intelligently truncate response text: limit returned text size (~32k token scale)
+            const MAX_RETURN_CHARS = 128_000;
+            const truncateMiddle = (text: string): { text: string; truncated: boolean } => {
+              if (!text) return { text, truncated: false };
+              if (text.length <= MAX_RETURN_CHARS) return { text, truncated: false };
+              const keepHead = Math.floor(MAX_RETURN_CHARS * 0.55);
+              const keepTail = MAX_RETURN_CHARS - keepHead;
+              const head = text.slice(0, keepHead).trimEnd();
+              const tail = text.slice(text.length - keepTail).trimStart();
+              const marker = `\n\n--- Output Truncated (kept ${keepHead}+${keepTail} chars, omitted ${text.length - MAX_RETURN_CHARS} chars) ---\n\n`;
+              return { text: `${head}${marker}${tail}`, truncated: true };
+            };
+
+            const truncatedOutput = truncateMiddle(finalOutputRaw);
+            const finalOutput = truncatedOutput.text;
             const awaitingInput = this.terminalManager.isTerminalAwaitingInput(actualTerminalId);
             const status = finalResult.status || null;
 
@@ -1444,10 +1481,12 @@ Fix tool: OpenAI Codex
               },
               read: {
                 mode: effectiveMode,
-                since: since !== undefined ? since : currentCursor,
+                since: baselineSince,
                 cursor: finalResult.cursor ?? finalResult.since ?? null,
                 hasMore: Boolean(finalResult.hasMore),
-                truncated: Boolean(finalResult.truncated)
+                // 这里的 truncated 表示“返回给调用方的文本是否被截断”
+                // truncated here means "response text was truncated for the caller"
+                truncated: Boolean(finalResult.truncated) || truncatedOutput.truncated
               },
               delta: {
                 text: normalizeOutputText(stripSpinnerChars(accumulatedDelta, effectiveStripSpinner), actualInput, true),
@@ -1458,7 +1497,7 @@ Fix tool: OpenAI Codex
               readMode: effectiveMode,
               totalLines: finalResult.totalLines,
               hasMore: finalResult.hasMore,
-              truncated: finalResult.truncated,
+              truncated: Boolean(finalResult.truncated) || truncatedOutput.truncated,
               status: {
                 ...(status || {}),
                 awaitingInput,
