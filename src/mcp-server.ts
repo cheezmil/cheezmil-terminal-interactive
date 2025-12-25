@@ -1428,7 +1428,57 @@ Fix tool: OpenAI Codex
               tailLines: tailLines || undefined
             });
 
-            const finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, true);
+            const stripAnsiForMatching = (value: string): string => {
+              if (!value) return value;
+              return value
+                .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+                .replace(/\x1B\][^\x07]*(\x07|\x1B\\)/g, '')
+                .replace(/\x1B[@-Z\\-_]/g, '');
+            };
+
+            const removeCommandEchoForThisCommandOutput = (text: string, commandInput: string | undefined): string => {
+              const inputTrimmed = (commandInput ?? '').replace(/\r/g, '').trim();
+              if (!text || !inputTrimmed) return text;
+
+              const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+              const cleaned: string[] = [];
+              let removed = false;
+
+              for (const rawLine of lines) {
+                const line = rawLine;
+                const plain = stripAnsiForMatching(line).trim();
+                if (!removed) {
+                  // PowerShell 常见回显：PS D:\path> echo "x" / PS D:\path> > echo "x"
+                  // Common PowerShell echo: PS D:\path> echo "x" / PS D:\path> > echo "x"
+                  const isPsPrompt = /^PS\s+[A-Z]:.*>\s*/i.test(plain);
+                  const endsWithInput =
+                    plain === inputTrimmed ||
+                    plain.endsWith(` ${inputTrimmed}`) ||
+                    plain.endsWith(`> ${inputTrimmed}`) ||
+                    plain.endsWith(`> > ${inputTrimmed}`);
+
+                  if (isPsPrompt && plain.includes(inputTrimmed)) {
+                    removed = true;
+                    continue;
+                  }
+                  if (endsWithInput) {
+                    removed = true;
+                    continue;
+                  }
+                }
+
+                cleaned.push(line);
+              }
+
+              return cleaned.join('\n');
+            };
+
+            let finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, true);
+            // this_command_output 默认不需要回显“提示符+输入命令”，只保留命令结果
+            // this_command_output should not include "prompt + input command" echo, keep only command results
+            if (effectiveMode === 'this_command_output') {
+              finalOutputRaw = removeCommandEchoForThisCommandOutput(finalOutputRaw, actualInput);
+            }
 
             // 对“本次命令输出”做智能截断：限制返回文本大小（约 32k token 量级）
             // Intelligently truncate response text: limit returned text size (~32k token scale)
