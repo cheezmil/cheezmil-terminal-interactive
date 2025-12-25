@@ -102,14 +102,17 @@ const loadVersionInfo = async () => {
       throw new Error(await response.text())
     }
     const data = await response.json()
+    const currentVersionFromApi = String(data.currentVersion ?? '').trim()
     const latestVersion = (data.latestVersion ?? null) as string | null
 
-    // Keep current version strictly aligned with local VERSION file /
-    // currentVersion 严格以本地 VERSION 文件为准
+    // Prefer backend currentVersion (reads local VERSION at runtime) to avoid stale build-time injection /
+    // 优先使用后端返回的 currentVersion（运行时读取本地 VERSION），避免前端构建时注入版本号过期
+    const currentVersion = currentVersionFromApi || localVersion
+
     const updateAvailable =
-      Boolean(latestVersion) && compareVersions(String(latestVersion), localVersion) > 0
+      Boolean(latestVersion) && compareVersions(String(latestVersion), currentVersion) > 0
     versionInfo.value = {
-      currentVersion: localVersion,
+      currentVersion,
       latestVersion,
       updateAvailable
     }
@@ -154,8 +157,14 @@ onMounted(() => {
             <div class="text-xs text-text-secondary font-mono whitespace-nowrap mr-4">
               <span v-if="versionInfo">v{{ versionInfo.currentVersion }}</span>
               <span v-else>v0.0.0</span>
-              <span v-if="versionInfo?.updateAvailable && versionInfo.latestVersion" class="text-amber-300 ml-2">
-                {{ t('app.updateAvailable') }} v{{ versionInfo.latestVersion }}
+              <span
+                v-if="versionInfo?.updateAvailable && versionInfo.latestVersion"
+                class="text-amber-300 ml-2 inline-flex items-center"
+                :title="`${t('app.updateAvailable')} v${versionInfo.latestVersion}`"
+                :aria-label="`${t('app.updateAvailable')} v${versionInfo.latestVersion}`"
+              >
+                <SvgIcon name="arrowUp" class="w-4 h-4" />
+                <span class="sr-only">{{ t('app.updateAvailable') }} v{{ versionInfo.latestVersion }}</span>
               </span>
             </div>
 

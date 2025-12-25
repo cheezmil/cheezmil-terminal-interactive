@@ -20,6 +20,8 @@ const iconMap = {
   settings: Icons.Settings,
   chevronRight: Icons.ChevronRight,
   chevronLeft: Icons.ChevronLeft,
+  chevronUp: Icons.ChevronUp,
+  arrowUp: Icons.ArrowUp,
   computer: Icons.Monitor,
   refresh: Icons.RefreshCw,
   trash: Icons.Trash2,
