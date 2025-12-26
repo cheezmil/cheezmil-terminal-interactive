@@ -30,6 +30,8 @@ interface ConfigData {
     defaultEnv?: Record<string, string>
     // 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
     enableUserControl?: boolean
+    // 新建终端时默认是否自动滚动到底部 / Default auto-scroll-to-bottom for newly created terminals
+    autoScrollToBottomByDefault?: boolean
   }
   mcp?: {
     enableDnsRebindingProtection?: boolean

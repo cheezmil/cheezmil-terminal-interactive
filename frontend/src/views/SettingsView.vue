@@ -39,7 +39,9 @@ const configData = ref<any>({
     maxBufferSize: 10000,
     sessionTimeout: 86400000,
     // 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
-    enableUserControl: false
+    enableUserControl: false,
+    // 新建终端默认自动滚动到底部 / Default auto-scroll-to-bottom for newly created terminals
+    autoScrollToBottomByDefault: true
   },
   mcp: {
     enableDnsRebindingProtection: false,
@@ -434,6 +436,32 @@ onMounted(async () => {
           </CardHeader>
           <CardContent>
             <div class="space-y-6">
+              <!-- Default auto-scroll / 新建终端默认自动滚动 -->
+              <div class="flex flex-col space-y-2">
+                <Label class="flex items-center space-x-2 text-text-primary font-medium">
+                  <svg class="w-4 h-4 text-neon-green" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16m4-8h12m0 0l-4-4m4 4l-4 4" />
+                  </svg>
+                  <span class="font-serif-luxury">{{ t('settings.autoScrollToBottomDefault') }}</span>
+                </Label>
+                <p class="text-sm text-text-secondary">
+                  {{ t('settings.autoScrollToBottomDefaultDescription') }}
+                </p>
+                <div class="flex items-center">
+                  <label class="luxury-checkbox-container">
+                    <input
+                      type="checkbox"
+                      v-model="configData.terminal.autoScrollToBottomByDefault"
+                      class="luxury-checkbox"
+                    />
+                    <span class="luxury-checkbox-slider"></span>
+                  </label>
+                  <span class="ml-3 text-text-primary select-none">
+                    {{ configData.terminal.autoScrollToBottomByDefault ? t('settings.enabled') : t('settings.disabled') }}
+                  </span>
+                </div>
+              </div>
+              
               <div class="flex flex-col space-y-2">
                 <Label for="defaultShell" class="flex items-center space-x-2 text-text-primary font-medium">
                   <svg class="w-4 h-4 text-neon-green" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -11,10 +11,14 @@ export const useTerminalStore = defineStore('terminal', () => {
   const pinnedTerminalIds = ref<string[]>([])
   // 终端输出缓存（按 terminalId 索引）/ Terminal output cache (indexed by terminalId)
   const terminalOutputs = ref<Record<string, string>>({})
+  // 是否自动滚动到底部（按 terminalId 索引，持久化）/
+  // Auto-scroll-to-bottom flag (indexed by terminalId, persisted)
+  const terminalAutoScroll = ref<Record<string, boolean>>({})
 
   // 本地存储键名 / LocalStorage key
   const OUTPUTS_STORAGE_KEY = 'cti.terminalOutputs.v1'
   const PINNED_STORAGE_KEY = 'cti.pinnedTerminals.v1'
+  const AUTO_SCROLL_STORAGE_KEY = 'cti.terminalAutoScroll.v1'
 
   // 初始化时从 localStorage 恢复缓存 / Restore cached outputs from localStorage on init
   try {
@@ -37,6 +41,19 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
   } catch (error) {
     console.warn('Failed to restore pinned terminals:', error)
+  }
+
+  // 初始化时从 localStorage 恢复自动滚动开关 / Restore auto-scroll toggles from localStorage on init
+  try {
+    const raw = localStorage.getItem(AUTO_SCROLL_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown
+      if (parsed && typeof parsed === 'object') {
+        terminalAutoScroll.value = parsed as Record<string, boolean>
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to restore terminal auto-scroll settings:', error)
   }
 
   // 计算属性 - 统计数据
@@ -71,6 +88,27 @@ export const useTerminalStore = defineStore('terminal', () => {
 
   const updateTerminals = (newTerminals: any[]) => {
     terminals.value = newTerminals
+  }
+
+  // 获取自动滚动开关 / Get auto-scroll toggle
+  const getTerminalAutoScroll = (terminalId: string, defaultValue = true) => {
+    if (!terminalId) return defaultValue
+    const v = terminalAutoScroll.value[terminalId]
+    return typeof v === 'boolean' ? v : defaultValue
+  }
+
+  // 若不存在则初始化自动滚动开关 / Ensure auto-scroll toggle exists (initialize when missing)
+  const ensureTerminalAutoScroll = (terminalId: string, defaultValue = true) => {
+    if (!terminalId) return
+    if (typeof terminalAutoScroll.value[terminalId] !== 'boolean') {
+      terminalAutoScroll.value[terminalId] = defaultValue
+    }
+  }
+
+  // 设置自动滚动开关 / Set auto-scroll toggle
+  const setTerminalAutoScroll = (terminalId: string, value: boolean) => {
+    if (!terminalId) return
+    terminalAutoScroll.value[terminalId] = Boolean(value)
   }
 
   // 获取缓存的终端输出 / Get cached output for a terminal
@@ -123,6 +161,15 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
   }, { deep: true })
 
+  // 监听自动滚动开关变化并持久化 / Persist auto-scroll toggles on changes
+  watch(terminalAutoScroll, (value) => {
+    try {
+      localStorage.setItem(AUTO_SCROLL_STORAGE_KEY, JSON.stringify(value))
+    } catch (error) {
+      console.warn('Failed to persist terminal auto-scroll settings:', error)
+    }
+  }, { deep: true })
+
   return {
     // 状态
     refreshTrigger,
@@ -130,6 +177,7 @@ export const useTerminalStore = defineStore('terminal', () => {
     tabSearchQuery,
     pinnedTerminalIds,
     terminalOutputs,
+    terminalAutoScroll,
     // 计算属性
     stats,
     // 动作
@@ -138,6 +186,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     setTabSearchQuery,
     isPinned,
     togglePin,
+    getTerminalAutoScroll,
+    ensureTerminalAutoScroll,
+    setTerminalAutoScroll,
     getTerminalOutput,
     setTerminalOutput,
     appendTerminalOutput

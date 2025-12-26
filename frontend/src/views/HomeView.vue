@@ -28,6 +28,13 @@ const terminalStore = useTerminalStore()
 const { refreshTrigger } = storeToRefs(terminalStore)
 const settingsStore = useSettingsStore()
 
+// 默认是否自动滚动到底部（用于新建终端初始化）/
+// Default auto-scroll-to-bottom for newly created terminals
+const defaultAutoScrollToBottom = computed(() => {
+  const v = settingsStore.configData?.terminal?.autoScrollToBottomByDefault
+  return typeof v === 'boolean' ? v : true
+})
+
 // Persistent storage key for active terminal tab / 用于持久化当前终端“tab”的本地存储键名
 const ACTIVE_TERMINAL_STORAGE_KEY = 'cti.activeTerminalId'
 
@@ -53,6 +60,20 @@ const stats = computed(() => terminalStore.stats)
 const activeTerminal = computed(() => 
   terminals.value.find(t => t.id === activeTerminalId.value)
 )
+
+// 当前终端是否自动滚动到底部（每个终端独立）/
+// Whether the active terminal auto-scrolls to bottom (per-terminal)
+const activeTerminalAutoScroll = computed(() => {
+  const id = activeTerminalId.value
+  if (!id) return defaultAutoScrollToBottom.value
+  return terminalStore.getTerminalAutoScroll(id, defaultAutoScrollToBottom.value)
+})
+
+const setActiveTerminalAutoScroll = (value: boolean) => {
+  const id = activeTerminalId.value
+  if (!id) return
+  terminalStore.setTerminalAutoScroll(id, value)
+}
 
 // 是否允许前端写入终端输入（实验性设置）/ Whether frontend is allowed to send terminal input (experimental setting)
 const canSendTerminalInput = computed(() => {
@@ -97,6 +118,12 @@ const fetchTerminals = async () => {
     const fetchedTerminals = data.terminals || []
     terminals.value = fetchedTerminals
     terminalStore.updateTerminals(fetchedTerminals)
+
+    // 初始化每个终端的自动滚动开关（缺省时使用设置里的默认值）/
+    // Initialize per-terminal auto-scroll toggles (use settings default when missing)
+    for (const t of fetchedTerminals) {
+      terminalStore.ensureTerminalAutoScroll(t.id, defaultAutoScrollToBottom.value)
+    }
 
     // 恢复上次选中的终端“tab”（如果存在并仍然有效）/ Restore last active terminal \"tab\" if it still exists
     const savedId = localStorage.getItem(ACTIVE_TERMINAL_STORAGE_KEY)
@@ -560,7 +587,7 @@ const initializeTerminal = async (terminalId: string) => {
     const cachedOutput = terminalStore.getTerminalOutput(terminalId)
     if (cachedOutput) {
       try {
-        term.write(cachedOutput)
+        writeToXterm(terminalId, term, cachedOutput)
         term.refresh(0, term.rows - 1)
       } catch (error) {
         console.warn('Failed to write cached output for terminal', terminalId, error)
@@ -626,7 +653,7 @@ const initializeTerminal = async (terminalId: string) => {
       const message = JSON.parse(event.data)
       if (message.terminalId === terminalId && message.type === 'output') {
         instance.hasLiveOutput = true
-        term.write(message.data)
+        writeToXterm(terminalId, term, message.data)
         // 追加到 pinia 缓存并持久化 / Append to pinia cache and persist
         terminalStore.appendTerminalOutput(terminalId, message.data)
       }
@@ -659,6 +686,9 @@ const initializeTerminal = async (terminalId: string) => {
       const instance = terminalInstances.value.get(terminalId)
       if (instance) {
         void (async () => {
+          const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
+          const wasAtBottom = isXtermViewportAtBottom(instance.term)
+          const viewportY = getXtermViewportY(instance.term)
           await waitForRaf2()
           instance.fitAddon.fit()
           // Force char re-measure on resize to avoid spacing glitches / resize 时强制重测字符尺寸，避免字距异常
@@ -666,6 +696,17 @@ const initializeTerminal = async (terminalId: string) => {
           // Refresh after resize / 调整大小后刷新渲染
           instance.term.refresh(0, instance.term.rows - 1)
           await stabilizeDomRendererSpacing(instance.term)
+          // 保持滚动位置：仅在原本位于底部且开启自动滚动时跟随到底部，否则尽量恢复原视口行号 /
+          // Keep scroll position: follow bottom only if it was at bottom and auto-scroll is enabled; otherwise restore viewport line
+          try {
+            if (shouldFollow && wasAtBottom) {
+              instance.term.scrollToBottom()
+            } else {
+              instance.term.scrollToLine(viewportY)
+            }
+          } catch {
+            // ignore
+          }
         })()
       }
     }
@@ -675,6 +716,50 @@ const initializeTerminal = async (terminalId: string) => {
 
   } catch (error) {
     console.error(`Failed to initialize terminal ${terminalId}:`, error)
+  }
+}
+
+// 判断 xterm 视口是否贴近底部 / Check whether xterm viewport is at (or near) bottom
+const isXtermViewportAtBottom = (term: Terminal) => {
+  try {
+    const buf: any = (term as any).buffer?.active
+    const viewportY = typeof buf?.viewportY === 'number' ? buf.viewportY : 0
+    const baseY = typeof buf?.baseY === 'number' ? buf.baseY : 0
+    return viewportY >= Math.max(0, baseY - 1)
+  } catch {
+    return true
+  }
+}
+
+// 尽量读取当前视口行号，方便在 resize/fit 后恢复位置 /
+// Best-effort read current viewport line to restore scroll position after resize/fit
+const getXtermViewportY = (term: Terminal) => {
+  try {
+    const buf: any = (term as any).buffer?.active
+    return typeof buf?.viewportY === 'number' ? buf.viewportY : 0
+  } catch {
+    return 0
+  }
+}
+
+// 写入并根据“自动滚动”与用户滚动位置决定是否跟随到底部 /
+// Write output and conditionally follow bottom based on toggle + user's scroll position
+const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
+  if (!text) return
+  const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
+  const wasAtBottom = isXtermViewportAtBottom(term)
+  try {
+    term.write(text, () => {
+      if (shouldFollow && wasAtBottom) {
+        try {
+          term.scrollToBottom()
+        } catch {
+          // ignore
+        }
+      }
+    })
+  } catch {
+    // ignore
   }
 }
 
@@ -727,6 +812,12 @@ const loadTerminalOutput = async (terminalId: string) => {
       console.log(`Skip loading historical output for terminal ${terminalId} because live output has started`)
       return
     }
+
+    // 记录历史写入前的视口位置，用于写入后恢复/跟随 /
+    // Record viewport state before writing history to restore/follow afterwards
+    const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
+    const wasAtBottom = isXtermViewportAtBottom(instance.term)
+    const viewportY = getXtermViewportY(instance.term)
 
     // Use dynamic API service / 使用动态API服务
     // 读取完整缓冲历史：不允许“省略前面/后续 N 行”的标记出现在前端；采用 forward 分页保证性能 /
@@ -785,6 +876,17 @@ const loadTerminalOutput = async (terminalId: string) => {
 
     // Force terminal to refresh / 强制刷新
     instance.term.refresh(0, instance.term.rows - 1)
+    // 历史写入完成后：如果原本在底部且开启自动滚动，则跟随到底部；否则恢复原视口 /
+    // After history write: follow bottom only if it was at bottom and auto-scroll is enabled; otherwise restore viewport
+    try {
+      if (shouldFollow && wasAtBottom) {
+        instance.term.scrollToBottom()
+      } else {
+        instance.term.scrollToLine(viewportY)
+      }
+    } catch {
+      // ignore
+    }
     console.log(`Terminal content written successfully`)
   } catch (error) {
     console.error(`Failed to load output for terminal ${terminalId}:`, error)
@@ -819,10 +921,24 @@ const fitAndRefreshTerminal = async (terminalId: string) => {
     return
   }
   try {
+    const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
+    const wasAtBottom = isXtermViewportAtBottom(instance.term)
+    const viewportY = getXtermViewportY(instance.term)
     instance.fitAddon.fit()
     forceXtermCharMeasure(instance.term)
     instance.term.refresh(0, instance.term.rows - 1)
     await stabilizeDomRendererSpacing(instance.term)
+    // 同 resize：尽量保持滚动位置，避免输出“回跳/混在一起”的错觉 /
+    // Same as resize: keep scroll position to avoid "jump/mixed output" feel
+    try {
+      if (shouldFollow && wasAtBottom) {
+        instance.term.scrollToBottom()
+      } else {
+        instance.term.scrollToLine(viewportY)
+      }
+    } catch {
+      // ignore
+    }
   } catch (error) {
     console.warn('Failed to fit/refresh terminal', terminalId, error)
   }
@@ -1169,6 +1285,20 @@ watch(terminals, (newTerminals) => {
             </div>
             
             <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-2 mr-2">
+                <label class="luxury-checkbox-container" :title="t('home.autoScrollToBottom')">
+                  <input
+                    type="checkbox"
+                    :checked="activeTerminalAutoScroll"
+                    class="luxury-checkbox"
+                    @change="setActiveTerminalAutoScroll(($event.target as HTMLInputElement).checked)"
+                  />
+                  <span class="luxury-checkbox-slider"></span>
+                </label>
+                <span class="text-text-secondary text-sm select-none">
+                  {{ t('home.autoScrollToBottom') }}
+                </span>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
