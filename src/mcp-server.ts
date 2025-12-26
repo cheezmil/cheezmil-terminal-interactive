@@ -870,7 +870,7 @@ Fix tool: OpenAI Codex
       async (args: any, extra?: any): Promise<CallToolResult> => {
         const {
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
-          input, appendNewline, wait,
+          input, appendNewline, wait, waitForOutput,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
           specialOperation, keys, keyDelayMs, keySequence,
           search, searchRegex, caseSensitive, contextLines, maxMatches, searchSince
@@ -1619,9 +1619,6 @@ Fix tool: OpenAI Codex
                 // 统一字段：maxWaitMs（单次调用最大等待时间）
                 // Unified field: maxWaitMs (per-call max wait)
                 maxWaitMs: waitTimeoutMs,
-                // 兼容字段（不推荐）
-                // Compatibility fields (not recommended)
-                timeoutMs: waitTimeoutMs,
                 met: waitMet,
                 reason: waitReason,
                 requestedMaxWaitMs,

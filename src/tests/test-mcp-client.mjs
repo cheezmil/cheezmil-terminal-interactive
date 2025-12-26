@@ -61,7 +61,7 @@ async function testInteractiveTerminalNotice() {
             terminalId,
             input: 'Start-Sleep -Seconds 5',
             appendNewline: true,
-            waitForOutput: 0
+            wait: { mode: 'none', maxWaitMs: 0 }
           }
         }
       },
@@ -78,7 +78,7 @@ async function testInteractiveTerminalNotice() {
             terminalId,
             input: 'Get-Date',
             appendNewline: true,
-            waitForOutput: 0
+            wait: { mode: 'none', maxWaitMs: 0 }
           }
         }
       },
@@ -150,7 +150,7 @@ async function testWaitIdleDeltaEchoHello() {
             terminalId,
             input: 'echo hello',
             appendNewline: true,
-            wait: { mode: 'idle', timeoutMs: 3000, idleMs: 400 }
+            wait: { mode: 'idle', maxWaitMs: 3000, idleMs: 400 }
           }
         }
       },
@@ -168,7 +168,7 @@ async function testWaitIdleDeltaEchoHello() {
     } else if (!output.toLowerCase().includes('hello') && !delta.toLowerCase().includes('hello')) {
       console.log('❌ echo output missing (expected to capture "hello")');
       console.log('Result:', JSON.stringify(result, null, 2));
-    } else if (!waitInfo || typeof waitInfo.mode !== 'string' || typeof waitInfo.timeoutMs !== 'number') {
+    } else if (!waitInfo || typeof waitInfo.mode !== 'string' || typeof waitInfo.maxWaitMs !== 'number') {
       console.log('❌ wait info missing from structuredContent');
       console.log('Result:', JSON.stringify(result, null, 2));
     } else {
@@ -195,6 +195,195 @@ async function testWaitIdleDeltaEchoHello() {
   }
 }
 
+// 测试 wait 超时：必须按模式返回结果，而不是报错 / Test wait timeout: must return mode-shaped result, not an error
+async function testWaitTimeoutReturnsResult() {
+  console.log('Testing wait timeout returns structured result...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `wait-timeout-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'echo timeout-test',
+            appendNewline: true,
+            wait: { mode: 'pattern', maxWaitMs: 300, pattern: 'THIS_WILL_NOT_MATCH', patternRegex: false, includeIntermediateOutput: true }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const structured = result.structuredContent || {};
+    const kind = structured.kind;
+    const waitInfo = structured.wait || {};
+
+    if (result.isError === true) {
+      console.log('❌ wait timeout incorrectly returned as error');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (kind !== 'wait_timeout') {
+      console.log('❌ expected kind=wait_timeout when reaching maxWaitMs');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (waitInfo.reason !== 'timeout') {
+      console.log('❌ expected wait.reason=timeout');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ wait timeout returned structured result (expected)');
+    }
+
+    // Cleanup: terminate the test terminal / 清理：终止测试终端
+    await client
+      .request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'interact_with_terminal',
+            arguments: { killTerminal: true, terminalId }
+          }
+        },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ wait timeout test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// 测试渐进式 maxWaitMs：首次禁止直接 >60s；8 次 <=60s 后允许 / Test progressive maxWaitMs: block >60s initially; allow after 8 <=60s attempts
+async function testProgressiveMaxWaitPolicy() {
+  console.log('Testing progressive maxWaitMs policy...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `progressive-wait-test-${Date.now()}`;
+  const marker = `progressive-marker-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    // 1) 首次直接请求 >60s：应被拒绝且不执行写入 / First >60s request should be rejected and must not execute write
+    const blocked = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: `echo ${marker}`,
+            appendNewline: true,
+            wait: { mode: 'idle', maxWaitMs: 120000, idleMs: 200 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const blockedStructured = blocked.structuredContent || {};
+    if (blocked.isError === true) {
+      console.log('❌ progressive policy incorrectly returned as error');
+      console.log('Result:', JSON.stringify(blocked, null, 2));
+    } else if (blockedStructured.kind !== 'progressive_wait_required') {
+      console.log('❌ expected kind=progressive_wait_required for initial >60s request');
+      console.log('Result:', JSON.stringify(blocked, null, 2));
+    } else {
+      // 读一下输出，确认 marker 没被执行（best-effort） / Read output to ensure marker wasn't executed (best-effort)
+      const readBack = await client.request(
+        {
+          method: 'tools/call',
+          params: { name: 'interact_with_terminal', arguments: { terminalId, wait: { mode: 'idle', maxWaitMs: 1500 } } }
+        },
+        CallToolResultSchema
+      );
+      const readStructured = readBack.structuredContent || {};
+      const out = typeof readStructured.commandOutput === 'string' ? readStructured.commandOutput : '';
+      if (out.includes(marker)) {
+        console.log('❌ marker appeared in output; write may have executed unexpectedly');
+        console.log('Result:', JSON.stringify(readBack, null, 2));
+      } else {
+        console.log('✅ initial >60s request blocked (expected)');
+      }
+    }
+
+    // 2) 连续 8 次 <=60s 的等待尝试（含写入），之后应允许 >60s / Do 8 <=60s attempts (with writes), then >60s should be allowed
+    for (let i = 0; i < 8; i++) {
+      await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'interact_with_terminal',
+            arguments: {
+              terminalId,
+              input: `echo short-attempt-${i}`,
+              appendNewline: true,
+              wait: { mode: 'idle', maxWaitMs: 500, idleMs: 200 }
+            }
+          }
+        },
+        CallToolResultSchema
+      );
+    }
+
+    const allowed = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'echo long-wait-allowed',
+            appendNewline: true,
+            wait: { mode: 'idle', maxWaitMs: 120000, idleMs: 200 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const allowedStructured = allowed.structuredContent || {};
+    if (allowed.isError === true) {
+      console.log('❌ long-wait allowed case returned error');
+      console.log('Result:', JSON.stringify(allowed, null, 2));
+    } else if (allowedStructured.kind === 'progressive_wait_required') {
+      console.log('❌ expected long-wait to be allowed after 8 short attempts');
+      console.log('Result:', JSON.stringify(allowed, null, 2));
+    } else {
+      console.log('✅ long-wait allowed after progressive attempts (expected)');
+    }
+
+    // Cleanup: terminate the test terminal / 清理：终止测试终端
+    await client
+      .request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'interact_with_terminal',
+            arguments: { killTerminal: true, terminalId }
+          }
+        },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ progressive wait policy test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 
 // 运行所有测试 / Run all tests
 async function runTests() {
@@ -203,6 +392,8 @@ async function runTests() {
   await testBackendConnectivity();
   await testInteractiveTerminalNotice();
   await testWaitIdleDeltaEchoHello();
+  await testWaitTimeoutReturnsResult();
+  await testProgressiveMaxWaitPolicy();
 
   
   console.log('=== Tests completed ===');

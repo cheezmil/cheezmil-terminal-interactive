@@ -233,9 +233,14 @@ async function killProcess(pid, graceful = true) {
         if (process.platform === 'win32') {
             // Windows: 先尝试优雅终止，再强制终止
             if (graceful) {
-                await execCommand(`taskkill /PID ${pid} /T`);
-                // 等待一段时间让进程优雅退出
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                try {
+                    await execCommand(`taskkill /PID ${pid} /T`);
+                    // 等待一段时间让进程优雅退出
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } catch (e) {
+                    // 优雅终止可能失败（例如需要 /F），但不应阻止后续强制终止
+                    // Graceful termination may fail (e.g. requires /F). Do not block the force-kill fallback.
+                }
             }
             // 强制终止
             return await execCommand(`taskkill /PID ${pid} /F /T`);
@@ -260,10 +265,19 @@ async function findNodeProcesses() {
     let command, output;
     
     if (process.platform === 'win32') {
-        // Windows: 使用wmic
-        command = 'wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv';
+        // Windows: WMIC 已在新系统中移除，这里改用 tasklist（仅能拿到 PID，命令行为空）
+        // WMIC has been removed in modern Windows; fallback to tasklist (PID only, no command line)
+        command = 'tasklist /FO CSV /NH /FI "IMAGENAME eq node.exe"';
         output = await execCommand(command);
-        return parseWmicOutput(output);
+        const lines = output.split('\n').filter(line => line.trim());
+        const processes = [];
+        for (const line of lines) {
+            const m = line.match(/^\"node\.exe\"\,\"(\d+)\"/i);
+            if (m && m[1]) {
+                processes.push({ pid: parseInt(m[1], 10), commandLine: '' });
+            }
+        }
+        return processes;
     } else {
         // Linux/macOS: 使用ps
         command = 'ps aux | grep node';
@@ -321,6 +335,41 @@ function parsePsOutput(output) {
     return processes;
 }
 
+// 查找监听指定端口的 PID（Windows 使用 netstat；Unix 尝试 lsof）
+// Find PIDs listening on a port (Windows: netstat; Unix: try lsof)
+async function findListeningPidsOnPort(port) {
+    const p = parseInt(String(port), 10);
+    if (!Number.isFinite(p) || p <= 0) return [];
+
+    try {
+        if (process.platform === 'win32') {
+            const output = await execCommand('netstat -ano -p TCP');
+            const lines = output.split('\n').map(l => l.trim()).filter(Boolean);
+            const pids = new Set();
+            for (const line of lines) {
+                if (!line.toUpperCase().includes('LISTENING')) continue;
+                if (!line.includes(`:${p}`)) continue;
+                const parts = line.split(/\s+/);
+                const pidStr = parts[parts.length - 1];
+                const pid = parseInt(pidStr, 10);
+                if (Number.isFinite(pid) && pid > 0) pids.add(pid);
+            }
+            return Array.from(pids);
+        }
+
+        const output = await execCommand(`lsof -i :${p} -sTCP:LISTEN -t`);
+        const pids = output
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(s => parseInt(s, 10))
+            .filter(n => Number.isFinite(n) && n > 0);
+        return Array.from(new Set(pids));
+    } catch {
+        return [];
+    }
+}
+
 // Find and terminate backend related processes
 async function killBackendProcesses() {
     try {
@@ -328,6 +377,24 @@ async function killBackendProcesses() {
         
         // Get current process ID to avoid killing ourselves
         const currentPid = process.pid;
+
+        // 优先按端口精准定位占用者，避免依赖 WMIC/ps 的命令行解析
+        // Prefer port-based detection to avoid relying on WMIC/ps command-line parsing
+        const listeningPids = await findListeningPidsOnPort(1106);
+        const targetPids = listeningPids.filter(pid => pid !== currentPid);
+        if (targetPids.length > 0) {
+            console.log(`Found process(es) listening on port 1106: ${targetPids.join(', ')}`);
+            for (const pid of targetPids) {
+                try {
+                    console.log(`Terminating PID ${pid} (port 1106)...`);
+                    await killProcess(pid, true);
+                    console.log(`✅ Successfully terminated process ${pid}`);
+                } catch (error) {
+                    console.warn(`⚠️ Failed to terminate process ${pid}: ${error.message}`);
+                }
+            }
+            return;
+        }
         
         // 跨平台查找node进程
         const processes = await findNodeProcesses();

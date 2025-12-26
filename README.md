@@ -43,9 +43,10 @@ Except for commands that locate and read code files, all other commands must be 
 ```
 > Of course, you can also ask your AI programming tool what the system's built-in command execution tool function is called, and then customize a prompt for it to combine CTI with the "system's built-in command execution tool function". If CTI is not running, AI will intelligently automatically use the original tool functions that come with the AI programming tool to execute commands. If you never tell it about the CTI tool, AI will likely never use CTI.
 
+> Different programming software has different MCP maximum timeout settings. Please refer to the corresponding documentation. Please set a very large timeout for CTI, otherwise some programming software has very short default timeouts. For example, Codex only has a default 60s timeout, which will not get any information output and thus cannot be used normally.
+
 #### All MCP clients that support Streamable HTTP can be used. Configuration will vary slightly for different MCP clients. Please refer to the corresponding client's official documentation. Here are simple examples:
 
-> Different programming software sets different MCP maximum timeout times. Please refer to the corresponding documentation. Please set a very large timeout for CTI, otherwise some programming software has very short default timeout times. For example, Codex only has a default 60s timeout, which will not get any information output and thus cannot be used normally.
 
 - **Cline / Roocode / Kilocode**:
 ```json

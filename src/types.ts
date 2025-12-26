@@ -270,7 +270,9 @@ export interface InteractWithTerminalInput {
     tailLines?: number;
     stripSpinner?: boolean;
   };
-  waitForOutput?: number;  // Wait time in seconds for command output
+  // Deprecated: use wait.maxWaitMs via MCP tool arguments instead
+  // 已废弃：请在 MCP 工具参数里使用 wait.maxWaitMs
+  waitForOutput?: number;  // Wait time in seconds for command output (deprecated)
   signal?: string;  // For kill action
 }
 
