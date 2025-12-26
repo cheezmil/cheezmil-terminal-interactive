@@ -48,6 +48,8 @@ node start_be_cheezmil-terminal-interactive.mjs
 
 #### 所有支持 Streamable HTTP 的 MCP 客户端都可用，不同MCP客户端的配置会略有不同，注意查询对应客户端的官方文档，这里给出简单的示例
 
+> 不同编程软件设置的MCP最大超时时间不同请自行查阅对应文档，请给CTI设置非常大的超时时间，否则某些编程软件默认的超时时间很短比如codex只有默认60s超时这时候会拿不到任何的信息输出从而无法正常使用。
+
 - **Cline / Roocode / Kilocode**:
 ```json
     "CTI": {
@@ -60,6 +62,7 @@ node start_be_cheezmil-terminal-interactive.mjs
 ```toml
 [mcp_servers.CTI]
 url = "http://localhost:1106/mcp"
+tool_timeout_sec = 666666
 ```
 
 - **Cursor**:

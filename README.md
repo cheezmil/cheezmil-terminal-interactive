@@ -45,6 +45,8 @@ Except for commands that locate and read code files, all other commands must be 
 
 #### All MCP clients that support Streamable HTTP can be used. Configuration will vary slightly for different MCP clients. Please refer to the corresponding client's official documentation. Here are simple examples:
 
+> Different programming software sets different MCP maximum timeout times. Please refer to the corresponding documentation. Please set a very large timeout for CTI, otherwise some programming software has very short default timeout times. For example, Codex only has a default 60s timeout, which will not get any information output and thus cannot be used normally.
+
 - **Cline / Roocode / Kilocode**:
 ```json
     "CTI": {
@@ -57,6 +59,7 @@ Except for commands that locate and read code files, all other commands must be 
 ```toml
 [mcp_servers.CTI]
 url = "http://localhost:1106/mcp"
+tool_timeout_sec = 666666
 ```
 
 - **Cursor**:
@@ -172,7 +175,7 @@ node start_fe_cheezmil-terminal-interactive.mjs
 |---------|-------------------------------|-------------|-------|-------------|--------|-------|---------|----------|-------------|-----------|-----------|-----------|----------|------|---------|-------|-------|
 | Input ctrl+c | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Input enter | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Doesn't often get stuck | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| No frequent stuck issues | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Create multiple terminals with one API request | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | View multiple terminal outputs simultaneously | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Close old terminals | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |

@@ -36,6 +36,13 @@ export class cheezmilTerminalInteractiveServer {
   private webUiManager: WebUIManager;
   private backendProcess: any;
   private frontendProcess: any;
+  // 渐进式最大等待时间：同一个 terminalId 需要先多次用 <=60s 的 maxWaitMs 探测输出，再允许直接请求 >60s
+  // Progressive max-wait: for the same terminalId, require multiple <=60s attempts before allowing >60s requests
+  private progressiveWaitTracker = new Map<string, {
+    shortAttempts: number;
+    createdAtMs: number;
+    lastAttemptAtMs: number;
+  }>();
 
   private encodeSpecialOperationToInput(op: string): string | null {
     // 特殊按键/操作到终端输入序列的映射
@@ -764,6 +771,14 @@ Fix tool: OpenAI Codex
   private setupTools(): void {
     // 统一终端交互工具
     if (!this.isToolDisabled('interact_with_terminal')) {
+      // MCP 客户端/工具层常见默认请求超时为 60s；为避免 tools/call 等不到响应，
+      // 这里强制限制本工具“单次等待”的最长时间（等待输出/模式命中/提示符出现等）。
+      //
+      // Many MCP clients/tool layers have a 60s default request timeout. To prevent
+      // timing out while awaiting the tools/call response, we cap the maximum
+      // single-call wait duration for this tool.
+      const MAX_SINGLE_CALL_WAIT_MS = 50_000;
+
       // 由于该工具参数较多，完全类型推导会导致 TypeScript 提示“Type instantiation is excessively deep”错误
       // Because this tool has many parameters, full type inference can trigger the TypeScript “Type instantiation is excessively deep” error
       const interactWithTerminalSchema: any = {
@@ -783,17 +798,21 @@ Fix tool: OpenAI Codex
         // 终端操作参数 / Parameters for writing to terminal
         input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
         appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
-        waitForOutput: z.number().optional().describe('Wait time in seconds for command output (e.g., 0.5 for 500ms). If not provided, no waiting.'),
-        // 等待策略（推荐使用；兼容 waitForOutput） / Wait strategy (recommended; compatible with waitForOutput)
+        // 等待策略（推荐使用） / Wait strategy (recommended)
         wait: z.object({
           mode: z.enum(['none', 'idle', 'prompt', 'pattern', 'exit']).describe('Wait mode: none|idle|prompt|pattern|exit.'),
-          timeoutMs: z.number().describe('Max wait time in milliseconds. Must be finite; never waits forever.'),
+          // 重要：该工具层/客户端通常有 60s tools/call 超时；服务端会对“单次调用等待”做硬上限，避免拿不到响应。
+          // IMPORTANT: many MCP clients/tool layers timeout tools/call at ~60s; server enforces a hard cap per call to ensure a response is returned.
+          maxWaitMs: z.number().optional().describe('Maximum wait duration in milliseconds for this single call. Must be finite. Recommended: progressive increase (e.g. 2s -> 5s -> 15s -> 50s).'),
+          // Deprecated aliases / 兼容旧字段（不推荐）
+          timeoutMs: z.number().optional().describe('[DEPRECATED] Alias of maxWaitMs.'),
+          waitMs: z.number().optional().describe('[DEPRECATED] Alias of maxWaitMs.'),
           idleMs: z.number().optional().describe('Idle time window in ms for mode=idle (default: 900).'),
           pattern: z.string().optional().describe('Pattern to wait for when mode=pattern.'),
           patternRegex: z.boolean().optional().describe('Treat pattern as regex (default: false).'),
           patternCaseSensitive: z.boolean().optional().describe('Case sensitive match for pattern (default: false).'),
           includeIntermediateOutput: z.boolean().optional().describe('Accumulate delta output during waiting (default: true).')
-        }).partial().optional().describe('Advanced wait strategy. If omitted but waitForOutput provided, it maps to mode=idle.'),
+        }).partial().passthrough().optional().describe('Advanced wait strategy. If omitted, defaults to a short idle wait to capture command output.'),
 
         // 一次性按键序列参数 / One-shot key sequence parameters
         // 允许 AI 在一次调用里发送多个按键，并给出每个按键之间的间隔时间
@@ -848,10 +867,10 @@ Fix tool: OpenAI Codex
         title: 'Interact with Terminal',
         readOnlyHint: false
       },
-      async (args: any): Promise<CallToolResult> => {
+      async (args: any, extra?: any): Promise<CallToolResult> => {
         const {
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
-          input, appendNewline, waitForOutput, wait,
+          input, appendNewline, wait,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
           specialOperation, keys, keyDelayMs, keySequence,
           search, searchRegex, caseSensitive, contextLines, maxMatches, searchSince
@@ -1200,6 +1219,93 @@ Fix tool: OpenAI Codex
               }
             }
 
+            // 等待策略：只允许“最大等待时间”，并对单次调用强制上限，避免 tools/call 被工具层 60s 超时吞掉响应
+            // Wait strategy: only use "max wait time" and enforce a per-call hard cap to avoid tool-layer 60s timeouts
+            const MAX_PROGRESSIVE_SHORT_WAIT_MS = 60_000;
+            const PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS = 8;
+
+            // 兼容参数归一：wait.maxWaitMs 为主；timeoutMs/waitMs/waitForOutput 为兼容
+            // Normalize parameters: prefer wait.maxWaitMs; keep timeoutMs/waitMs/waitForOutput for compatibility
+            const mappedWait: any = (() => {
+              if (wait && typeof wait === 'object') {
+                return wait;
+              }
+              if (waitForOutput !== undefined) {
+                const maxWaitMs = Math.max(0, Math.round(Number(waitForOutput) * 1000));
+                return { mode: maxWaitMs > 0 ? 'idle' : 'none', maxWaitMs, idleMs: 500, includeIntermediateOutput: true };
+              }
+              // Default: idle wait to capture command output, safe for long-running processes.
+              return { mode: 'idle', maxWaitMs: 2000, idleMs: 900, includeIntermediateOutput: true };
+            })();
+
+            const waitMode = mappedWait.mode ?? 'idle';
+            const requestedMaxWaitMsRaw =
+              Number.isFinite(mappedWait.maxWaitMs) ? Number(mappedWait.maxWaitMs)
+                : (Number.isFinite(mappedWait.timeoutMs) ? Number(mappedWait.timeoutMs)
+                  : (Number.isFinite(mappedWait.waitMs) ? Number(mappedWait.waitMs) : 0));
+            const requestedMaxWaitMs = Math.max(0, Math.round(requestedMaxWaitMsRaw));
+
+            // 渐进式最大等待时间限制：首次/前几次禁止直接请求 >60s，防止客户端误用导致重复启动
+            // Progressive max-wait restriction: block >60s requests until enough <=60s attempts have been made to avoid duplicate starts
+            if (actualTerminalId) {
+              const now = Date.now();
+              const entry = this.progressiveWaitTracker.get(actualTerminalId) ?? {
+                shortAttempts: 0,
+                createdAtMs: now,
+                lastAttemptAtMs: 0
+              };
+
+              const allowLongWait = entry.shortAttempts >= PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS;
+              if (requestedMaxWaitMs > MAX_PROGRESSIVE_SHORT_WAIT_MS && !allowLongWait) {
+                const remaining = Math.max(0, PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS - entry.shortAttempts);
+                const tipZh = `请先对同一个 terminalId 采用渐进式 maxWaitMs（<=60s）探测输出（还需 ${remaining} 次），之后才允许设置 >60s。`;
+                const tipEn = `Use progressive maxWaitMs (<=60s) on the same terminalId first (${remaining} more attempts needed) before requesting >60s.`;
+                return {
+                  content: [
+                    { type: 'text', text: `${tipEn}\n${tipZh}` }
+                  ],
+                  structuredContent: {
+                    kind: 'progressive_wait_required',
+                    terminalId: actualTerminalId,
+                    progressiveWait: {
+                      requestedMaxWaitMs,
+                      shortMaxWaitMs: MAX_PROGRESSIVE_SHORT_WAIT_MS,
+                      shortAttempts: entry.shortAttempts,
+                      requiredShortAttempts: PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS,
+                      remainingShortAttempts: remaining,
+                      allowLongWait: false
+                    },
+                    // 按模式返回“建议参数”，但本次不执行写入，避免重复启动
+                    // Return suggested params in a mode-shaped response, without executing writes to avoid duplicate starts
+                    wait: {
+                      mode: waitMode,
+                      requestedMaxWaitMs,
+                      effectiveMaxWaitMs: Math.min(requestedMaxWaitMs, MAX_PROGRESSIVE_SHORT_WAIT_MS),
+                      met: false,
+                      reason: 'progressive_required'
+                    }
+                  }
+                };
+              }
+
+              // 记录 <=60s 的尝试次数（仅当调用方显式给了等待时间，且不是 none）
+              // Count <=60s attempts (only when caller explicitly requests waiting and mode is not none)
+              if (waitMode !== 'none' && requestedMaxWaitMs > 0 && requestedMaxWaitMs <= MAX_PROGRESSIVE_SHORT_WAIT_MS) {
+                entry.shortAttempts += 1;
+                entry.lastAttemptAtMs = now;
+                this.progressiveWaitTracker.set(actualTerminalId, entry);
+              } else if (!this.progressiveWaitTracker.has(actualTerminalId)) {
+                // 确保有条目以便后续统计/提示
+                // Ensure entry exists for future tracking/hints
+                this.progressiveWaitTracker.set(actualTerminalId, entry);
+              }
+            }
+
+            const waitTimeoutMsUncapped = requestedMaxWaitMs;
+            const waitTimeoutMs = Math.min(waitTimeoutMsUncapped, MAX_SINGLE_CALL_WAIT_MS);
+            const waitIdleMs = Number.isFinite(mappedWait.idleMs) ? Math.max(0, Math.round(mappedWait.idleMs)) : 900;
+            const includeIntermediateOutput = mappedWait.includeIntermediateOutput !== undefined ? Boolean(mappedWait.includeIntermediateOutput) : true;
+
             const writeOptions: any = resolvedKeySequence
               ? { terminalName: actualTerminalId, input: '' }
               : { terminalName: actualTerminalId, input: actualInput };
@@ -1252,25 +1358,6 @@ Fix tool: OpenAI Codex
             if (specialOperation) {
               structuredContent.specialOperation = specialOperation;
             }
-
-            // 等待策略：默认使用 idle，且永远不允许无限等待
-            // Wait strategy: default to idle and never wait forever
-            const mappedWait: any = (() => {
-              if (wait && typeof wait === 'object') {
-                return wait;
-              }
-              if (waitForOutput !== undefined) {
-                const timeoutMs = Math.max(0, Math.round(Number(waitForOutput) * 1000));
-                return { mode: timeoutMs > 0 ? 'idle' : 'none', timeoutMs, idleMs: 500, includeIntermediateOutput: true };
-              }
-              // Default: idle wait to capture command output, safe for long-running processes.
-              return { mode: 'idle', timeoutMs: 2000, idleMs: 900, includeIntermediateOutput: true };
-            })();
-
-            const waitMode = mappedWait.mode ?? 'idle';
-            const waitTimeoutMs = Number.isFinite(mappedWait.timeoutMs) ? Math.max(0, Math.round(mappedWait.timeoutMs)) : 0;
-            const waitIdleMs = Number.isFinite(mappedWait.idleMs) ? Math.max(0, Math.round(mappedWait.idleMs)) : 900;
-            const includeIntermediateOutput = mappedWait.includeIntermediateOutput !== undefined ? Boolean(mappedWait.includeIntermediateOutput) : true;
 
             const effectiveStripSpinner = stripSpinner !== undefined ? Boolean(stripSpinner) : true;
             // 未传 mode 时，默认使用 this_command_output（只返回本次命令的输出增量）
@@ -1513,16 +1600,34 @@ Fix tool: OpenAI Codex
               recommendationReason = 'safe default for long-running processes';
             }
 
-            responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${finalOutput}\n--- End of Command Output ---`;
+            // 等待到期不应作为错误抛出：必须返回结构化结果，让客户端按同一模式继续轮询/调整 maxWaitMs
+            // Do not throw on wait expiry: return a structured result so the client can keep polling/adjust maxWaitMs in the same mode
+            if (waitMode !== 'none' && waitReason === 'timeout') {
+              responseText =
+                `Wait reached maxWaitMs on terminal ${actualTerminalId} (requested=${requestedMaxWaitMs}ms, effective=${waitTimeoutMs}ms, cap=${MAX_SINGLE_CALL_WAIT_MS}ms).\n` +
+                `Call interact_with_terminal again with progressive maxWaitMs (e.g. 2000 -> 5000 -> 15000 -> 50000) to continue collecting output.\n\n` +
+                `--- Command Output (partial) ---\n${finalOutput}\n--- End of Command Output ---`;
+            } else {
+              responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${finalOutput}\n--- End of Command Output ---`;
+            }
 
             structuredContent = {
               ...structuredContent,
-              waitForOutput,
+              kind: (waitMode !== 'none' && waitReason === 'timeout') ? 'wait_timeout' : 'ok',
               wait: {
                 mode: waitMode,
+                // 统一字段：maxWaitMs（单次调用最大等待时间）
+                // Unified field: maxWaitMs (per-call max wait)
+                maxWaitMs: waitTimeoutMs,
+                // 兼容字段（不推荐）
+                // Compatibility fields (not recommended)
                 timeoutMs: waitTimeoutMs,
                 met: waitMet,
-                reason: waitReason
+                reason: waitReason,
+                requestedMaxWaitMs,
+                effectiveMaxWaitMs: waitTimeoutMs,
+                singleCallCapMs: MAX_SINGLE_CALL_WAIT_MS,
+                capped: waitTimeoutMsUncapped > waitTimeoutMs
               },
               write: {
                 appendedNewline: structuredContent.appendNewline !== undefined ? structuredContent.appendNewline : true,
@@ -1970,10 +2075,14 @@ Before calling this tool, gather as much information as possible:
 
     this.terminalManager.on('terminalKilled', (terminalId, signal) => {
       process.stderr.write(`[MCP-INFO] Terminal killed: ${terminalId} (signal: ${signal})\n`);
+      // 清理渐进式等待的计数 / Cleanup progressive-wait counters
+      this.progressiveWaitTracker.delete(terminalId);
     });
 
     this.terminalManager.on('terminalCleaned', (terminalId) => {
       process.stderr.write(`[MCP-INFO] Terminal cleaned up: ${terminalId}\n`);
+      // 清理渐进式等待的计数 / Cleanup progressive-wait counters
+      this.progressiveWaitTracker.delete(terminalId);
     });
   }
 
