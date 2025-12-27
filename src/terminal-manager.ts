@@ -27,6 +27,7 @@ export class TerminalManager extends EventEmitter {
   private outputBuffers = new Map<string, OutputBuffer>();
   private exitPromises = new Map<string, Promise<void>>();
   private exitResolvers = new Map<string, () => void>();
+  private writeChains = new Map<string, Promise<void>>();
   private config: Required<TerminalManagerConfig>;
   private cleanupTimer: NodeJS.Timeout;
   
@@ -310,7 +311,23 @@ export class TerminalManager extends EventEmitter {
       throw error;
     }
 
-    try {
+    // 串行化同一个终端的写入，避免并发写入在 ConPTY/PTY 上交错导致“命令粘连/截断”。
+    // Serialize writes per terminal to avoid interleaving writes (command concatenation/truncation on PTY/ConPTY).
+    const previous = this.writeChains.get(resolvedId) ?? Promise.resolve();
+    const current = (async () => {
+      await previous;
+
+      // 再次确认会话仍然存在（可能被超时清理）
+      // Double-check session still exists (it may have been cleaned up)
+      const livePty = this.ptyProcesses.get(resolvedId);
+      const liveSession = this.sessions.get(resolvedId);
+      if (!livePty || !liveSession || liveSession.status !== 'active') {
+        const error: TerminalError = new Error(`Terminal ${terminalName} not found or inactive`) as TerminalError;
+        error.code = 'TERMINAL_NOT_FOUND';
+        error.terminalName = terminalName;
+        throw error;
+      }
+
       // 如果输入不以换行符结尾，自动添加回车以执行命令。
       // 对“多行输入”默认不自动追加，避免粘贴到全屏程序（vim）时多余回车导致状态错乱；
       // 但对“类对话交互程序”（如 Claude Code）多行消息往往需要最终回车提交，因此默认仍追加。
@@ -318,8 +335,9 @@ export class TerminalManager extends EventEmitter {
       // For multi-line input we default to NO auto-append to avoid breaking fullscreen apps (vim),
       // but for chat-like interactive apps (e.g., Claude Code) multi-line messages typically need a final Enter to submit.
       const hasMultiline = input.includes('\n') || input.includes('\r\n');
-      const isChatLikeInteractive = this.isLikelyChatInteractiveSession(session);
-      const autoAppend = appendNewline ?? (hasMultiline ? isChatLikeInteractive : this.shouldAutoAppendNewline(input));
+      const isChatLikeInteractive = this.isLikelyChatInteractiveSession(liveSession);
+      const autoAppend =
+        appendNewline ?? (hasMultiline ? isChatLikeInteractive : this.shouldAutoAppendNewline(input));
       const needsNewline = autoAppend && !input.endsWith('\n') && !input.endsWith('\r');
       const newlineChar = '\r';
       const inputWithAutoNewline = needsNewline ? input + newlineChar : input;
@@ -329,17 +347,23 @@ export class TerminalManager extends EventEmitter {
       // Windows ConPTY 在一次 write 过大时可能丢数据；因此这里按块写入并小幅让出事件循环。
       // Write to PTY in chunks.
       // Windows ConPTY may drop very large single writes, so we chunk and yield briefly.
-      await this.writeInChunks(ptyProcess, inputToWrite);
+      await this.writeInChunks(livePty, inputToWrite);
 
-      session.lastActivity = new Date();
+      liveSession.lastActivity = new Date();
       this.emit('terminalInput', terminalName, inputToWrite);
 
       const executed = /[\n\r]$/.test(inputToWrite);
-      this.trackCommand(session, inputToWrite, executed);
+      this.trackCommand(liveSession, inputToWrite, executed);
 
       // 给 PTY 一点时间处理输入
       // 这对于交互式应用特别重要
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
+    })();
+
+    this.writeChains.set(resolvedId, current.catch(() => undefined).then(() => undefined));
+
+    try {
+      await current;
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to write to terminal: ${error}`) as TerminalError;
       terminalError.code = 'WRITE_FAILED';
@@ -1192,6 +1216,7 @@ export class TerminalManager extends EventEmitter {
     this.sessions.delete(terminalId);
     this.exitPromises.delete(terminalId);
     this.exitResolvers.delete(terminalId);
+    this.writeChains.delete(terminalId);
     this.emit('terminalCleaned', terminalId);
   }
 
