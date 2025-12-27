@@ -21,6 +21,7 @@ import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import { useSettingsStore } from '../stores/settings'
 import SvgIcon from '@/components/ui/svg-icon.vue'
+import { createSerialWriteQueue } from '@/lib/serial-write-queue.mjs'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -45,7 +46,15 @@ const activeTerminalId = ref<string | null>(null)
 const terminalInstances = ref<
   Map<
     string,
-    { term: Terminal; fitAddon: FitAddon; ws: WebSocket | null; hasLiveOutput: boolean }
+    {
+      term: Terminal
+      fitAddon: FitAddon
+      ws: WebSocket | null
+      hasLiveOutput: boolean
+      // 串行写入队列：防止历史分块写入与实时输出交错 /
+      // Serial write queue: prevent interleaving between history chunk writes and live outputs
+      writeQueue: { enqueue: (task: () => void | Promise<void>) => Promise<void> }
+    }
   >
 >(new Map())
 
@@ -625,7 +634,13 @@ const initializeTerminal = async (terminalId: string) => {
     }, 200)
 
     // Save instance early (before WS) / 先保存实例（在 WS 之前），避免历史输出覆盖 live 输出导致渲染乱套
-    const instance = { term, fitAddon, ws: null as WebSocket | null, hasLiveOutput: false }
+    const instance = {
+      term,
+      fitAddon,
+      ws: null as WebSocket | null,
+      hasLiveOutput: false,
+      writeQueue: createSerialWriteQueue()
+    }
     terminalInstances.value.set(terminalId, instance)
     
     // Also store reference on DOM element for debugging / 也在DOM元素上存储引用以便调试
@@ -746,21 +761,40 @@ const getXtermViewportY = (term: Terminal) => {
 // Write output and conditionally follow bottom based on toggle + user's scroll position
 const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
   if (!text) return
+  const instance = terminalInstances.value.get(terminalId)
+  // 如果实例未就绪，则退化为直接写入（尽量不丢输出）/
+  // If instance isn't ready, fallback to direct write (best-effort to avoid dropping output)
+  if (!instance) {
+    try {
+      term.write(text)
+    } catch {
+      // ignore
+    }
+    return
+  }
   const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
   const wasAtBottom = isXtermViewportAtBottom(term)
-  try {
-    term.write(text, () => {
-      if (shouldFollow && wasAtBottom) {
+  // 通过串行队列保证 write 顺序，避免与历史分块写入互相穿插 /
+  // Serialize writes via queue to avoid interleaving with historical chunk writes
+  void instance.writeQueue.enqueue(
+    () =>
+      new Promise<void>((resolve) => {
         try {
-          term.scrollToBottom()
+          term.write(text, () => {
+            if (shouldFollow && wasAtBottom) {
+              try {
+                term.scrollToBottom()
+              } catch {
+                // ignore
+              }
+            }
+            resolve()
+          })
         } catch {
-          // ignore
+          resolve()
         }
-      }
-    })
-  } catch {
-    // ignore
-  }
+      })
+  )
 }
 
 // Load terminal historical output / 加载终端历史输出
@@ -813,81 +847,93 @@ const loadTerminalOutput = async (terminalId: string) => {
       return
     }
 
-    // 记录历史写入前的视口位置，用于写入后恢复/跟随 /
-    // Record viewport state before writing history to restore/follow afterwards
-    const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
-    const wasAtBottom = isXtermViewportAtBottom(instance.term)
-    const viewportY = getXtermViewportY(instance.term)
+    // 通过同一队列串行化“清屏 + 历史分块写入”，避免与实时输出交错 /
+    // Serialize "clear + historical chunk writes" via the same queue to avoid interleaving with live outputs
+    await instance.writeQueue.enqueue(async () => {
+      // 记录历史写入前的视口位置，用于写入后恢复/跟随 /
+      // Record viewport state before writing history to restore/follow afterwards
+      const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
+      const wasAtBottom = isXtermViewportAtBottom(instance.term)
+      const viewportY = getXtermViewportY(instance.term)
 
-    // Use dynamic API service / 使用动态API服务
-    // 读取完整缓冲历史：不允许“省略前面/后续 N 行”的标记出现在前端；采用 forward 分页保证性能 /
-    // Fetch full buffered history: omission markers must not appear in UI; use forward paging for performance
-    const PAGE_LINES = 800
-    const MAX_PAGES = 200
+      // Use dynamic API service / 使用动态API服务
+      // 读取完整缓冲历史：不允许“省略前面/后续 N 行”的标记出现在前端；采用 forward 分页保证性能 /
+      // Fetch full buffered history: omission markers must not appear in UI; use forward paging for performance
+      const PAGE_LINES = 800
+      const MAX_PAGES = 200
 
-    // Clear terminal first and reset cache / 先清屏并重置缓存
-    instance.term.clear()
-    terminalStore.setTerminalOutput(terminalId, '')
+      // Clear terminal first and reset cache / 先清屏并重置缓存
+      instance.term.clear()
+      terminalStore.setTerminalOutput(terminalId, '')
 
-    let cursor = 0
-    let wroteAny = false
+      let cursor = 0
+      let wroteAny = false
 
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const response = await terminalApi.readOutput(terminalId, {
-        since: cursor,
-        maxLines: PAGE_LINES,
-        mode: 'full',
-        direction: 'forward',
-        stripSpinner: true
-      })
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
-        throw new Error('Failed to load output')
-      }
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const response = await terminalApi.readOutput(terminalId, {
+          since: cursor,
+          maxLines: PAGE_LINES,
+          mode: 'full',
+          direction: 'forward',
+          stripSpinner: true
+        })
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error(`Failed to load output for terminal ${terminalId}:`, errorText)
+          throw new Error('Failed to load output')
+        }
 
-      const data = await response.json() as { output?: string; hasMore?: boolean; cursor?: number; since?: number }
-      const chunk = data.output ?? ''
-      const nextCursor = typeof data.cursor === 'number'
-        ? data.cursor
-        : (typeof data.since === 'number' ? data.since : cursor)
+        const data = (await response.json()) as {
+          output?: string
+          hasMore?: boolean
+          cursor?: number
+          since?: number
+        }
+        const chunk = data.output ?? ''
+        const nextCursor =
+          typeof data.cursor === 'number'
+            ? data.cursor
+            : typeof data.since === 'number'
+              ? data.since
+              : cursor
 
-      if (chunk && chunk.length > 0) {
-        // 后端分页块之间没有自动换行分隔，这里补一个换行避免两段内容粘连 /
-        // Backend chunks don't include a trailing separator between pages; add one to avoid glueing lines
-        const textToWrite = wroteAny ? `\n${chunk}` : chunk
-        await writeXtermInChunks(instance.term, textToWrite)
-        terminalStore.appendTerminalOutput(terminalId, textToWrite)
-        wroteAny = true
-      }
+        if (chunk && chunk.length > 0) {
+          // 后端分页块之间没有自动换行分隔，这里补一个换行避免两段内容粘连 /
+          // Backend chunks don't include a trailing separator between pages; add one to avoid glueing lines
+          const textToWrite = wroteAny ? `\n${chunk}` : chunk
+          await writeXtermInChunks(instance.term, textToWrite)
+          terminalStore.appendTerminalOutput(terminalId, textToWrite)
+          wroteAny = true
+        }
 
-      if (!data.hasMore || nextCursor === cursor) {
+        if (!data.hasMore || nextCursor === cursor) {
+          cursor = nextCursor
+          break
+        }
         cursor = nextCursor
-        break
       }
-      cursor = nextCursor
-    }
 
-    // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
-    if (!wroteAny) {
-      console.log(`No historical output for terminal ${terminalId}, keep current content`)
-      return
-    }
-
-    // Force terminal to refresh / 强制刷新
-    instance.term.refresh(0, instance.term.rows - 1)
-    // 历史写入完成后：如果原本在底部且开启自动滚动，则跟随到底部；否则恢复原视口 /
-    // After history write: follow bottom only if it was at bottom and auto-scroll is enabled; otherwise restore viewport
-    try {
-      if (shouldFollow && wasAtBottom) {
-        instance.term.scrollToBottom()
-      } else {
-        instance.term.scrollToLine(viewportY)
+      // If there is no effective historical output, keep current terminal content / 如果没有有效历史输出，则保持当前终端内容不变
+      if (!wroteAny) {
+        console.log(`No historical output for terminal ${terminalId}, keep current content`)
+        return
       }
-    } catch {
-      // ignore
-    }
-    console.log(`Terminal content written successfully`)
+
+      // Force terminal to refresh / 强制刷新
+      instance.term.refresh(0, instance.term.rows - 1)
+      // 历史写入完成后：如果原本在底部且开启自动滚动，则跟随到底部；否则恢复原视口 /
+      // After history write: follow bottom only if it was at bottom and auto-scroll is enabled; otherwise restore viewport
+      try {
+        if (shouldFollow && wasAtBottom) {
+          instance.term.scrollToBottom()
+        } else {
+          instance.term.scrollToLine(viewportY)
+        }
+      } catch {
+        // ignore
+      }
+      console.log(`Terminal content written successfully`)
+    })
   } catch (error) {
     console.error(`Failed to load output for terminal ${terminalId}:`, error)
   }

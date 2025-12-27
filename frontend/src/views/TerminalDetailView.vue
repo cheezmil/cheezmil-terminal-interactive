@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { createSerialWriteQueue } from '@/lib/serial-write-queue.mjs'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import { useSettingsStore } from '../stores/settings'
@@ -23,6 +24,9 @@ const isConnected = ref(false)
 const isFullscreen = ref(false)
 
 let ws: WebSocket | null = null
+// 串行写入队列：避免历史输出写入与实时 WS 输出交错 /
+// Serial write queue: prevent interleaving between history writes and live WS outputs
+const writeQueue = createSerialWriteQueue()
 let term: Terminal | null = null
 let fitAddon: FitAddon | null = null
 
@@ -347,12 +351,30 @@ const handleWebSocketMessage = (message: any) => {
   switch (message.type) {
     case 'output':
       if (term) {
-        term.write(message.data)
+        void writeQueue.enqueue(
+          () =>
+            new Promise<void>((resolve) => {
+              try {
+                term!.write(message.data, resolve)
+              } catch {
+                resolve()
+              }
+            })
+        )
       }
       break
     case 'exit':
       if (term) {
-        term.write('\r\n\x1b[31m[Terminal Exited]\x1b[0m\r\n')
+        void writeQueue.enqueue(
+          () =>
+            new Promise<void>((resolve) => {
+              try {
+                term!.write('\r\n\x1b[31m[Terminal Exited]\x1b[0m\r\n', resolve)
+              } catch {
+                resolve()
+              }
+            })
+        )
       }
       break
   }
@@ -398,7 +420,16 @@ const loadTerminalOutput = async () => {
     console.log('Output data:', data)
 
     if (data.output && term) {
-      term.write(data.output)
+      await writeQueue.enqueue(
+        () =>
+          new Promise<void>((resolve) => {
+            try {
+              term.write(data.output, resolve)
+            } catch {
+              resolve()
+            }
+          })
+      )
       console.log('Wrote output to terminal')
     } else {
       console.log('No output to display')
@@ -486,8 +517,10 @@ onMounted(async () => {
     console.log('API service initialized, fetching terminal details...')
     await fetchTerminalDetails()
     setupTerminal()
-    connectWebSocket()
+    // 先加载历史输出，再连接 WS，避免“提示符/实时输出”穿插到历史大输出中间 /
+    // Load history first, then connect WS to avoid interleaving prompt/live output into big historical outputs
     await loadTerminalOutput() // 加载历史输出 / Load historical output
+    connectWebSocket()
 
     // 设置终端数据处理器 / Set terminal data handler
     if (term) {
