@@ -41,7 +41,10 @@ const configData = ref<any>({
     // 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
     enableUserControl: false,
     // 新建终端默认自动滚动到底部 / Default auto-scroll-to-bottom for newly created terminals
-    autoScrollToBottomByDefault: true
+    autoScrollToBottomByDefault: true,
+    // 侧边栏终端列表排序方式：newest=从新到旧，oldest=从旧到新 /
+    // Sidebar terminal list sort order: newest=descending, oldest=ascending
+    terminalListSortOrder: 'newest'
   },
   mcp: {
     enableDnsRebindingProtection: false,
@@ -460,6 +463,39 @@ onMounted(async () => {
                     {{ configData.terminal.autoScrollToBottomByDefault ? t('settings.enabled') : t('settings.disabled') }}
                   </span>
                 </div>
+              </div>
+
+              <!-- Terminal list sort order / 终端列表排序 -->
+              <div class="flex flex-col space-y-2">
+                <Label class="flex items-center space-x-2 text-text-primary font-medium">
+                  <svg class="w-4 h-4 text-neon-green" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8M8 12h6M8 17h4" />
+                  </svg>
+                  <span class="font-serif-luxury">{{ t('settings.terminalListSortOrder') }}</span>
+                </Label>
+                <p class="text-sm text-text-secondary">
+                  {{ t('settings.terminalListSortOrderDescription') }}
+                </p>
+                <RadioGroup v-model="configData.terminal.terminalListSortOrder" class="space-y-3">
+                  <div
+                    class="flex items-center space-x-3 p-3 rounded-lg bg-charcoal border border-border-dark cursor-pointer hover:border-neon-green transition-all duration-200"
+                    @click="configData.terminal.terminalListSortOrder = 'newest'"
+                  >
+                    <RadioGroupItem id="terminal-list-sort-newest" value="newest" />
+                    <Label for="terminal-list-sort-newest" class="text-text-primary cursor-pointer">
+                      {{ t('settings.terminalListSortOrderNewest') }}
+                    </Label>
+                  </div>
+                  <div
+                    class="flex items-center space-x-3 p-3 rounded-lg bg-charcoal border border-border-dark cursor-pointer hover:border-neon-green transition-all duration-200"
+                    @click="configData.terminal.terminalListSortOrder = 'oldest'"
+                  >
+                    <RadioGroupItem id="terminal-list-sort-oldest" value="oldest" />
+                    <Label for="terminal-list-sort-oldest" class="text-text-primary cursor-pointer">
+                      {{ t('settings.terminalListSortOrderOldest') }}
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
               
               <div class="flex flex-col space-y-2">

@@ -24,6 +24,9 @@ terminal:
   defaultEnv: {}  # 默认环境变量 / Default environment variables
   # 是否允许前端控制终端（实验性）/ Whether to allow frontend to control terminals (experimental)
   enableUserControl: false
+  # 侧边栏终端列表排序方式：newest=从新到旧，oldest=从旧到新 /
+  # Sidebar terminal list sort order: newest=descending, oldest=ascending
+  terminalListSortOrder: 'newest'
 
 # MCP配置 / MCP Configuration
 mcp:

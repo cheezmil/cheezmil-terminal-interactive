@@ -36,6 +36,23 @@ const defaultAutoScrollToBottom = computed(() => {
   return typeof v === 'boolean' ? v : true
 })
 
+// 侧边栏终端列表排序方式（新到旧/旧到新）/
+// Sidebar terminal list sort order (newest-first / oldest-first)
+const terminalListSortOrder = computed<'newest' | 'oldest'>(() => {
+  const v = (settingsStore.configData?.terminal as any)?.terminalListSortOrder
+  return v === 'oldest' ? 'oldest' : 'newest'
+})
+
+const getTerminalCreatedTime = (terminal: any): number => {
+  const raw = terminal?.created
+  if (typeof raw === 'string') {
+    const ms = Date.parse(raw)
+    return Number.isFinite(ms) ? ms : 0
+  }
+  if (raw instanceof Date) return raw.getTime()
+  return 0
+}
+
 // Persistent storage key for active terminal tab / 用于持久化当前终端“tab”的本地存储键名
 const ACTIVE_TERMINAL_STORAGE_KEY = 'cti.activeTerminalId'
 
@@ -108,7 +125,19 @@ const displayedTerminals = computed(() => {
   filtered.sort((a, b) => {
     const ap = terminalStore.isPinned(a.id) ? 1 : 0
     const bp = terminalStore.isPinned(b.id) ? 1 : 0
-    return bp - ap
+    if (bp !== ap) return bp - ap
+
+    const aCreated = getTerminalCreatedTime(a)
+    const bCreated = getTerminalCreatedTime(b)
+
+    if (terminalListSortOrder.value === 'oldest') {
+      if (aCreated !== bCreated) return aCreated - bCreated
+    } else {
+      if (aCreated !== bCreated) return bCreated - aCreated
+    }
+
+    // Fallback stable ordering / 回退稳定排序
+    return String(a.id || '').localeCompare(String(b.id || ''))
   })
 
   return filtered
@@ -142,7 +171,7 @@ const fetchTerminals = async () => {
       activeTerminalId.value = savedId!
     } else if (fetchedTerminals.length > 0 && !activeTerminalId.value) {
       // 没有有效的保存记录时，仍然回退到第一个终端 / Fallback to first terminal when there is no valid saved record
-      activeTerminalId.value = fetchedTerminals[0].id
+      activeTerminalId.value = (displayedTerminals.value[0] || fetchedTerminals[0]).id
     }
   } catch (error) {
     console.error('Error fetching terminals:', error)
@@ -214,7 +243,7 @@ const deleteTerminal = async (id: string) => {
     // 如果删除的是当前活跃终端，选择另一个或清空选择 /
     // If the deleted one was active, select another or clear selection
     if (activeTerminalId.value === id && terminals.value.length > 0) {
-      activeTerminalId.value = terminals.value[0].id
+      activeTerminalId.value = (displayedTerminals.value[0] || terminals.value[0]).id
     } else if (terminals.value.length === 0) {
       activeTerminalId.value = null
     }
@@ -702,8 +731,6 @@ const initializeTerminal = async (terminalId: string) => {
       if (instance) {
         void (async () => {
           const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
-          const wasAtBottom = isXtermViewportAtBottom(instance.term)
-          const viewportY = getXtermViewportY(instance.term)
           await waitForRaf2()
           instance.fitAddon.fit()
           // Force char re-measure on resize to avoid spacing glitches / resize 时强制重测字符尺寸，避免字距异常
@@ -712,12 +739,14 @@ const initializeTerminal = async (terminalId: string) => {
           instance.term.refresh(0, instance.term.rows - 1)
           await stabilizeDomRendererSpacing(instance.term)
           // 保持滚动位置：仅在原本位于底部且开启自动滚动时跟随到底部，否则尽量恢复原视口行号 /
-          // Keep scroll position: follow bottom only if it was at bottom and auto-scroll is enabled; otherwise restore viewport line
+          // Keep scroll position:
+          // - When auto-scroll is enabled, always follow bottom (VS Code-like behavior).
+          // - Otherwise, do not force any scrolling (also VS Code-like).
           try {
-            if (shouldFollow && wasAtBottom) {
+            if (shouldFollow) {
               instance.term.scrollToBottom()
             } else {
-              instance.term.scrollToLine(viewportY)
+              // keep current scroll position
             }
           } catch {
             // ignore
@@ -735,12 +764,13 @@ const initializeTerminal = async (terminalId: string) => {
 }
 
 // 判断 xterm 视口是否贴近底部 / Check whether xterm viewport is at (or near) bottom
+// Use DOM viewport metrics (more stable than buffer viewportY/baseY under rapid writes & resize).
 const isXtermViewportAtBottom = (term: Terminal) => {
   try {
-    const buf: any = (term as any).buffer?.active
-    const viewportY = typeof buf?.viewportY === 'number' ? buf.viewportY : 0
-    const baseY = typeof buf?.baseY === 'number' ? buf.baseY : 0
-    return viewportY >= Math.max(0, baseY - 1)
+    const viewport = term.element?.querySelector('.xterm-viewport') as HTMLElement | null
+    if (!viewport) return true
+    const thresholdPx = 8
+    return viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - thresholdPx
   } catch {
     return true
   }
@@ -773,7 +803,6 @@ const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
     return
   }
   const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
-  const wasAtBottom = isXtermViewportAtBottom(term)
   // 通过串行队列保证 write 顺序，避免与历史分块写入互相穿插 /
   // Serialize writes via queue to avoid interleaving with historical chunk writes
   void instance.writeQueue.enqueue(
@@ -781,7 +810,7 @@ const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
       new Promise<void>((resolve) => {
         try {
           term.write(text, () => {
-            if (shouldFollow && wasAtBottom) {
+            if (shouldFollow) {
               try {
                 term.scrollToBottom()
               } catch {
@@ -799,14 +828,23 @@ const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
 
 // Load terminal historical output / 加载终端历史输出
 // 分块写入 xterm，避免一次性写入大文本导致卡顿 / Chunked write into xterm to avoid UI stalls on large payloads
-const writeXtermInChunks = async (term: any, text: string) => {
+const writeXtermInChunks = async (term: any, text: string, options?: { shouldFollow?: boolean }) => {
   if (!term || !text) return
   const CHUNK_SIZE = 50000
   for (let offset = 0; offset < text.length; offset += CHUNK_SIZE) {
     const chunk = text.slice(offset, offset + CHUNK_SIZE)
     await new Promise<void>((resolve) => {
       try {
-        term.write(chunk, resolve)
+        term.write(chunk, () => {
+          if (options?.shouldFollow) {
+            try {
+              term.scrollToBottom()
+            } catch {
+              // ignore
+            }
+          }
+          resolve()
+        })
       } catch {
         resolve()
       }
@@ -853,8 +891,6 @@ const loadTerminalOutput = async (terminalId: string) => {
       // 记录历史写入前的视口位置，用于写入后恢复/跟随 /
       // Record viewport state before writing history to restore/follow afterwards
       const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
-      const wasAtBottom = isXtermViewportAtBottom(instance.term)
-      const viewportY = getXtermViewportY(instance.term)
 
       // Use dynamic API service / 使用动态API服务
       // 读取完整缓冲历史：不允许“省略前面/后续 N 行”的标记出现在前端；采用 forward 分页保证性能 /
@@ -901,7 +937,7 @@ const loadTerminalOutput = async (terminalId: string) => {
           // 后端分页块之间没有自动换行分隔，这里补一个换行避免两段内容粘连 /
           // Backend chunks don't include a trailing separator between pages; add one to avoid glueing lines
           const textToWrite = wroteAny ? `\n${chunk}` : chunk
-          await writeXtermInChunks(instance.term, textToWrite)
+          await writeXtermInChunks(instance.term, textToWrite, { shouldFollow })
           terminalStore.appendTerminalOutput(terminalId, textToWrite)
           wroteAny = true
         }
@@ -922,12 +958,14 @@ const loadTerminalOutput = async (terminalId: string) => {
       // Force terminal to refresh / 强制刷新
       instance.term.refresh(0, instance.term.rows - 1)
       // 历史写入完成后：如果原本在底部且开启自动滚动，则跟随到底部；否则恢复原视口 /
-      // After history write: follow bottom only if it was at bottom and auto-scroll is enabled; otherwise restore viewport
+      // After history write:
+      // - When auto-scroll is enabled, always follow bottom.
+      // - Otherwise, do not force any scrolling.
       try {
-        if (shouldFollow && wasAtBottom) {
+        if (shouldFollow) {
           instance.term.scrollToBottom()
         } else {
-          instance.term.scrollToLine(viewportY)
+          // keep current scroll position
         }
       } catch {
         // ignore
@@ -968,19 +1006,18 @@ const fitAndRefreshTerminal = async (terminalId: string) => {
   }
   try {
     const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
-    const wasAtBottom = isXtermViewportAtBottom(instance.term)
-    const viewportY = getXtermViewportY(instance.term)
     instance.fitAddon.fit()
     forceXtermCharMeasure(instance.term)
     instance.term.refresh(0, instance.term.rows - 1)
     await stabilizeDomRendererSpacing(instance.term)
-    // 同 resize：尽量保持滚动位置，避免输出“回跳/混在一起”的错觉 /
-    // Same as resize: keep scroll position to avoid "jump/mixed output" feel
+    // Same as resize:
+    // - When auto-scroll is enabled, always follow bottom.
+    // - Otherwise, do not force any scrolling.
     try {
-      if (shouldFollow && wasAtBottom) {
+      if (shouldFollow) {
         instance.term.scrollToBottom()
       } else {
-        instance.term.scrollToLine(viewportY)
+        // keep current scroll position
       }
     } catch {
       // ignore
@@ -1154,7 +1191,7 @@ onUnmounted(() => {
 // Watch terminal list changes, auto-initialize new terminals / 监听终端列表变化，自动初始化新终端
 watch(terminals, (newTerminals) => {
   if (newTerminals.length > 0 && !activeTerminalId.value) {
-    activeTerminalId.value = newTerminals[0].id
+    activeTerminalId.value = (displayedTerminals.value[0] || newTerminals[0]).id
   }
 }, { deep: true })
 </script>
