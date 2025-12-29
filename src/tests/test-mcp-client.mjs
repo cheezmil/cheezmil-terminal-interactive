@@ -59,6 +59,7 @@ async function testInteractiveTerminalNotice() {
           name: 'interact_with_terminal',
           arguments: {
             terminalId,
+            cwd: process.cwd(),
             input: 'Start-Sleep -Seconds 5',
             appendNewline: true,
             wait: { mode: 'none', maxWaitMs: 0 }
@@ -76,6 +77,7 @@ async function testInteractiveTerminalNotice() {
           name: 'interact_with_terminal',
           arguments: {
             terminalId,
+            cwd: process.cwd(),
             input: 'Get-Date',
             appendNewline: true,
             wait: { mode: 'none', maxWaitMs: 0 }
@@ -148,6 +150,7 @@ async function testWaitIdleDeltaEchoHello() {
           name: 'interact_with_terminal',
           arguments: {
             terminalId,
+            cwd: process.cwd(),
             input: 'echo hello',
             appendNewline: true,
             wait: { mode: 'idle', maxWaitMs: 3000, idleMs: 400 }
@@ -215,6 +218,7 @@ async function testWaitTimeoutReturnsResult() {
           name: 'interact_with_terminal',
           arguments: {
             terminalId,
+            cwd: process.cwd(),
             input: 'echo timeout-test',
             appendNewline: true,
             wait: { mode: 'pattern', maxWaitMs: 300, pattern: 'THIS_WILL_NOT_MATCH', patternRegex: false, includeIntermediateOutput: true }
@@ -283,6 +287,7 @@ async function testProgressiveMaxWaitPolicy() {
           name: 'interact_with_terminal',
           arguments: {
             terminalId,
+            cwd: process.cwd(),
             input: `echo ${marker}`,
             appendNewline: true,
             wait: { mode: 'idle', maxWaitMs: 120000, idleMs: 200 }
@@ -304,7 +309,7 @@ async function testProgressiveMaxWaitPolicy() {
       const readBack = await client.request(
         {
           method: 'tools/call',
-          params: { name: 'interact_with_terminal', arguments: { terminalId, wait: { mode: 'idle', maxWaitMs: 1500 } } }
+          params: { name: 'interact_with_terminal', arguments: { terminalId, cwd: process.cwd(), wait: { mode: 'idle', maxWaitMs: 1500 } } }
         },
         CallToolResultSchema
       );
@@ -327,6 +332,7 @@ async function testProgressiveMaxWaitPolicy() {
             name: 'interact_with_terminal',
             arguments: {
               terminalId,
+              cwd: process.cwd(),
               input: `echo short-attempt-${i}`,
               appendNewline: true,
               wait: { mode: 'idle', maxWaitMs: 500, idleMs: 200 }
@@ -344,6 +350,7 @@ async function testProgressiveMaxWaitPolicy() {
           name: 'interact_with_terminal',
           arguments: {
             terminalId,
+            cwd: process.cwd(),
             input: 'echo long-wait-allowed',
             appendNewline: true,
             wait: { mode: 'idle', maxWaitMs: 120000, idleMs: 200 }

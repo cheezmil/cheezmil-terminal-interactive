@@ -774,6 +774,48 @@ Fix tool: OpenAI Codex
     return { blocked: false };
   }
 
+  private isLikelyLongRunningCommand(text: string): boolean {
+    const s = (text || '').toLowerCase();
+    if (!s.trim()) return false;
+
+    // Common package manager installs / 常见包管理器安装
+    if (/\bnpm\s+(ci|install|i|add)\b/.test(s)) return true;
+    if (/\bpnpm\s+(install|i|add)\b/.test(s)) return true;
+    if (/\byarn\s+(install|add)\b/.test(s)) return true;
+    if (/\bpip\s+install\b/.test(s)) return true;
+    if (/\bpython\s+-m\s+pip\s+install\b/.test(s)) return true;
+    if (/\bpipx\s+install\b/.test(s)) return true;
+
+    // Common builds / 常见编译任务
+    if (/\bcargo\s+(build|install)\b/.test(s)) return true;
+    if (/\bgo\s+build\b/.test(s)) return true;
+    if (/\bmvn\s+(install|package)\b/.test(s)) return true;
+    if (/\bgradle(w)?\b.*\b(build|assemble)\b/.test(s)) return true;
+
+    // Generic long-running keywords / 通用长任务关键词
+    if (s.includes('setup') || s.includes('download') || s.includes('build')) return true;
+
+    return false;
+  }
+
+  private buildLongTaskCtiGuidancePrompt(projectCwd: string): string {
+    // NOTE: This prompt is meant to be shown to another AI that will call interact_with_terminal.
+    // Terminal output only needs English, so keep this in English.
+    return [
+      'Detected a likely long-running command. Follow these rules when calling `interact_with_terminal`:',
+      '',
+      '1) Use a clean terminalId: pick a brand-new dedicated terminalId (e.g. `long_task_1`). Do NOT reuse a previously "polluted" session.',
+      '2) Always pass `cwd`: if `cwd` is missing, the server will error with `must provide cwd`.',
+       '   - You may change `cwd` on the same terminalId at any time by passing a new `cwd`.',
+      `   - Recommended cwd for this project: \`${projectCwd}\``,
+      '3) Reduce polling: for long tasks use `wait.mode=prompt` or `wait.mode=pattern` with a longer `wait.maxWaitMs` (30-50s per call).',
+      '   - Prefer `wait.includeIntermediateOutput=false` to only fetch output at the end / when pattern hits.',
+      '4) If your workflow has an install/setup step and a run step, split them into two separate commands so each step is easier to validate.',
+      '',
+      'If your current request does not follow these rules, re-issue the tool call accordingly.'
+    ].join('\n');
+  }
+
   /**
    * 设置 MCP 工具
    */
@@ -801,7 +843,7 @@ Fix tool: OpenAI Codex
         // 终端创建参数 / Parameters for creating terminal
         terminalId: z.string().optional().describe('Terminal ID for identification. If terminal does not exist, it will be created automatically.'),
         shell: z.string().optional().describe('Shell to use (default: system default, only used when creating new terminal)'),
-        cwd: z.string().optional().describe('Working directory (default: current directory, only used when creating new terminal)'),
+        cwd: z.string().optional().describe('Working directory (REQUIRED for normal execution). The server will apply it for the session and can update it for an existing terminalId.'),
         env: z.record(z.string()).optional().describe('Environment variables (only used when creating new terminal)'),
         
         // 终端操作参数 / Parameters for writing to terminal
@@ -973,6 +1015,12 @@ Interactive apps (Claude Code / vim etc.) tips:
           if (!actualTerminalId) {
             throw new Error('terminalId is required when not listing or killing terminals.');
           }
+
+          // 强制要求传入 cwd（普通执行/读写时）；list/kill 不强制
+          // Require cwd for normal execution/read/write; list/kill do not require it
+          if (!cwd || !String(cwd).trim()) {
+            throw new Error('must provide cwd');
+          }
           
           // 检查终端是否存在，如果不存在则创建
           try {
@@ -992,6 +1040,10 @@ Interactive apps (Claude Code / vim etc.) tips:
               throw error;
             }
           }
+
+          // 允许随时更新同一 terminalId 的 cwd：这里记录为 pendingCwd，并在下次写入前自动应用
+          // Allow updating cwd for the same terminalId at any time: store as pendingCwd and apply before next write
+          this.terminalManager.requestTerminalCwdUpdate(actualTerminalId, String(cwd));
           
           let responseText = '';
           let structuredContent: any = {
@@ -1059,7 +1111,7 @@ Interactive apps (Claude Code / vim etc.) tips:
             });
             return out;
           };
-          
+
           // 收集警告/提示信息并附加到最终响应（不阻断执行）
           // Collect warnings/notices and attach them to the final response (do not block execution)
           const warnings: string[] = [];
@@ -1197,6 +1249,45 @@ Interactive apps (Claude Code / vim etc.) tips:
                 }
               } catch {
                 // Ignore status errors and proceed / 忽略状态获取失败，继续执行
+              }
+            }
+
+            // 针对疑似长任务：如果调用方式不符合“减少轮询/长等待/只取结束输出”，则返回指导提示词
+            // For likely long-running commands: if parameters do not follow best practices, return a guidance prompt
+            const longTaskCandidates: string[] = [];
+            if (typeof actualInput === 'string' && actualInput) longTaskCandidates.push(actualInput);
+            if (resolvedKeySequence) {
+              for (const item of resolvedKeySequence) {
+                if (item.kind === 'text' && item.data) {
+                  longTaskCandidates.push(item.data);
+                }
+              }
+            }
+            if (typeof powerShellScript === 'string' && powerShellScript) longTaskCandidates.push(powerShellScript);
+
+            const isLongTask = longTaskCandidates.some((c) => this.isLikelyLongRunningCommand(c));
+            if (isLongTask) {
+              const waitMode = wait?.mode ?? 'none';
+              const includeIntermediateOutput =
+                wait?.includeIntermediateOutput !== undefined ? Boolean(wait.includeIntermediateOutput) : true;
+              const maxWaitMsRaw = wait?.maxWaitMs ?? wait?.timeoutMs ?? wait?.waitMs;
+              const maxWaitMs = typeof maxWaitMsRaw === 'number' && Number.isFinite(maxWaitMsRaw) ? maxWaitMsRaw : 0;
+
+              const okWaitMode = waitMode === 'prompt' || waitMode === 'pattern';
+              const okMaxWait = Number.isFinite(maxWaitMs) && maxWaitMs >= 30_000;
+              const okIntermediate = includeIntermediateOutput === false;
+
+              if (!okWaitMode || !okMaxWait || !okIntermediate) {
+                const prompt = this.buildLongTaskCtiGuidancePrompt(String(cwd));
+                return {
+                  content: [{ type: 'text', text: prompt }],
+                  structuredContent: {
+                    blocked: true,
+                    blockedReason: 'long_task_guidance',
+                    terminalId: actualTerminalId
+                  },
+                  isError: true
+                } as CallToolResult;
               }
             }
 
