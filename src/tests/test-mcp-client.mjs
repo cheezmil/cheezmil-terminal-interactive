@@ -87,7 +87,7 @@ async function testInteractiveTerminalNotice() {
 
     const textBlock = (result.content || []).find((c) => c.type === 'text');
     const text = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
-    const expected = '该终端进入了交互式终端，请根据终端内容做出合理行动';
+    const expected = 'Terminal is in an interactive state; inspect the terminal output and respond accordingly.';
     const warnings = result.structuredContent && Array.isArray(result.structuredContent.warnings) ? result.structuredContent.warnings : [];
     const inputEcho = result.structuredContent && typeof result.structuredContent.input === 'string' ? result.structuredContent.input : '';
 

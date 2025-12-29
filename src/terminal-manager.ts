@@ -69,7 +69,7 @@ export class TerminalManager extends EventEmitter {
     // If it's a terminal name, map to internal UUID
     const internalId = this.terminalNameMap.get(terminalName);
     if (!internalId) {
-      throw new Error(`终端 "${terminalName}" 不存在。可用终端：${Array.from(this.terminalNameMap.keys()).join(', ')}`);
+      throw new Error(`Terminal "${terminalName}" was not found. Available terminals: ${Array.from(this.terminalNameMap.keys()).join(', ')}`);
     }
     return internalId;
   }
@@ -95,24 +95,21 @@ export class TerminalManager extends EventEmitter {
   async createTerminal(options: TerminalCreateOptions & {terminalName?: string} = {}): Promise<string> {
     const internalId = uuidv4();
     
-    // 必须提供终端名称，禁止使用UUID
-    // Terminal name is required, UUID usage is prohibited
-    if (!options.terminalName) {
-      throw new Error('必须提供终端名称，禁止使用UUID作为终端标识符。请提供一个有意义的简短描述作为终端名称。');
-    }
-    
-    const terminalName = options.terminalName;
+    // 终端名称：允许不传，服务端会自动生成一个“可读且唯一”的名称，避免复用旧会话造成上下文污染
+    // Terminal name: optional; server auto-generates a readable unique name to avoid reusing old sessions.
+    const terminalName = options.terminalName?.trim()
+      || `term-${new Date().toISOString().replace(/[:.]/g, '').replace('T', '_').slice(0, 15)}-${internalId.slice(0, 8)}`;
     
     // 检查终端名称是否已存在
     // Check if terminal name already exists
     if (this.terminalNameMap.has(terminalName)) {
-      throw new Error(`终端名称 "${terminalName}" 已存在，请选择其他名称`);
+      throw new Error(`Terminal name "${terminalName}" already exists. Choose a different name.`);
     }
     
     // 验证终端名称格式 - 不允许UUID格式
     // Validate terminal name format - UUID format is not allowed
     if (/^[0-9a-f]{8}-/i.test(terminalName)) {
-      throw new Error('禁止使用UUID格式的终端名称，请使用有意义的描述性名称');
+      throw new Error('UUID-like terminal names are not allowed. Use a short descriptive name instead.');
     }
     
     // 建立映射关系
@@ -1519,6 +1516,11 @@ export class TerminalManager extends EventEmitter {
     if (/[\r\n]$/.test(rawTail)) {
       return false;
     }
+    // PowerShell continuation prompt often ends with ">> " (unclosed quotes/braces, truncated commands, etc.)
+    // PowerShell 的续行提示通常以 ">> " 结尾（引号/括号未闭合、命令被截断等）
+    if (/\n?\s*>>\s*$/.test(rawTail)) {
+      return true;
+    }
     return /[:?\]]\s*$/.test(rawTail);
   }
 
@@ -1705,7 +1707,7 @@ export class TerminalManager extends EventEmitter {
         case 'write':
         case 'write_and_read': {
           if (!terminalName) {
-            throw new Error('对于写入操作，必须提供 terminalName');
+            throw new Error('For write operations, "terminalName" is required.');
           }
           
           // 写入输入 - Write input
@@ -1769,7 +1771,7 @@ export class TerminalManager extends EventEmitter {
         
         case 'read': {
           if (!terminalName) {
-            throw new Error('对于读取操作，必须提供 terminalName');
+            throw new Error('For read operations, "terminalName" is required.');
           }
           
           // 读取输出 - Read output
@@ -1811,12 +1813,12 @@ export class TerminalManager extends EventEmitter {
         }
         
         default:
-          throw new Error(`不支持的操作模式: ${operation}`);
+          throw new Error(`Unsupported operation mode: ${operation}`);
       }
       
       return result;
     } catch (error) {
-      const terminalError: TerminalError = new Error(`统一终端交互失败: ${error}`) as TerminalError;
+      const terminalError: TerminalError = new Error(`Unified terminal interaction failed: ${error}`) as TerminalError;
       terminalError.code = 'INTERACT_FAILED';
       terminalError.terminalName = terminalName || 'unknown';
       throw terminalError;

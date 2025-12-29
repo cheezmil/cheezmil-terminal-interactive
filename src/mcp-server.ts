@@ -192,6 +192,12 @@ export class cheezmilTerminalInteractiveServer {
     return null;
   }
 
+  private encodePowerShellToEncodedCommand(script: string): string {
+    // PowerShell's -EncodedCommand expects UTF-16LE Base64.
+    // PowerShell 的 -EncodedCommand 需要 UTF-16LE Base64。
+    return Buffer.from(script ?? '', 'utf16le').toString('base64');
+  }
+
   private buildSearchMatcher(options: { query: string; isRegex: boolean; caseSensitive: boolean }): { test: (line: string) => boolean } | { error: string } {
     const query = options.query ?? '';
     if (!query) {
@@ -343,6 +349,7 @@ export class cheezmilTerminalInteractiveServer {
    */
   private async createTerminalResponse(options: TerminalCreateOptions, source: 'default' | 'basic' = 'default'): Promise<CallToolResult> {
     const terminalId = await this.terminalManager.createTerminal({
+      terminalName: (options as any).terminalName,
       shell: options.shell,
       cwd: options.cwd,
       env: options.env,
@@ -375,7 +382,10 @@ export class cheezmilTerminalInteractiveServer {
       `PID: ${result.pid}`,
       `Shell: ${result.shell}`,
       `Working Directory: ${result.cwd}`,
-      `Status: ${result.status}`
+      `Status: ${result.status}`,
+      '',
+      'Tip: Use a unique terminalId per task/session to avoid cross-session context pollution.',
+      'If you see unrelated paths/output, create a new terminalId (or terminate the old terminal) and retry.'
     ];
 
     return {
@@ -524,7 +534,6 @@ Fix tool: OpenAI Codex
 
         // 检查是否有明确的完成标志
         if (result.output.includes('Task completed') ||
-            result.output.includes('修复完成') ||
             result.output.includes('Fix completed')) {
           break;
         }
@@ -757,7 +766,7 @@ Fix tool: OpenAI Codex
 
       const message = (hit.message && hit.message.trim())
         ? hit.message
-        : `${hit.command}命令已经被用户禁用，你不能用这个命令`;
+        : `Command "${hit.command}" is disabled by the user and must not be executed.`;
 
       return { blocked: true, command: hit.command, message };
     }
@@ -797,6 +806,7 @@ Fix tool: OpenAI Codex
         
         // 终端操作参数 / Parameters for writing to terminal
         input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
+        powerShellScript: z.string().optional().describe('Windows/PowerShell helper: if provided, the server executes this script via `pwsh -EncodedCommand ...` to avoid client-side quoting/escaping truncation. When set, it takes precedence over `input`.'),
         appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
         // 等待策略（推荐使用） / Wait strategy (recommended)
         wait: z.object({
@@ -853,15 +863,15 @@ Fix tool: OpenAI Codex
       // Here we cast server to any to avoid deep generic instantiation issues
       (this.server as any).tool(
         'interact_with_terminal',
-        `与指定ID的终端进行交互操作。如果终端不存在，将自动创建新终端。也可以列出所有活跃的终端会话。
+        `Interact with a terminal session by terminalId. If the terminal does not exist, it will be created automatically. You can also list all active terminal sessions.
 
-交互式应用（Claude Code / vim 等）提示：
-- 发送回车：specialOperation: "enter"（或 keys: "enter"）
-- 发送 ESC：specialOperation: "esc"（或 keys: "esc"）
-- 双击 ESC：specialOperation: "double_esc"（或 keys: "esc,esc"）
-- 如果检测到交互式终端且你使用 input + appendNewline（默认 true），服务端会自动等价转换为 keySequence（text + enter），以提升交互式程序下的提交成功率
-- 复杂组合键：使用 keys 或 keySequence 一次性发送，并通过 keyDelayMs / delayMsAfter 指定每个按键之间的间隔时间；程序内部会按顺序逐个写入到 PTY。
-- 终端内容搜索：传 search（支持正则，配合 searchRegex:true），服务端会在终端输出缓冲区里匹配并返回命中行及上下文（contextLines/maxMatches/searchSince）。`,
+Interactive apps (Claude Code / vim etc.) tips:
+- Send Enter: specialOperation: "enter" (or keys: "enter")
+- Send ESC: specialOperation: "esc" (or keys: "esc")
+- Double ESC: specialOperation: "double_esc" (or keys: "esc,esc")
+- If an interactive terminal is detected and you use input + appendNewline (default true), the server may convert it to an equivalent keySequence (text + enter) to improve reliability in TUI apps.
+- For complex key combos: use keys/keySequence and set keyDelayMs / delayMsAfter; the server writes keys in order.
+- Terminal search: provide search (+ searchRegex=true for regex); the server searches the output buffer and returns matching lines with context.`,
         interactWithTerminalSchema,
       {
         title: 'Interact with Terminal',
@@ -870,7 +880,7 @@ Fix tool: OpenAI Codex
       async (args: any, extra?: any): Promise<CallToolResult> => {
         const {
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
-          input, appendNewline, wait, waitForOutput,
+          input, powerShellScript, appendNewline, wait, waitForOutput,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
           specialOperation, keys, keyDelayMs, keySequence,
           search, searchRegex, caseSensitive, contextLines, maxMatches, searchSince
@@ -970,7 +980,7 @@ Fix tool: OpenAI Codex
             await this.terminalManager.readFromTerminal({ terminalName: actualTerminalId, maxLines: 1 });
           } catch (error) {
             // 终端不存在，创建新终端
-            if (error instanceof Error && (error.message.includes('不存在') || error.message.includes('not found'))) {
+            if (error instanceof Error && (error.message.includes('not found') || error.message.includes('does not exist'))) {
               await this.terminalManager.createTerminal({
                 terminalName: actualTerminalId,
                 shell,
@@ -1176,7 +1186,11 @@ Fix tool: OpenAI Codex
                 const status = this.terminalManager.getTerminalReadStatus(actualTerminalId);
                 const awaitingInput = this.terminalManager.isTerminalAwaitingInput(actualTerminalId);
                 if (status.alternateScreen || status.isRunning || awaitingInput) {
-                  warnings.push('该终端进入了交互式终端，请根据终端内容做出合理行动');
+                  if (awaitingInput && !status.hasPrompt && (status.promptLine == null)) {
+                    warnings.push('Terminal appears to be waiting for more input (PowerShell continuation prompt is common). This often happens when a command was truncated or has unclosed quotes/braces. Prefer sending scripts via a file (e.g., `node -e`, `.ps1`, or a heredoc-equivalent) instead of complex inline quoting.');
+                  } else {
+                    warnings.push('Terminal is in an interactive state; inspect the terminal output and respond accordingly.');
+                  }
                   structuredContent.interactive = true;
                   structuredContent.awaitingInput = awaitingInput;
                   structuredContent.status = status;
@@ -1186,11 +1200,27 @@ Fix tool: OpenAI Codex
               }
             }
 
+            // Optional PowerShell wrapper to avoid quoting/escaping truncation in MCP clients.
+            // 可选 PowerShell 包装：避免 MCP 客户端侧引号/转义截断导致 PowerShell 进入续行（>>）。
+            if (typeof powerShellScript === 'string' && powerShellScript.length > 0) {
+              if (process.platform !== 'win32') {
+                warnings.push('powerShellScript is intended for Windows PowerShell (pwsh) only; ignoring on non-Windows platforms.');
+              } else {
+                const encoded = this.encodePowerShellToEncodedCommand(powerShellScript);
+                actualInput = `pwsh -EncodedCommand ${encoded}`;
+                warnings.push('Executed via pwsh -EncodedCommand to reduce quoting/escaping issues (powerShellScript).');
+                structuredContent.wrapper = 'pwsh_encoded_command';
+              }
+            }
+
             // 命令黑名单拦截：命中则严格禁止执行
             // Command blacklist: strictly refuse execution when matched
             const blacklistTargets: string[] = [];
             if (typeof actualInput === 'string' && actualInput) {
               blacklistTargets.push(actualInput);
+            }
+            if (typeof powerShellScript === 'string' && powerShellScript) {
+              blacklistTargets.push(powerShellScript);
             }
             if (resolvedKeySequence) {
               for (const item of resolvedKeySequence) {
@@ -1258,11 +1288,10 @@ Fix tool: OpenAI Codex
               const allowLongWait = entry.shortAttempts >= PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS;
               if (requestedMaxWaitMs > MAX_PROGRESSIVE_SHORT_WAIT_MS && !allowLongWait) {
                 const remaining = Math.max(0, PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS - entry.shortAttempts);
-                const tipZh = `请先对同一个 terminalId 采用渐进式 maxWaitMs（<=60s）探测输出（还需 ${remaining} 次），之后才允许设置 >60s。`;
                 const tipEn = `Use progressive maxWaitMs (<=60s) on the same terminalId first (${remaining} more attempts needed) before requesting >60s.`;
                 return {
                   content: [
-                    { type: 'text', text: `${tipEn}\n${tipZh}` }
+                    { type: 'text', text: tipEn }
                   ],
                   structuredContent: {
                     kind: 'progressive_wait_required',
