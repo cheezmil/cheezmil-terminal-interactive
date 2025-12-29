@@ -1211,6 +1211,47 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
+   * 向终端会话发送信号/中断（不主动清理会话结构）
+   * Send a signal/interrupt to the terminal session (without proactively cleaning up the session structures)
+   *
+   * NOTE:
+   * - On Windows, node-pty does not reliably support POSIX signals; for SIGINT we fall back to writing Ctrl+C (\x03).
+   * - This API is meant for "interrupt current foreground process" semantics, not for terminating the whole session.
+   */
+  async signalTerminal(terminalName: string, signal: string = 'SIGINT'): Promise<void> {
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
+    const ptyProcess = this.ptyProcesses.get(resolvedId);
+
+    if (!session || !ptyProcess) {
+      const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
+      error.code = 'TERMINAL_NOT_FOUND';
+      error.terminalName = terminalName;
+      throw error;
+    }
+
+    const sig = String(signal || 'SIGINT').toUpperCase();
+    if (process.platform === 'win32') {
+      if (sig === 'SIGINT') {
+        // Best-effort Ctrl+C to interrupt the foreground process
+        ptyProcess.write('\x03');
+        return;
+      }
+      // Windows fallback: no-op for unsupported signals (avoid killing the entire session unexpectedly)
+      return;
+    }
+
+    try {
+      ptyProcess.kill(sig);
+    } catch (e) {
+      const error: TerminalError = new Error(`Failed to signal terminal ${terminalName}: ${e}`) as TerminalError;
+      error.code = 'TERMINAL_SIGNAL_FAILED';
+      error.terminalName = terminalName;
+      throw error;
+    }
+  }
+
+  /**
    * 获取终端会话信息
    */
   getTerminalInfo(terminalId: string): TerminalSession | undefined {

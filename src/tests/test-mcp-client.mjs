@@ -265,22 +265,23 @@ async function testWaitTimeoutReturnsResult() {
   }
 }
 
-// 测试渐进式 maxWaitMs：首次禁止直接 >60s；8 次 <=60s 后允许 / Test progressive maxWaitMs: block >60s initially; allow after 8 <=60s attempts
-async function testProgressiveMaxWaitPolicy() {
-  console.log('Testing progressive maxWaitMs policy...');
+// 测试 longTask 机制：不再用 progressive_wait_required 阻断；服务端单次调用仍会 cap 到 ~50s
+// Test longTask: do NOT block with progressive_wait_required; server still caps per-call wait to ~50s
+async function testLongTaskWaitNotBlocked() {
+  console.log('Testing longTask wait (no progressive gate)...');
 
   const baseUrl = 'http://localhost:1106';
   const mcpUrl = new URL(`${baseUrl}/mcp`);
-  const terminalId = `progressive-wait-test-${Date.now()}`;
-  const marker = `progressive-marker-${Date.now()}`;
+  const terminalId = `longtask-wait-test-${Date.now()}`;
+  const marker = `longtask-marker-${Date.now()}`;
 
   try {
     const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
     const transport = new StreamableHTTPClientTransport(mcpUrl);
     await client.connect(transport);
 
-    // 1) 首次直接请求 >60s：应被拒绝且不执行写入 / First >60s request should be rejected and must not execute write
-    const blocked = await client.request(
+    // 1) 直接请求 >60s：不应被 progressive_required 阻断 / Direct >60s request must NOT be blocked by progressive_required
+    const longWait = await client.request(
       {
         method: 'tools/call',
         params: {
@@ -290,6 +291,7 @@ async function testProgressiveMaxWaitPolicy() {
             cwd: process.cwd(),
             input: `echo ${marker}`,
             appendNewline: true,
+            longTask: true,
             wait: { mode: 'idle', maxWaitMs: 120000, idleMs: 200 }
           }
         }
@@ -297,78 +299,18 @@ async function testProgressiveMaxWaitPolicy() {
       CallToolResultSchema
     );
 
-    const blockedStructured = blocked.structuredContent || {};
-    if (blocked.isError === true) {
-      console.log('❌ progressive policy incorrectly returned as error');
-      console.log('Result:', JSON.stringify(blocked, null, 2));
-    } else if (blockedStructured.kind !== 'progressive_wait_required') {
-      console.log('❌ expected kind=progressive_wait_required for initial >60s request');
-      console.log('Result:', JSON.stringify(blocked, null, 2));
+    const longWaitStructured = longWait.structuredContent || {};
+    if (longWait.isError === true) {
+      console.log('❌ longTask wait returned error');
+      console.log('Result:', JSON.stringify(longWait, null, 2));
+    } else if (longWaitStructured.kind === 'progressive_wait_required') {
+      console.log('❌ progressive_wait_required should not be returned anymore');
+      console.log('Result:', JSON.stringify(longWait, null, 2));
+    } else if (!longWaitStructured.resultStatus || !['finished', 'timeout', 'running'].includes(longWaitStructured.resultStatus.state)) {
+      console.log('❌ missing/invalid resultStatus on longTask call');
+      console.log('Result:', JSON.stringify(longWait, null, 2));
     } else {
-      // 读一下输出，确认 marker 没被执行（best-effort） / Read output to ensure marker wasn't executed (best-effort)
-      const readBack = await client.request(
-        {
-          method: 'tools/call',
-          params: { name: 'interact_with_terminal', arguments: { terminalId, cwd: process.cwd(), wait: { mode: 'idle', maxWaitMs: 1500 } } }
-        },
-        CallToolResultSchema
-      );
-      const readStructured = readBack.structuredContent || {};
-      const out = typeof readStructured.commandOutput === 'string' ? readStructured.commandOutput : '';
-      if (out.includes(marker)) {
-        console.log('❌ marker appeared in output; write may have executed unexpectedly');
-        console.log('Result:', JSON.stringify(readBack, null, 2));
-      } else {
-        console.log('✅ initial >60s request blocked (expected)');
-      }
-    }
-
-    // 2) 连续 8 次 <=60s 的等待尝试（含写入），之后应允许 >60s / Do 8 <=60s attempts (with writes), then >60s should be allowed
-    for (let i = 0; i < 8; i++) {
-      await client.request(
-        {
-          method: 'tools/call',
-          params: {
-            name: 'interact_with_terminal',
-            arguments: {
-              terminalId,
-              cwd: process.cwd(),
-              input: `echo short-attempt-${i}`,
-              appendNewline: true,
-              wait: { mode: 'idle', maxWaitMs: 500, idleMs: 200 }
-            }
-          }
-        },
-        CallToolResultSchema
-      );
-    }
-
-    const allowed = await client.request(
-      {
-        method: 'tools/call',
-        params: {
-          name: 'interact_with_terminal',
-          arguments: {
-            terminalId,
-            cwd: process.cwd(),
-            input: 'echo long-wait-allowed',
-            appendNewline: true,
-            wait: { mode: 'idle', maxWaitMs: 120000, idleMs: 200 }
-          }
-        }
-      },
-      CallToolResultSchema
-    );
-
-    const allowedStructured = allowed.structuredContent || {};
-    if (allowed.isError === true) {
-      console.log('❌ long-wait allowed case returned error');
-      console.log('Result:', JSON.stringify(allowed, null, 2));
-    } else if (allowedStructured.kind === 'progressive_wait_required') {
-      console.log('❌ expected long-wait to be allowed after 8 short attempts');
-      console.log('Result:', JSON.stringify(allowed, null, 2));
-    } else {
-      console.log('✅ long-wait allowed after progressive attempts (expected)');
+      console.log('✅ longTask wait returned structured status (expected)');
     }
 
     // Cleanup: terminate the test terminal / 清理：终止测试终端
@@ -387,7 +329,146 @@ async function testProgressiveMaxWaitPolicy() {
 
     await transport.close();
   } catch (error) {
-    console.log(`⚠️ progressive wait policy test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.log(`⚠️ longTask wait test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// 测试 read_CTI：读取输出/关键字上下文/元数据 + resetSession + interrupt
+// Test read_CTI: output reading / keyword context / metadata + resetSession + interrupt
+async function testReadCtiAndResetAndInterrupt() {
+  console.log('Testing read_CTI + resetSession + interrupt...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `read-cti-test-${Date.now()}`;
+  const marker = `read-cti-marker-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    // 1) Create + execute, then read via read_CTI
+    await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            cwd: process.cwd(),
+            input: `echo ${marker}`,
+            appendNewline: true,
+            wait: { mode: 'prompt', maxWaitMs: 5000 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const read1 = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'read_CTI',
+          arguments: { terminalId, tailLines: 50, keywords: [marker], contextLines: 1, includeMetadata: true }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const s1 = read1.structuredContent || {};
+    if (read1.isError === true) {
+      console.log('❌ read_CTI returned error');
+      console.log('Result:', JSON.stringify(read1, null, 2));
+    } else if (!s1.keywordContext || s1.keywordContext.matchCount < 1) {
+      console.log('❌ read_CTI keywordContext missing or no matches');
+      console.log('Result:', JSON.stringify(read1, null, 2));
+    } else if (!s1.session || !s1.session.readStatus) {
+      console.log('❌ read_CTI metadata missing');
+      console.log('Result:', JSON.stringify(read1, null, 2));
+    } else {
+      console.log('✅ read_CTI keywordContext + metadata returned (expected)');
+    }
+
+    // 2) Reset session, then run a command without passing cwd again (should not require cwd now)
+    await client.request(
+      {
+        method: 'tools/call',
+        params: { name: 'read_CTI', arguments: { terminalId, resetSession: true, cwd: process.cwd() } }
+      },
+      CallToolResultSchema
+    );
+
+    const afterReset = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'Get-Date',
+            appendNewline: true,
+            wait: { mode: 'prompt', maxWaitMs: 5000 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    if (afterReset.isError === true) {
+      console.log('❌ interact_with_terminal after reset returned error');
+      console.log('Result:', JSON.stringify(afterReset, null, 2));
+    } else {
+      console.log('✅ resetSession succeeded and subsequent interact worked without cwd (expected)');
+    }
+
+    // 3) Interrupt: start a long sleep, then interrupt it (best-effort)
+    await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            input: 'Start-Sleep -Seconds 30',
+            appendNewline: true,
+            wait: { mode: 'none', maxWaitMs: 0 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const intr = await client.request(
+      {
+        method: 'tools/call',
+        params: { name: 'interact_with_terminal', arguments: { terminalId, interrupt: true, interruptSignal: 'SIGINT' } }
+      },
+      CallToolResultSchema
+    );
+
+    if (intr.isError === true) {
+      console.log('❌ interrupt returned error');
+      console.log('Result:', JSON.stringify(intr, null, 2));
+    } else {
+      console.log('✅ interrupt call returned success (best-effort)');
+    }
+
+    // Cleanup
+    await client
+      .request(
+        {
+          method: 'tools/call',
+          params: { name: 'interact_with_terminal', arguments: { killTerminal: true, terminalId } }
+        },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ read_CTI test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -400,7 +481,8 @@ async function runTests() {
   await testInteractiveTerminalNotice();
   await testWaitIdleDeltaEchoHello();
   await testWaitTimeoutReturnsResult();
-  await testProgressiveMaxWaitPolicy();
+  await testLongTaskWaitNotBlocked();
+  await testReadCtiAndResetAndInterrupt();
 
   
   console.log('=== Tests completed ===');
