@@ -381,6 +381,9 @@ async function testReadCtiAndResetAndInterrupt() {
     if (read1.isError === true) {
       console.log('❌ read_CTI returned error');
       console.log('Result:', JSON.stringify(read1, null, 2));
+    } else if (typeof s1.output === 'string' && s1.output.includes('__CTI_BOUNDARY_')) {
+      console.log('❌ read_CTI output leaked __CTI_BOUNDARY_ markers');
+      console.log('Result:', JSON.stringify(read1, null, 2));
     } else if (!s1.keywordContext || s1.keywordContext.matchCount < 1) {
       console.log('❌ read_CTI keywordContext missing or no matches');
       console.log('Result:', JSON.stringify(read1, null, 2));

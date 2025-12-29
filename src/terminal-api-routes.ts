@@ -220,6 +220,18 @@ export class TerminalApiRoutes {
           direction: direction as any || undefined
         });
 
+        // 兼容：历史版本曾注入 __CTI_BOUNDARY_* 行用于边界切割；已移除该功能，但旧会话可能残留。
+        // Compatibility: older versions injected __CTI_BOUNDARY_* lines; the feature is removed, but old sessions may still contain them.
+        if (result && typeof (result as any).output === 'string') {
+          (result as any).output = (result as any).output
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .split('\n')
+            .filter((l: string) => !l.includes('__CTI_BOUNDARY_'))
+            .join('\n')
+            .trimEnd();
+        }
+
         return result;
       } catch (error) {
         reply.status(400).send({
