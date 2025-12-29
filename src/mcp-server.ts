@@ -913,7 +913,16 @@ Use this tool after \`interact_with_terminal\` to continue reading output, debug
               return next;
             };
 
-            const outputText = stripSpinner ? stripSpinnerChars(readResult.output || '') : (readResult.output || '');
+            const outputTextRaw = stripSpinner ? stripSpinnerChars(readResult.output || '') : (readResult.output || '');
+            // 兼容：历史版本曾注入 __CTI_BOUNDARY_* 行用于边界切割；已彻底移除该功能，但旧会话可能残留。
+            // Compatibility: older versions injected __CTI_BOUNDARY_* lines; the feature is removed, but old sessions may still contain them.
+            const outputText = outputTextRaw
+              .replace(/\r\n/g, '\n')
+              .replace(/\r/g, '\n')
+              .split('\n')
+              .filter((l) => !l.includes('__CTI_BOUNDARY_'))
+              .join('\n')
+              .trimEnd();
 
             const structuredContent: any = {
               terminalId,
@@ -1612,41 +1621,9 @@ For reading more output, tail/head, keyword-context extraction, and session meta
             const waitIdleMs = Number.isFinite(mappedWait.idleMs) ? Math.max(0, Math.round(mappedWait.idleMs)) : 900;
             const includeIntermediateOutput = mappedWait.includeIntermediateOutput !== undefined ? Boolean(mappedWait.includeIntermediateOutput) : true;
 
-            // 为了避免“输入回显/粘连/边界不清晰”，对普通命令执行自动包一层 begin/end token。
-            // This improves command boundary detection and reduces echo/fragment confusion.
-            let boundaryToken: string | null = null;
-            let boundaryWrappedInput: string | null = null;
-            const canUseBoundary =
-              !resolvedKeySequence &&
-              !specialOperation &&
-              typeof actualInput === 'string' &&
-              actualInput.trim().length > 0 &&
-              appendNewline !== false;
-            if (canUseBoundary) {
-              boundaryToken = `__CTI_BOUNDARY_${Date.now()}_${Math.random().toString(16).slice(2)}__`;
-              let shellPath = '';
-              try {
-                const stats = await this.terminalManager.getTerminalStats(actualTerminalId);
-                shellPath = String((stats as any)?.shell ?? '');
-              } catch {
-                shellPath = '';
-              }
-              const shellLower = shellPath.toLowerCase();
-              const begin = `${boundaryToken}_BEGIN`;
-              const end = `${boundaryToken}_END`;
-              if (shellLower.includes('pwsh') || shellLower.includes('powershell')) {
-                boundaryWrappedInput = `Write-Output '${begin}'; ${actualInput}; Write-Output '${end}'`;
-              } else if (shellLower.includes('cmd.exe') || shellLower.endsWith('\\cmd.exe')) {
-                boundaryWrappedInput = `echo ${begin} & ${actualInput} & echo ${end}`;
-              } else {
-                // bash/zsh/sh 等 / bash/zsh/sh etc.
-                boundaryWrappedInput = `echo '${begin}'; ${actualInput}; echo '${end}'`;
-              }
-            }
-
             const writeOptions: any = resolvedKeySequence
               ? { terminalName: actualTerminalId, input: '' }
-              : { terminalName: actualTerminalId, input: boundaryWrappedInput ?? actualInput };
+              : { terminalName: actualTerminalId, input: actualInput };
             if (!resolvedKeySequence && appendNewline !== undefined) {
               writeOptions.appendNewline = appendNewline;
             }
@@ -1693,9 +1670,6 @@ For reading more output, tail/head, keyword-context extraction, and session meta
             }
             
             structuredContent.input = actualInput;
-            if (boundaryToken) {
-              structuredContent.boundary = { token: boundaryToken };
-            }
             if (specialOperation) {
               structuredContent.specialOperation = specialOperation;
             }
@@ -1906,19 +1880,6 @@ For reading more output, tail/head, keyword-context extraction, and session meta
             };
 
             let finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, effectiveNoEcho);
-            if (boundaryToken && finalOutputRaw) {
-              const begin = `${boundaryToken}_BEGIN`;
-              const end = `${boundaryToken}_END`;
-              const lines = finalOutputRaw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-              const beginIdx = lines.findIndex((l) => l.includes(begin));
-              const endIdx = lines.findIndex((l) => l.includes(end));
-              if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
-                finalOutputRaw = lines.slice(beginIdx + 1, endIdx).join('\n').trimEnd();
-                structuredContent.boundary.extracted = true;
-              } else {
-                structuredContent.boundary.extracted = false;
-              }
-            }
             // this_command_output 默认不需要回显“提示符+输入命令”，只保留命令结果
             // this_command_output should not include "prompt + input command" echo, keep only command results
             if (effectiveMode === 'this_command_output') {
