@@ -3,6 +3,7 @@
 [Chinese README](README-ZH.md)
 
 ## Why Use This Project
+- If you're developing scripts or commands that require terminal interaction, using this tool allows AI to help you test them, dramatically improving efficiency.
 - Currently, various mainstream AI programming tools get stuck when executing certain commands like `npm run dev`, causing the terminal to block. In such cases, AI doesn't receive timely feedback. Some AI programming tools have a hardcoded 2-minute timeout, and even after timeout, they can't see any terminal information. Some can see messages after timeout, while others get completely stuck. This project saves time wasted on getting stuck.
 - If you're using different AI programming tools simultaneously, this project allows different AIs to view running terminals.
 - You might want one codex to control other claude code instances.
