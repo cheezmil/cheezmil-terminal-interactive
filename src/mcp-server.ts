@@ -827,7 +827,7 @@ Fix tool: OpenAI Codex
         cols: z.number().optional().describe('Terminal columns (only used when resetSession is true).'),
         rows: z.number().optional().describe('Terminal rows (only used when resetSession is true).'),
         since: z.number().optional().describe('Line/sequence cursor to start reading from (default: 0).'),
-        mode: z.enum(['full', 'head', 'tail', 'head-tail', 'auto', 'smart']).optional().describe('Reading mode (default: smart).'),
+        mode: z.enum(['full', 'head', 'tail', 'head-tail']).optional().describe('Reading mode (default: tail).'),
         maxLines: z.number().optional().describe('Maximum number of lines to return (default: 1000).'),
         headLines: z.number().optional().describe('Number of lines to show from the beginning for head/head-tail.'),
         tailLines: z.number().optional().describe('Number of lines to show from the end for tail/head-tail.'),
@@ -886,7 +886,7 @@ Use this tool after \`interact_with_terminal\` to continue reading output, debug
 
             const since = Number.isFinite(args.since) ? Math.max(0, Math.round(args.since)) : 0;
             const maxLines = Number.isFinite(args.maxLines) ? Math.max(1, Math.round(args.maxLines)) : 1000;
-            const mode = (args.mode as any) || 'smart';
+            const mode = (args.mode as any) || 'tail';
             const headLines = Number.isFinite(args.headLines) ? Math.max(0, Math.round(args.headLines)) : undefined;
             const tailLines = Number.isFinite(args.tailLines) ? Math.max(0, Math.round(args.tailLines)) : undefined;
             const stripSpinner = args.stripSpinner !== undefined ? Boolean(args.stripSpinner) : true;
@@ -1093,7 +1093,7 @@ Use this tool after \`interact_with_terminal\` to continue reading output, debug
         maxLines: z.number().optional().describe('Maximum number of lines to read (default: 1000)'),
         // 默认使用 this_command_output：仅返回“本次写入 input 后新增的输出”
         // Default to this_command_output: return only output produced after this call's input is written
-        mode: z.enum(['this_command_output', 'full', 'head', 'tail', 'head-tail', 'smart', 'raw']).optional().describe('Reading mode: this_command_output (default, only output produced by current input), full, head, tail, head-tail, smart (auto best), or raw (tail of raw PTY output; useful for vim/fullscreen apps)'),
+        mode: z.enum(['this_command_output', 'full', 'head', 'tail', 'head-tail', 'raw']).optional().describe('Reading mode: this_command_output (default, only output produced by current input), full, head, tail, head-tail, or raw (tail of raw PTY output; useful for vim/fullscreen apps).'),
         headLines: z.number().optional().describe('Number of lines to show from the beginning when using head or head-tail mode (default: 50)'),
         tailLines: z.number().optional().describe('Number of lines to show from the end when using tail or head-tail mode (default: 50)'),
         stripSpinner: z.boolean().optional().describe('Whether to strip spinner/animation frames (uses global setting if not specified)'),
@@ -1679,7 +1679,7 @@ For reading more output, tail/head, keyword-context extraction, and session meta
             // 未传 mode 时，默认使用 this_command_output（只返回本次命令的输出增量）
             // If mode is omitted, default to this_command_output (only return delta output for this command)
             const effectiveMode = mode || 'this_command_output';
-            const effectiveReadModeForTerminalManager = effectiveMode === 'this_command_output' ? 'smart' : effectiveMode;
+            const effectiveReadModeForTerminalManager = effectiveMode === 'this_command_output' ? 'tail' : effectiveMode;
 
             // this_command_output：以写入前的 cursor 作为“基准 since”，只读取本次新增输出
             // this_command_output: use cursor-before-write as baseline, only read new output produced by this write
@@ -2002,7 +2002,7 @@ For reading more output, tail/head, keyword-context extraction, and session meta
               terminalName: actualTerminalId,
               since: since || undefined,
               maxLines: maxLines || undefined,
-              mode: mode || 'smart',
+              mode: mode || 'tail',
               headLines: headLines || undefined,
               tailLines: tailLines || undefined,
               stripSpinner: stripSpinner

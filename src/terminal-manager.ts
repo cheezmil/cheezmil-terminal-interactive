@@ -75,8 +75,8 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 智能选择读取模式
-   * Smart selection of read mode
+   * 已废弃：smart/auto 读取模式已移除（保留该方法仅为避免历史代码引用时报错）
+   * Deprecated: smart/auto read modes removed (kept only to avoid breaking stale references)
    */
   private selectReadMode(totalLines: number): 'full' | 'head' | 'tail' | 'head-tail' {
     if (totalLines < 100) {
@@ -84,7 +84,7 @@ export class TerminalManager extends EventEmitter {
     } else if (totalLines < 1000) {
       return 'head-tail';
     } else {
-      return 'head-tail';  // 更激进的截断
+      return 'head-tail';
     }
   }
 
@@ -598,8 +598,8 @@ export class TerminalManager extends EventEmitter {
   }
 
   /**
-   * 从终端读取输出 - 支持终端名称和智能模式
-   * Read output from terminal - supports terminal names and smart mode
+   * 从终端读取输出 - 支持终端名称
+   * Read output from terminal - supports terminal names
    */
   async readFromTerminal(options: TerminalReadOptions): Promise<TerminalReadResult> {
     const { terminalName, since = 0, maxLines = 1000, mode, headLines, tailLines, direction } = options;
@@ -622,22 +622,15 @@ export class TerminalManager extends EventEmitter {
       // 给一个很小的延迟，确保 onData 事件中的数据已经被处理
       // 这解决了"读取到旧数据"的问题
       await new Promise(resolve => setImmediate(resolve));
-      // 如果指定了智能读取模式，使用新的 readSmart 方法
+      // NOTE: auto/smart modes are removed; caller must choose an explicit mode if needed.
+      // 注意：auto/smart 模式已移除；调用方如有需要请显式选择 mode。
       const cursorPosition = since ?? 0;
-      
-      // 智能模式：自动选择最佳读取方式
-      // Smart mode: automatically select best reading method
-      let selectedMode = mode;
-      if (mode === 'auto' || mode === 'smart') {
-        const stats = outputBuffer.getStats();
-        selectedMode = this.selectReadMode(stats.totalLines);
-      }
+      const selectedMode = mode;
 
       // 全屏程序（vim）在备用屏幕时，普通行缓冲无法准确还原屏幕。
-      // 这里在 smart/auto 或显式 raw 模式下回退到原始输出尾部。
-      // Fullscreen apps (vim) in alternate screen can't be reconstructed well from line buffer.
-      // Fallback to raw output tail for smart/auto or explicit raw mode.
-      const shouldUseRaw = selectedMode === 'raw' || ((mode === undefined || mode === 'auto' || mode === 'smart') && session.alternateScreen);
+      // 备用屏幕下普通行缓冲无法准确还原屏幕：在未显式指定 mode 时，回退到原始输出尾部。
+      // Fullscreen apps in alternate screen: if mode is omitted, fall back to raw output tail.
+      const shouldUseRaw = selectedMode === 'raw' || (mode === undefined && session.alternateScreen);
       if (shouldUseRaw) {
         const rawText = session.rawOutput || '';
         const rawTailChars = Math.min(rawText.length, 8000);
@@ -669,10 +662,9 @@ export class TerminalManager extends EventEmitter {
 
       // 交互式 TUI（如 claude）即使不进入备用屏幕，也会大量使用光标移动/清屏来“重绘界面”，
       // 这会导致基于“行追加”的 OutputBuffer 输出大量重复或看不到最新屏幕状态。
-      // 因此在 smart/auto/full 下，优先从 rawOutput 渲染一个“屏幕快照”，避免强制 raw fallback。
-      // Interactive TUIs (e.g., claude) may redraw using cursor movement/erase without alternate screen,
-      // which makes line-append buffers noisy or miss the latest screen. For smart/auto/full, render a screen snapshot from rawOutput.
-      if (!session.alternateScreen && (mode === undefined || mode === 'auto' || mode === 'smart' || mode === 'full')) {
+      // 对交互式 TUI 的兼容：仅在 mode 未指定或 mode=full 时，尝试从 rawOutput 渲染一个“屏幕快照”。
+      // Interactive TUIs may redraw using cursor movement/erase; when mode is omitted or full, render a screen snapshot from rawOutput.
+      if (!session.alternateScreen && (mode === undefined || mode === 'full')) {
         const rawText = session.rawOutput || '';
         const tail = rawText.length > 4000 ? rawText.slice(rawText.length - 4000) : rawText;
         const isInteractive = this.isLikelyInteractiveTail(tail);
@@ -1666,7 +1658,7 @@ export class TerminalManager extends EventEmitter {
     // 读取选项 - Read options
     since?: number;
     maxLines?: number;
-    mode?: 'full' | 'head' | 'tail' | 'head-tail' | 'auto' | 'smart';
+    mode?: 'full' | 'head' | 'tail' | 'head-tail';
     headLines?: number;
     tailLines?: number;
     stripSpinner?: boolean;
@@ -1716,7 +1708,7 @@ export class TerminalManager extends EventEmitter {
       // 读取参数
       since = 0,
       maxLines = 1000,
-      mode = 'smart',
+      mode = 'tail',
       headLines,
       tailLines,
       stripSpinner = true

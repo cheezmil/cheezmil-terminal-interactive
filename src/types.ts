@@ -56,7 +56,7 @@ export interface TerminalReadOptions {
   terminalName: string;
   since?: number | undefined;
   maxLines?: number | undefined;
-  mode?: 'full' | 'head-tail' | 'head' | 'tail' | 'auto' | 'smart' | 'raw' | undefined;
+  mode?: 'full' | 'head-tail' | 'head' | 'tail' | 'raw' | undefined;
   headLines?: number | undefined;
   tailLines?: number | undefined;
   stripSpinner?: boolean | undefined;
@@ -266,7 +266,7 @@ export interface InteractWithTerminalInput {
   env?: Record<string, string>;
   input?: string;
   readOptions?: {
-    mode?: 'full' | 'head' | 'tail' | 'head-tail' | 'auto' | 'smart';  // auto is default smart mode
+    mode?: 'full' | 'head' | 'tail' | 'head-tail';
     maxLines?: number;
     since?: number;
     headLines?: number;
