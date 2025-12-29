@@ -7,6 +7,9 @@ export interface TerminalSession {
   pid: number;
   shell: string;
   cwd: string;
+  // 待应用的工作目录：用于“无输出污染”地更新 cwd，真正执行前再注入 cd/Set-Location
+  // Pending working directory: update cwd without polluting output, apply via cd/Set-Location right before execution
+  pendingCwd?: string | null;
   env: Record<string, string>;
   // 终端尺寸（列/行）
   // Terminal size (cols/rows)

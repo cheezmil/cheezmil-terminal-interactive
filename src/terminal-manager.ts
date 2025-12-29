@@ -172,6 +172,7 @@ export class TerminalManager extends EventEmitter {
         pid: ptyProcess.pid,
         shell: resolvedShell,
         cwd,
+        pendingCwd: null,
         env,
         cols,
         rows,
@@ -325,6 +326,24 @@ export class TerminalManager extends EventEmitter {
         throw error;
       }
 
+      // 在执行用户输入前，若上层请求更新 cwd，则优先注入一次“切换目录”命令（不需要调用方手动写 cd）
+      // If caller requested a cwd update, inject a one-time "change directory" command before executing user input
+      if (liveSession.pendingCwd && liveSession.pendingCwd !== liveSession.cwd) {
+        const pending = liveSession.pendingCwd;
+        const cdCmd = this.buildChangeDirectoryCommand(liveSession.shell, pending);
+        if (cdCmd) {
+          // 强制执行：cd/Set-Location 必须带回车
+          // Force execution: cd/Set-Location must include Enter
+          const cdWithEnter = this.normalizeNewlines(cdCmd + '\r');
+          await this.writeInChunks(livePty, cdWithEnter);
+          this.emit('terminalInput', terminalName, cdWithEnter);
+          this.trackCommand(liveSession, cdWithEnter, true);
+          await new Promise((resolve) => setImmediate(resolve));
+        }
+        liveSession.cwd = pending;
+        liveSession.pendingCwd = null;
+      }
+
       // 如果输入不以换行符结尾，自动添加回车以执行命令。
       // 对“多行输入”默认不自动追加，避免粘贴到全屏程序（vim）时多余回车导致状态错乱；
       // 但对“类对话交互程序”（如 Claude Code）多行消息往往需要最终回车提交，因此默认仍追加。
@@ -367,6 +386,50 @@ export class TerminalManager extends EventEmitter {
       terminalError.terminalName = terminalName;
       throw terminalError;
     }
+  }
+
+  /**
+   * 请求更新终端工作目录（不会立刻写入 cd 命令，避免污染输出；会在下次 write 前自动应用）
+   * Request a terminal cwd update (do NOT write cd immediately to avoid polluting output; it will be applied before next write)
+   */
+  requestTerminalCwdUpdate(terminalName: string, cwd: string): void {
+    const resolvedId = this.resolveTerminalName(terminalName);
+    const session = this.sessions.get(resolvedId);
+    if (!session) {
+      return;
+    }
+    const next = (cwd || '').trim();
+    if (!next) {
+      return;
+    }
+    session.pendingCwd = next;
+  }
+
+  private escapeSingleQuotesForPowerShell(text: string): string {
+    // PowerShell single-quoted strings escape by doubling single quotes.
+    return text.replace(/'/g, "''");
+  }
+
+  private buildChangeDirectoryCommand(shellPath: string, cwd: string): string {
+    const shellLower = (shellPath || '').toLowerCase();
+    const target = cwd.trim();
+    if (!target) return '';
+
+    // PowerShell (pwsh / powershell)
+    if (shellLower.includes('pwsh') || shellLower.includes('powershell')) {
+      const escaped = this.escapeSingleQuotesForPowerShell(target);
+      return `Set-Location -LiteralPath '${escaped}'`;
+    }
+
+    // Windows cmd
+    if (process.platform === 'win32' && shellLower.includes('cmd')) {
+      const escaped = target.replace(/"/g, '""');
+      return `cd /d "${escaped}"`;
+    }
+
+    // Bash/zsh/sh (and most POSIX shells)
+    const escaped = target.replace(/'/g, `'\"'\"'`);
+    return `cd -- '${escaped}'`;
   }
 
   /**
