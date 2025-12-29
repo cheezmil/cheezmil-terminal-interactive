@@ -36,13 +36,8 @@ export class cheezmilTerminalInteractiveServer {
   private webUiManager: WebUIManager;
   private backendProcess: any;
   private frontendProcess: any;
-  // 渐进式最大等待时间：同一个 terminalId 需要先多次用 <=60s 的 maxWaitMs 探测输出，再允许直接请求 >60s
-  // Progressive max-wait: for the same terminalId, require multiple <=60s attempts before allowing >60s requests
-  private progressiveWaitTracker = new Map<string, {
-    shortAttempts: number;
-    createdAtMs: number;
-    lastAttemptAtMs: number;
-  }>();
+  // NOTE: Tool-level wait behavior should be explicit and structured.
+  // 注意：工具层等待行为应当显式声明并结构化返回。
 
   private encodeSpecialOperationToInput(op: string): string | null {
     // 特殊按键/操作到终端输入序列的映射
@@ -805,10 +800,9 @@ Fix tool: OpenAI Codex
       'Detected a likely long-running command. Follow these rules when calling `interact_with_terminal`:',
       '',
       '1) Use a clean terminalId: pick a brand-new dedicated terminalId (e.g. `long_task_1`). Do NOT reuse a previously "polluted" session.',
-      '2) Always pass `cwd`: if `cwd` is missing, the server will error with `must provide cwd`.',
-       '   - You may change `cwd` on the same terminalId at any time by passing a new `cwd`.',
+      '2) Pass `cwd` when creating a new terminalId. Once created, the terminal keeps its cwd; omit `cwd` in later calls.',
       `   - Recommended cwd for this project: \`${projectCwd}\``,
-      '3) Reduce polling: for long tasks use `wait.mode=prompt` or `wait.mode=pattern` with a longer `wait.maxWaitMs` (30-50s per call).',
+      '3) Reduce polling: for long tasks set `longTask=true`, and use `wait.mode=prompt` or `wait.mode=pattern` with a longer `wait.maxWaitMs` (30-50s per call).',
       '   - Prefer `wait.includeIntermediateOutput=false` to only fetch output at the end / when pattern hits.',
       '4) If your workflow has an install/setup step and a run step, split them into two separate commands so each step is easier to validate.',
       '',
@@ -820,6 +814,205 @@ Fix tool: OpenAI Codex
    * 设置 MCP 工具
    */
   private setupTools(): void {
+    // 读取终端输出/元数据工具（从 interact_with_terminal 拆分）
+    // Read terminal output/metadata tool (split from interact_with_terminal)
+    if (!this.isToolDisabled('read_CTI')) {
+      const readCtiSchema: any = {
+        terminalId: z.string().describe('Terminal ID to read from.'),
+        resetSession: z.boolean().optional().describe('Reset (kill + recreate) this terminal session. Requires cwd.'),
+        // Create options when resetSession is true / reset 时用于创建新会话的参数
+        cwd: z.string().optional().describe('Working directory (REQUIRED when resetSession is true).'),
+        shell: z.string().optional().describe('Shell to use (only used when resetSession is true).'),
+        env: z.record(z.string()).optional().describe('Environment variables (only used when resetSession is true).'),
+        cols: z.number().optional().describe('Terminal columns (only used when resetSession is true).'),
+        rows: z.number().optional().describe('Terminal rows (only used when resetSession is true).'),
+        since: z.number().optional().describe('Line/sequence cursor to start reading from (default: 0).'),
+        mode: z.enum(['full', 'head', 'tail', 'head-tail', 'auto', 'smart']).optional().describe('Reading mode (default: smart).'),
+        maxLines: z.number().optional().describe('Maximum number of lines to return (default: 1000).'),
+        headLines: z.number().optional().describe('Number of lines to show from the beginning for head/head-tail.'),
+        tailLines: z.number().optional().describe('Number of lines to show from the end for tail/head-tail.'),
+        stripSpinner: z.boolean().optional().describe('Strip common spinner/animation frames (default: true).'),
+        // Keyword context extraction / 关键字上下文截取
+        keywords: z.array(z.string()).optional().describe('If provided, extract matching lines with context.'),
+        contextLines: z.number().optional().describe('Context lines before/after each match (default: 2).'),
+        ignoreCase: z.boolean().optional().describe('Whether keyword matching is case-insensitive (default: true).'),
+        maxMatches: z.number().optional().describe('Maximum number of keyword matches to return (default: 50).'),
+        includeMetadata: z.boolean().optional().describe('Include session metadata/status (default: true).')
+      };
+
+      (this.server as any).tool(
+        'read_CTI',
+        `Read terminal output and session metadata.
+
+Use this tool after \`interact_with_terminal\` to continue reading output, debug truncation, and inspect session state (cwd, prompt, pending command, etc.).`,
+        readCtiSchema,
+        async (args: any): Promise<CallToolResult> => {
+          try {
+            const terminalId = String(args.terminalId || '').trim();
+            if (!terminalId) {
+              throw new Error('terminalId is required');
+            }
+
+            if (args.resetSession === true) {
+              const cwd = String(args.cwd || '').trim();
+              if (!cwd) {
+                throw new Error('cwd is required when resetSession is true');
+              }
+              const shell = args.shell !== undefined ? String(args.shell) : undefined;
+              const env = args.env && typeof args.env === 'object' ? args.env : undefined;
+              const cols = Number.isFinite(args.cols) ? Math.max(10, Math.round(args.cols)) : undefined;
+              const rows = Number.isFinite(args.rows) ? Math.max(5, Math.round(args.rows)) : undefined;
+
+              try {
+                await this.terminalManager.killTerminal(terminalId, 'SIGTERM');
+              } catch {
+                // best-effort / 尽力清理
+              }
+
+              await this.terminalManager.createTerminal({
+                terminalName: terminalId,
+                cwd,
+                ...(shell ? { shell } : {}),
+                ...(env ? { env } : {}),
+                ...(cols ? { cols } : {}),
+                ...(rows ? { rows } : {})
+              } as any);
+
+              return {
+                content: [{ type: 'text', text: `Terminal "${terminalId}" reset and ready.` }],
+                structuredContent: { terminalId, resetSession: true }
+              } as CallToolResult;
+            }
+
+            const since = Number.isFinite(args.since) ? Math.max(0, Math.round(args.since)) : 0;
+            const maxLines = Number.isFinite(args.maxLines) ? Math.max(1, Math.round(args.maxLines)) : 1000;
+            const mode = (args.mode as any) || 'smart';
+            const headLines = Number.isFinite(args.headLines) ? Math.max(0, Math.round(args.headLines)) : undefined;
+            const tailLines = Number.isFinite(args.tailLines) ? Math.max(0, Math.round(args.tailLines)) : undefined;
+            const stripSpinner = args.stripSpinner !== undefined ? Boolean(args.stripSpinner) : true;
+            const includeMetadata = args.includeMetadata !== undefined ? Boolean(args.includeMetadata) : true;
+
+            const readResult = await this.terminalManager.readFromTerminal({
+              terminalName: terminalId,
+              since,
+              maxLines,
+              mode,
+              headLines,
+              tailLines
+            } as any);
+
+            const stripSpinnerChars = (text: string): string => {
+              if (!text) return text;
+              let next = text.replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, '');
+              next = next.replace(/[|\/\\-]/g, (match, offset, string) => {
+                const prevChar = offset > 0 ? string[offset - 1] : '';
+                const nextChar = offset < string.length - 1 ? string[offset + 1] : '';
+                if (/[|\/\\-]/.test(prevChar) || /[|\/\\-]/.test(nextChar)) return '';
+                return match;
+              });
+              return next;
+            };
+
+            const outputText = stripSpinner ? stripSpinnerChars(readResult.output || '') : (readResult.output || '');
+
+            const structuredContent: any = {
+              terminalId,
+              output: outputText,
+              totalLines: readResult.totalLines,
+              hasMore: readResult.hasMore,
+              since: readResult.since,
+              cursor: readResult.cursor ?? readResult.since ?? null,
+              truncated: Boolean(readResult.truncated),
+              stats: readResult.stats ?? null,
+              status: readResult.status ?? null
+            };
+
+            if (includeMetadata) {
+              try {
+                structuredContent.session = {
+                  stats: await this.terminalManager.getTerminalStats(terminalId),
+                  readStatus: this.terminalManager.getTerminalReadStatus(terminalId),
+                  awaitingInput: this.terminalManager.isTerminalAwaitingInput(terminalId)
+                };
+              } catch (e) {
+                structuredContent.session = { error: e instanceof Error ? e.message : String(e) };
+              }
+            }
+
+            // Keyword context extraction (stable semantics, independent from read mode)
+            const keywordsRaw: string[] = Array.isArray(args.keywords)
+              ? args.keywords.map((v: unknown) => String(v)).filter((s: string) => s.trim())
+              : [];
+            if (keywordsRaw.length > 0) {
+              const ignoreCase = args.ignoreCase !== undefined ? Boolean(args.ignoreCase) : true;
+              const contextLines = Number.isFinite(args.contextLines) ? Math.max(0, Math.round(args.contextLines)) : 2;
+              const maxMatches = Number.isFinite(args.maxMatches) ? Math.max(1, Math.round(args.maxMatches)) : 50;
+
+              const lines = outputText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+              const keywordList = keywordsRaw.map((k: string) => (ignoreCase ? k.toLowerCase() : k));
+              const hitLineNumbers: number[] = [];
+              for (let idx = 0; idx < lines.length; idx++) {
+                const line = lines[idx] ?? '';
+                const hay = ignoreCase ? line.toLowerCase() : line;
+                for (const k of keywordList) {
+                  if (!k) continue;
+                  if (hay.includes(k)) {
+                    hitLineNumbers.push(idx);
+                    break;
+                  }
+                }
+                if (hitLineNumbers.length >= maxMatches) break;
+              }
+
+              const ranges: Array<{ start: number; end: number }> = [];
+              for (const hit of hitLineNumbers) {
+                const start = Math.max(0, hit - contextLines);
+                const end = Math.min(lines.length - 1, hit + contextLines);
+                const last = ranges[ranges.length - 1];
+                if (last && start <= last.end + 1) {
+                  last.end = Math.max(last.end, end);
+                } else {
+                  ranges.push({ start, end });
+                }
+              }
+
+              const contexts = ranges.map((r) => ({
+                startLine: r.start + 1,
+                endLine: r.end + 1,
+                text: lines.slice(r.start, r.end + 1).join('\n')
+              }));
+
+              structuredContent.keywordContext = {
+                keywords: keywordsRaw,
+                ignoreCase,
+                contextLines,
+                maxMatches,
+                matchCount: hitLineNumbers.length,
+                contexts
+              };
+            }
+
+            return {
+              content: [{ type: 'text', text: outputText || '' }],
+              structuredContent
+            } as CallToolResult;
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `Error reading terminal: ${error instanceof Error ? error.message : String(error)}`
+                }
+              ],
+              isError: true
+            } as CallToolResult;
+          }
+        }
+      );
+    } else {
+      console.log('[MCP-INFO] Tool "read_CTI" is disabled');
+    }
+
     // 统一终端交互工具
     if (!this.isToolDisabled('interact_with_terminal')) {
       // MCP 客户端/工具层常见默认请求超时为 60s；为避免 tools/call 等不到响应，
@@ -839,17 +1032,21 @@ Fix tool: OpenAI Codex
         // 终止终端参数 / Parameters for terminating terminal
         killTerminal: z.boolean().optional().describe('Terminate the specified terminal session. When true, ignores other parameters except terminalId and kills the terminal.'),
         signal: z.string().optional().describe('Signal to send for termination (default: SIGTERM, only used when killTerminal is true)'),
+        interrupt: z.boolean().optional().describe('Send SIGINT/Ctrl+C to interrupt the current foreground process without terminating the session.'),
+        interruptSignal: z.string().optional().describe('Signal to send for interrupt (default: SIGINT).'),
         
         // 终端创建参数 / Parameters for creating terminal
-        terminalId: z.string().optional().describe('Terminal ID for identification. If terminal does not exist, it will be created automatically.'),
-        shell: z.string().optional().describe('Shell to use (default: system default, only used when creating new terminal)'),
-        cwd: z.string().optional().describe('Working directory (REQUIRED for normal execution). The server will apply it for the session and can update it for an existing terminalId.'),
+        terminalId: z.string().optional().describe('Terminal ID for identification. If the terminal does not exist, it will be created automatically.'),
+        shell: z.string().optional().describe('Shell to use (only used when creating new terminal)'),
+        cwd: z.string().optional().describe('Working directory (REQUIRED when creating a new terminalId). Once created, omit cwd and reuse the session cwd.'),
         env: z.record(z.string()).optional().describe('Environment variables (only used when creating new terminal)'),
         
         // 终端操作参数 / Parameters for writing to terminal
         input: z.string().optional().describe('Input to send to the terminal. Newline will be automatically added if not present to execute the command.'),
         powerShellScript: z.string().optional().describe('Windows/PowerShell helper: if provided, the server executes this script via `pwsh -EncodedCommand ...` to avoid client-side quoting/escaping truncation. When set, it takes precedence over `input`.'),
         appendNewline: z.boolean().optional().describe('Whether to automatically append a newline (default: true). Set to false for raw control sequences.'),
+        noEcho: z.boolean().optional().describe('Try to remove echoed input from returned output (default: true).'),
+        longTask: z.boolean().optional().describe('Explicitly declare this is a long-running task; server will use gentler exponential-backoff polling within the single-call cap.'),
         // 等待策略（推荐使用） / Wait strategy (recommended)
         wait: z.object({
           mode: z.enum(['none', 'idle', 'prompt', 'pattern', 'exit']).describe('Wait mode: none|idle|prompt|pattern|exit.'),
@@ -905,15 +1102,9 @@ Fix tool: OpenAI Codex
       // Here we cast server to any to avoid deep generic instantiation issues
       (this.server as any).tool(
         'interact_with_terminal',
-        `Interact with a terminal session by terminalId. If the terminal does not exist, it will be created automatically. You can also list all active terminal sessions.
+        `Execute ONE command in a terminal session and return ONLY this command's output (mode=this_command_output).
 
-Interactive apps (Claude Code / vim etc.) tips:
-- Send Enter: specialOperation: "enter" (or keys: "enter")
-- Send ESC: specialOperation: "esc" (or keys: "esc")
-- Double ESC: specialOperation: "double_esc" (or keys: "esc,esc")
-- If an interactive terminal is detected and you use input + appendNewline (default true), the server may convert it to an equivalent keySequence (text + enter) to improve reliability in TUI apps.
-- For complex key combos: use keys/keySequence and set keyDelayMs / delayMsAfter; the server writes keys in order.
-- Terminal search: provide search (+ searchRegex=true for regex); the server searches the output buffer and returns matching lines with context.`,
+For reading more output, tail/head, keyword-context extraction, and session metadata, use \`read_CTI\`.`,
         interactWithTerminalSchema,
       {
         title: 'Interact with Terminal',
@@ -922,7 +1113,7 @@ Interactive apps (Claude Code / vim etc.) tips:
       async (args: any, extra?: any): Promise<CallToolResult> => {
         const {
           listTerminals, killTerminal, signal, terminalId, shell, cwd, env,
-          input, powerShellScript, appendNewline, wait, waitForOutput,
+          input, powerShellScript, appendNewline, noEcho, longTask, wait, waitForOutput,
           since, maxLines, mode, headLines, tailLines, stripSpinner,
           specialOperation, keys, keyDelayMs, keySequence,
           search, searchRegex, caseSensitive, contextLines, maxMatches, searchSince
@@ -973,6 +1164,19 @@ Interactive apps (Claude Code / vim etc.) tips:
             };
           }
 
+          // 如果请求发送中断信号，则尝试 SIGINT/Ctrl+C
+          if (args.interrupt) {
+            if (!terminalId) {
+              throw new Error('terminalId is required when interrupting terminal.');
+            }
+            const sig = args.interruptSignal ? String(args.interruptSignal) : 'SIGINT';
+            await this.terminalManager.signalTerminal(String(terminalId), sig);
+            return {
+              content: [{ type: 'text', text: `Interrupt sent to terminal ${terminalId} (${sig}).` }],
+              structuredContent: { interrupt: true, terminalId, signal: sig }
+            };
+          }
+
           // 如果请求终止终端，则执行kill操作并返回
           if (killTerminal) {
             if (!terminalId) {
@@ -1016,10 +1220,25 @@ Interactive apps (Claude Code / vim etc.) tips:
             throw new Error('terminalId is required when not listing or killing terminals.');
           }
 
-          // 强制要求传入 cwd（普通执行/读写时）；list/kill 不强制
-          // Require cwd for normal execution/read/write; list/kill do not require it
-          if (!cwd || !String(cwd).trim()) {
-            throw new Error('must provide cwd');
+          // 本工具只支持 this_command_output（一次输入命令 -> 等待 -> 返回本次命令输出）。
+          // Any extra reading/search features must be done via read_CTI.
+          if (mode && String(mode) !== 'this_command_output') {
+            throw new Error('interact_with_terminal only supports mode="this_command_output"; use read_CTI for other read modes.');
+          }
+          if (
+            since !== undefined ||
+            maxLines !== undefined ||
+            headLines !== undefined ||
+            tailLines !== undefined ||
+            stripSpinner !== undefined ||
+            search !== undefined ||
+            searchRegex !== undefined ||
+            caseSensitive !== undefined ||
+            contextLines !== undefined ||
+            maxMatches !== undefined ||
+            searchSince !== undefined
+          ) {
+            throw new Error('Reading/search options are moved to read_CTI; call read_CTI for tail/head/search/context/metadata.');
           }
           
           // 检查终端是否存在，如果不存在则创建
@@ -1029,6 +1248,9 @@ Interactive apps (Claude Code / vim etc.) tips:
           } catch (error) {
             // 终端不存在，创建新终端
             if (error instanceof Error && (error.message.includes('not found') || error.message.includes('does not exist'))) {
+              if (!cwd || !String(cwd).trim()) {
+                throw new Error(`must provide cwd when creating a new terminalId (terminalId="${actualTerminalId}")`);
+              }
               await this.terminalManager.createTerminal({
                 terminalName: actualTerminalId,
                 shell,
@@ -1041,9 +1263,8 @@ Interactive apps (Claude Code / vim etc.) tips:
             }
           }
 
-          // 允许随时更新同一 terminalId 的 cwd：这里记录为 pendingCwd，并在下次写入前自动应用
-          // Allow updating cwd for the same terminalId at any time: store as pendingCwd and apply before next write
-          this.terminalManager.requestTerminalCwdUpdate(actualTerminalId, String(cwd));
+          // cwd 在创建会话时固定一次；后续调用可省略（即使传了 cwd 也不自动切目录，避免污染输出）。
+          // cwd is fixed at session creation; later calls may omit it (and we do not auto-cd even if cwd is provided to avoid polluting output).
           
           let responseText = '';
           let structuredContent: any = {
@@ -1159,7 +1380,13 @@ Interactive apps (Claude Code / vim etc.) tips:
                 if (!encoded) {
                   return {
                     content: [{ type: 'text', text: `Unknown key token in keySequence: "${item.value}".` }],
-                    structuredContent: { isError: true, reason: 'UNKNOWN_KEY_TOKEN', token: item.value, terminalId: actualTerminalId },
+                    structuredContent: {
+                      isError: true,
+                      reason: 'UNKNOWN_KEY_TOKEN',
+                      token: item.value,
+                      terminalId: actualTerminalId,
+                      resultStatus: { state: 'blocked', reason: 'unknown_key_token', nextAction: 'Fix the key token and retry.' }
+                    },
                     isError: true
                   } as CallToolResult;
                 }
@@ -1191,7 +1418,13 @@ Interactive apps (Claude Code / vim etc.) tips:
               if (!encoded) {
                 return {
                   content: [{ type: 'text', text: `Unknown key token in keys: "${t}".` }],
-                  structuredContent: { isError: true, reason: 'UNKNOWN_KEY_TOKEN', token: t, terminalId: actualTerminalId },
+                  structuredContent: {
+                    isError: true,
+                    reason: 'UNKNOWN_KEY_TOKEN',
+                    token: t,
+                    terminalId: actualTerminalId,
+                    resultStatus: { state: 'blocked', reason: 'unknown_key_token', nextAction: 'Fix the key token and retry.' }
+                  },
                   isError: true
                 } as CallToolResult;
               }
@@ -1333,7 +1566,12 @@ Interactive apps (Claude Code / vim etc.) tips:
                   structuredContent: {
                     blocked: true,
                     blockedCommand: blacklist.command || null,
-                    terminalId: actualTerminalId
+                    terminalId: actualTerminalId,
+                    resultStatus: {
+                      state: 'blocked',
+                      reason: 'blacklist',
+                      nextAction: 'Change the command and retry.'
+                    }
                   },
                   isError: true
                 } as CallToolResult;
@@ -1342,9 +1580,6 @@ Interactive apps (Claude Code / vim etc.) tips:
 
             // 等待策略：只允许“最大等待时间”，并对单次调用强制上限，避免 tools/call 被工具层 60s 超时吞掉响应
             // Wait strategy: only use "max wait time" and enforce a per-call hard cap to avoid tool-layer 60s timeouts
-            const MAX_PROGRESSIVE_SHORT_WAIT_MS = 60_000;
-            const PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS = 8;
-
             // 兼容参数归一：wait.maxWaitMs 为主；timeoutMs/waitMs/waitForOutput 为兼容
             // Normalize parameters: prefer wait.maxWaitMs; keep timeoutMs/waitMs/waitForOutput for compatibility
             const mappedWait: any = (() => {
@@ -1368,67 +1603,50 @@ Interactive apps (Claude Code / vim etc.) tips:
 
             // 渐进式最大等待时间限制：首次/前几次禁止直接请求 >60s，防止客户端误用导致重复启动
             // Progressive max-wait restriction: block >60s requests until enough <=60s attempts have been made to avoid duplicate starts
-            if (actualTerminalId) {
-              const now = Date.now();
-              const entry = this.progressiveWaitTracker.get(actualTerminalId) ?? {
-                shortAttempts: 0,
-                createdAtMs: now,
-                lastAttemptAtMs: 0
-              };
-
-              const allowLongWait = entry.shortAttempts >= PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS;
-              if (requestedMaxWaitMs > MAX_PROGRESSIVE_SHORT_WAIT_MS && !allowLongWait) {
-                const remaining = Math.max(0, PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS - entry.shortAttempts);
-                const tipEn = `Use progressive maxWaitMs (<=60s) on the same terminalId first (${remaining} more attempts needed) before requesting >60s.`;
-                return {
-                  content: [
-                    { type: 'text', text: tipEn }
-                  ],
-                  structuredContent: {
-                    kind: 'progressive_wait_required',
-                    terminalId: actualTerminalId,
-                    progressiveWait: {
-                      requestedMaxWaitMs,
-                      shortMaxWaitMs: MAX_PROGRESSIVE_SHORT_WAIT_MS,
-                      shortAttempts: entry.shortAttempts,
-                      requiredShortAttempts: PROGRESSIVE_REQUIRED_SHORT_ATTEMPTS,
-                      remainingShortAttempts: remaining,
-                      allowLongWait: false
-                    },
-                    // 按模式返回“建议参数”，但本次不执行写入，避免重复启动
-                    // Return suggested params in a mode-shaped response, without executing writes to avoid duplicate starts
-                    wait: {
-                      mode: waitMode,
-                      requestedMaxWaitMs,
-                      effectiveMaxWaitMs: Math.min(requestedMaxWaitMs, MAX_PROGRESSIVE_SHORT_WAIT_MS),
-                      met: false,
-                      reason: 'progressive_required'
-                    }
-                  }
-                };
-              }
-
-              // 记录 <=60s 的尝试次数（仅当调用方显式给了等待时间，且不是 none）
-              // Count <=60s attempts (only when caller explicitly requests waiting and mode is not none)
-              if (waitMode !== 'none' && requestedMaxWaitMs > 0 && requestedMaxWaitMs <= MAX_PROGRESSIVE_SHORT_WAIT_MS) {
-                entry.shortAttempts += 1;
-                entry.lastAttemptAtMs = now;
-                this.progressiveWaitTracker.set(actualTerminalId, entry);
-              } else if (!this.progressiveWaitTracker.has(actualTerminalId)) {
-                // 确保有条目以便后续统计/提示
-                // Ensure entry exists for future tracking/hints
-                this.progressiveWaitTracker.set(actualTerminalId, entry);
-              }
-            }
+            // NOTE: do NOT block long waits with a hard "progressive wait required" gate.
+            // The caller can explicitly declare `longTask=true` and then poll with exponential backoff.
+            // 注意：不要用“渐进式等待必需”的硬闸门阻断长等待；调用方可用 longTask=true 明确声明长任务，并采用指数退避轮询。
 
             const waitTimeoutMsUncapped = requestedMaxWaitMs;
             const waitTimeoutMs = Math.min(waitTimeoutMsUncapped, MAX_SINGLE_CALL_WAIT_MS);
             const waitIdleMs = Number.isFinite(mappedWait.idleMs) ? Math.max(0, Math.round(mappedWait.idleMs)) : 900;
             const includeIntermediateOutput = mappedWait.includeIntermediateOutput !== undefined ? Boolean(mappedWait.includeIntermediateOutput) : true;
 
+            // 为了避免“输入回显/粘连/边界不清晰”，对普通命令执行自动包一层 begin/end token。
+            // This improves command boundary detection and reduces echo/fragment confusion.
+            let boundaryToken: string | null = null;
+            let boundaryWrappedInput: string | null = null;
+            const canUseBoundary =
+              !resolvedKeySequence &&
+              !specialOperation &&
+              typeof actualInput === 'string' &&
+              actualInput.trim().length > 0 &&
+              appendNewline !== false;
+            if (canUseBoundary) {
+              boundaryToken = `__CTI_BOUNDARY_${Date.now()}_${Math.random().toString(16).slice(2)}__`;
+              let shellPath = '';
+              try {
+                const stats = await this.terminalManager.getTerminalStats(actualTerminalId);
+                shellPath = String((stats as any)?.shell ?? '');
+              } catch {
+                shellPath = '';
+              }
+              const shellLower = shellPath.toLowerCase();
+              const begin = `${boundaryToken}_BEGIN`;
+              const end = `${boundaryToken}_END`;
+              if (shellLower.includes('pwsh') || shellLower.includes('powershell')) {
+                boundaryWrappedInput = `Write-Output '${begin}'; ${actualInput}; Write-Output '${end}'`;
+              } else if (shellLower.includes('cmd.exe') || shellLower.endsWith('\\cmd.exe')) {
+                boundaryWrappedInput = `echo ${begin} & ${actualInput} & echo ${end}`;
+              } else {
+                // bash/zsh/sh 等 / bash/zsh/sh etc.
+                boundaryWrappedInput = `echo '${begin}'; ${actualInput}; echo '${end}'`;
+              }
+            }
+
             const writeOptions: any = resolvedKeySequence
               ? { terminalName: actualTerminalId, input: '' }
-              : { terminalName: actualTerminalId, input: actualInput };
+              : { terminalName: actualTerminalId, input: boundaryWrappedInput ?? actualInput };
             if (!resolvedKeySequence && appendNewline !== undefined) {
               writeOptions.appendNewline = appendNewline;
             }
@@ -1475,11 +1693,15 @@ Interactive apps (Claude Code / vim etc.) tips:
             }
             
             structuredContent.input = actualInput;
+            if (boundaryToken) {
+              structuredContent.boundary = { token: boundaryToken };
+            }
             if (specialOperation) {
               structuredContent.specialOperation = specialOperation;
             }
 
             const effectiveStripSpinner = stripSpinner !== undefined ? Boolean(stripSpinner) : true;
+            const effectiveNoEcho = noEcho !== false;
             // 未传 mode 时，默认使用 this_command_output（只返回本次命令的输出增量）
             // If mode is omitted, default to this_command_output (only return delta output for this command)
             const effectiveMode = mode || 'this_command_output';
@@ -1493,7 +1715,8 @@ Interactive apps (Claude Code / vim etc.) tips:
 
             const waitStart = Date.now();
             const hardDeadline = waitStart + (waitTimeoutMs > 0 ? waitTimeoutMs : 0);
-            const pollIntervalMs = 150;
+            let pollDelayMs = longTask ? 200 : 120;
+            const maxPollDelayMs = longTask ? 2000 : 800;
 
             let nextSince = baselineSince;
             let lastCursor = nextSince;
@@ -1563,7 +1786,7 @@ Interactive apps (Claude Code / vim etc.) tips:
                 // Extract delta text, then normalize/strip to reduce token usage.
                 const rawText = outputResult.output || '';
                 const spinnerStripped = stripSpinnerChars(rawText, effectiveStripSpinner);
-                const normalized = normalizeOutputText(spinnerStripped, actualInput, true);
+                const normalized = normalizeOutputText(spinnerStripped, actualInput, effectiveNoEcho);
 
                 const cursor = typeof outputResult.cursor === 'number' ? outputResult.cursor : undefined;
                 if (normalized) {
@@ -1612,7 +1835,9 @@ Interactive apps (Claude Code / vim etc.) tips:
                   }
                 }
 
-                await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+                const sleepMs = Math.min(maxPollDelayMs, pollDelayMs);
+                pollDelayMs = Math.min(maxPollDelayMs, Math.max(50, Math.round(pollDelayMs * 1.6)));
+                await new Promise(resolve => setTimeout(resolve, sleepMs));
               }
 
               if (!waitMet) {
@@ -1680,7 +1905,20 @@ Interactive apps (Claude Code / vim etc.) tips:
               return cleaned.join('\n');
             };
 
-            let finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, true);
+            let finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, effectiveNoEcho);
+            if (boundaryToken && finalOutputRaw) {
+              const begin = `${boundaryToken}_BEGIN`;
+              const end = `${boundaryToken}_END`;
+              const lines = finalOutputRaw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+              const beginIdx = lines.findIndex((l) => l.includes(begin));
+              const endIdx = lines.findIndex((l) => l.includes(end));
+              if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+                finalOutputRaw = lines.slice(beginIdx + 1, endIdx).join('\n').trimEnd();
+                structuredContent.boundary.extracted = true;
+              } else {
+                structuredContent.boundary.extracted = false;
+              }
+            }
             // this_command_output 默认不需要回显“提示符+输入命令”，只保留命令结果
             // this_command_output should not include "prompt + input command" echo, keep only command results
             if (effectiveMode === 'this_command_output') {
@@ -1725,15 +1963,31 @@ Interactive apps (Claude Code / vim etc.) tips:
             if (waitMode !== 'none' && waitReason === 'timeout') {
               responseText =
                 `Wait reached maxWaitMs on terminal ${actualTerminalId} (requested=${requestedMaxWaitMs}ms, effective=${waitTimeoutMs}ms, cap=${MAX_SINGLE_CALL_WAIT_MS}ms).\n` +
-                `Call interact_with_terminal again with progressive maxWaitMs (e.g. 2000 -> 5000 -> 15000 -> 50000) to continue collecting output.\n\n` +
+                `Call read_CTI to continue reading output, or call interact_with_terminal again with a larger wait.maxWaitMs / longTask=true.\n\n` +
                 `--- Command Output (partial) ---\n${finalOutput}\n--- End of Command Output ---`;
             } else {
               responseText = `Command executed successfully on terminal ${actualTerminalId}.\n\n--- Command Output ---\n${finalOutput}\n--- End of Command Output ---`;
             }
 
+            const resultState: 'running' | 'finished' | 'blocked' | 'timeout' =
+              (waitMode !== 'none' && waitReason === 'timeout')
+                ? 'timeout'
+                : (waitMode === 'none' ? 'running' : 'finished');
+            const nextAction =
+              resultState === 'timeout'
+                ? 'Call read_CTI to continue reading output, or re-run interact_with_terminal with a larger wait.maxWaitMs / longTask=true.'
+                : (resultState === 'running'
+                  ? 'Call read_CTI to read incremental output, or re-run interact_with_terminal with wait.mode=prompt.'
+                  : null);
+
             structuredContent = {
               ...structuredContent,
               kind: (waitMode !== 'none' && waitReason === 'timeout') ? 'wait_timeout' : 'ok',
+              resultStatus: {
+                state: resultState,
+                reason: waitReason,
+                nextAction
+              },
               wait: {
                 mode: waitMode,
                 // 统一字段：maxWaitMs（单次调用最大等待时间）
@@ -1761,7 +2015,7 @@ Interactive apps (Claude Code / vim etc.) tips:
                 truncated: Boolean(finalResult.truncated) || truncatedOutput.truncated
               },
               delta: {
-                text: normalizeOutputText(stripSpinnerChars(accumulatedDelta, effectiveStripSpinner), actualInput, true),
+                text: normalizeOutputText(stripSpinnerChars(accumulatedDelta, effectiveStripSpinner), actualInput, effectiveNoEcho),
                 bytes: accumulatedBytes,
                 lines: accumulatedLines
               },
@@ -1923,11 +2177,24 @@ Interactive apps (Claude Code / vim etc.) tips:
             structuredContent
           } as CallToolResult;
         } catch (error) {
+          let cwdHint = '';
+          try {
+            const tid = typeof terminalId === 'string' ? terminalId : (terminalId ? String(terminalId) : '');
+            if (tid) {
+              const stats = await this.terminalManager.getTerminalStats(tid);
+              const currentCwd = (stats as any)?.cwd;
+              if (currentCwd) {
+                cwdHint = ` (current cwd: ${currentCwd})`;
+              }
+            }
+          } catch {
+            // ignore / 忽略
+          }
           return {
             content: [
               {
                 type: 'text',
-                text: `Error interacting with terminal: ${error instanceof Error ? error.message : String(error)}`
+                text: `Error interacting with terminal: ${error instanceof Error ? error.message : String(error)}${cwdHint}`
               }
             ],
             isError: true
@@ -2192,14 +2459,10 @@ Before calling this tool, gather as much information as possible:
 
     this.terminalManager.on('terminalKilled', (terminalId, signal) => {
       process.stderr.write(`[MCP-INFO] Terminal killed: ${terminalId} (signal: ${signal})\n`);
-      // 清理渐进式等待的计数 / Cleanup progressive-wait counters
-      this.progressiveWaitTracker.delete(terminalId);
     });
 
     this.terminalManager.on('terminalCleaned', (terminalId) => {
       process.stderr.write(`[MCP-INFO] Terminal cleaned up: ${terminalId}\n`);
-      // 清理渐进式等待的计数 / Cleanup progressive-wait counters
-      this.progressiveWaitTracker.delete(terminalId);
     });
   }
 
