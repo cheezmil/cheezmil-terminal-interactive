@@ -1,0 +1,5 @@
+- [ ] 1. 用 rg 找到 CTI tool 的请求入口与超时/等待逻辑
+- [ ] 2. 定位 60s 超时来源（网关/适配层/等待模式实现）并最小复现
+- [ ] 3. 修复：确保无论 idle/pattern/this_command_output 都能及时返回（含 includeIntermediateOutput）
+- [ ] 4. 加测试：模拟 CTI 连接与长输出，断言 tools/call 有增量或至少心跳响应
+- [ ] 5. 按项目脚本重启后端/前端并用 chrome_console 与 test-mcp-client 验证

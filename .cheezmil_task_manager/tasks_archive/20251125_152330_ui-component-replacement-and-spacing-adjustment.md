@@ -1,0 +1,9 @@
+- [x] 1. 查找并确认 ToggleButton 组件的使用位置
+- [x] 2. 研究 PrimeVue 中可替代 ToggleButton 的组件选项
+- [x] 3. 替换 ToggleButton 组件为更美观的组件
+- [x] 4. 查找 logo 和标题的布局代码位置
+- [x] 5. 调整 logo 和标题之间的间距
+- [x] 6. 编译前端代码并验证修改效果
+- [x] 7. 使用 Chrome 开发者工具检查页面样式和功能
+- [ ] 8. 修正 logo 和标题间距问题（增大间距）
+- [ ] 9. 修复 ToggleSwitch 组件无法点击的问题

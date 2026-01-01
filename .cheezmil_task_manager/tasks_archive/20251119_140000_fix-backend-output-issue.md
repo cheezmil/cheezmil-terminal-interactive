@@ -1,0 +1,37 @@
+# 任务：修复后端服务没有输出"正常运行中"的问题
+
+- [x] 1. 检查后端启动脚本和代码
+- [x] 2. 查找应该输出"正常运行中"的代码位置
+- [x] 3. 分析为什么没有输出该消息
+- [x] 4. 修复代码确保正确输出状态消息
+- [x] 5. 编译后端代码
+- [x] 6. 测试修复后的后端服务
+- [x] 7. 移除 MCP_DEBUG 相关代码
+- [x] 8. 更新 .env.example 和 .env 文件
+- [x] 9. 重新编译后端代码
+- [x] 10. 移除 open_terminal_ui 工具
+- [x] 11. 编译前端代码
+- [x] 12. 重新编译后端代码
+- [x] 13. 检查端口配置和路由设置
+- [x] 14. 修复 mcphub 连接问题
+- [x] 15. 修改启动脚本使用 HTTP 模式服务器
+- [x] 16. 重新编译后端代码
+- [x] 17. 修复 HTTP 服务器日志输出问题
+- [x] 18. 添加 CORS 支持以解决跨域问题
+- [x] 19. 重新编译后端代码应用修复
+- [x] 20. 测试修复后的连接
+- [x] 21. 修复 DNS 重新绑定保护导致的 Host header 错误
+- [x] 22. 重新编译后端代码应用 DNS 修复
+- [ ] 23. 最终测试连接
+- [x] 24. 修复启动脚本导致大量重复进程的问题
+- [x] 25. 修复 MCP session ID 初始化问题
+  - 出错：Failed to connect: Error: Error POSTing to endpoint (HTTP 400): {"jsonrpc":"2.0","error":{"code":-32000,"message":"Bad Request: No valid session ID provided"},"id":null}
+  - 关键解决方法：修复了 session 初始化顺序，确保在 onsessioninitialized 回调中正确存储 MCP 服务器实例
+- [x] 26. 修复启动脚本创建大量 Node.js 进程的问题
+  - 出错：启动脚本中的 `execSync('fnm use 20.19.5')` 导致每个脚本都创建新的 Node.js 进程
+  - 出错：SyntaxError: Illegal return statement - 在模块顶层使用了 return 语句
+  - 关键解决方法：使用 spawn 替代 execSync 来执行 fnm use 命令，避免创建额外的 Node.js 进程
+- [x] 27. 修复模块顶层 return 语句的语法错误
+  - 关键解决方法：将模块顶层的 `return` 语句改为 `process.exit(0)`
+- [x] 28. 最终测试修复后的连接
+- [x] 29. 提交代码到 GitHub

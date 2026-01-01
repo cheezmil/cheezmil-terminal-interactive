@@ -1,0 +1,10 @@
+- [x] 1. 移除wait_for_output工具
+- [x] 2. 移除create_terminal_basic工具
+- [x] 3. 修复前端页面双滚动条问题
+- [x] 4. 将"刷新"和"创建新终端"按钮移动到顶部导航栏
+- [x] 5. 移除无用的hero-section卡片
+- [x] 6. 创建Pinia store来管理终端状态
+- [x] 7. 修改App.vue使用Pinia store
+- [x] 8. 修改HomeView.vue使用Pinia store监听触发器
+- [x] 9. 编译前端代码
+- [x] 10. 测试按钮功能是否正常工作

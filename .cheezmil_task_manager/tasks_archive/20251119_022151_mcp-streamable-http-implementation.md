@@ -1,0 +1,14 @@
+- [ ] 1. 使用Exa搜索MCP Streamable HTTP协议资料
+- [x] 2. 修改.env.example文件，移除REST API Server Port配置，添加前端端口配置
+- [x] 3. 创建新的HTTP服务器文件(src/http-server.ts)，实现StreamableHTTPServerTransport
+- [x] 4. 更新package.json，添加HTTP服务器配置和导出
+- [x] 5. 编译后端代码
+    - **问题**: TypeScript编译错误，src/http-server.ts:77:9 - Type 'CheezmilTerminalInteractiveServer | undefined' is not assignable to type 'CheezmilTerminalInteractiveServer'
+- [x] 5-1. 修复TypeScript类型错误
+    - **关键解决方法**: 在第74行添加了mcpServers[sessionId]的null检查，确保只有当mcpServer存在时才进行赋值
+- [x] 6. 修改前端代码以支持新的端口配置
+- [x] 7. 编译前端代码
+- [ ] 8. 测试新的MCP配置
+- [x] 9. 提供新的MCP客户端配置方式
+- [x] 10. 修改README.md文件，添加Streamable HTTP配置说明
+- [x] 11. 创建/更新README.en.md文件

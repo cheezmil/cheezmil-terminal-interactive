@@ -1,0 +1,16 @@
+- [x] 1. 查找CTI工具的实现代码
+- [x] 2. 修改CTI工具，移除"必须提供已存在的终端名称"的限制
+- [x] 3. 修改代码，让CTI工具能够自动创建不存在的终端，使用传入的Name而不是UUID
+- [x] 4. 编译后端代码
+- [x] 5. 重启后端服务
+- [x] 6. 刷新CTI终端和MCP服务
+- [x] 7. 测试修改后的CTI工具功能
+- [x] 8. 提交代码到git仓库
+- [x] 9. 测试CTI工具的网络连通性
+- [ ] 10. 修复CTI工具未使用pwsh.exe的问题
+- [ ] 11. 修复相同terminalName创建新终端的问题
+- [ ] 12. 将terminalName改为terminalId参数
+- [x] 10-1. 发现问题：terminalName参数在mcp-server.ts中已正确设置
+- [x] 10-2. 发现问题：terminal-manager.ts中默认shell已正确配置
+- [x] 10-3. 发现问题：CTI工具检查终端是否存在的逻辑有问题
+- [ ] 10-4. 修复CTI工具的终端检查逻辑

@@ -1,0 +1,42 @@
+- [x] 1. 搜索DaisyUI使用方法并了解其特性
+- [x] 2. 分析现有前端结构和依赖
+- [x] 3. 移除shadcn-vue和DaisyUI相关依赖和配置
+- [x] 4. 安装并配置PrimeVue
+- [x] 5. 创建新的Vue组件结构
+- [x] 6. 重写HomeView组件使用PrimeVue
+- [x] 7. 配置路由系统
+- [x] 8. 更新main.ts配置
+- [x] 9. 更新App.vue集成语言切换器
+- [x] 10. 创建新的index.html入口文件
+- [x] 11. 启动前端UI进行测试
+- [x] 12. 修复布局问题：按钮换行、间距黏连、下拉框被遮挡
+- [x] 13. 修复PrimeVue主题导入错误
+- [x] 14. 启动前端UI进行测试
+- [x] 15. 重新编译前端代码
+- [x] 16. 通过cheezmil-terminal-interactive启动前端UI
+- [x] 17. 使用chrome-mcp检查页面样式
+- [x] 18. 修复样式问题 - 发现样式未生效
+- [x] 19. 检查main.ts文件是否存在问题
+- [x] 20. 修复前端样式加载问题
+- [ ] 21. 重新编译前端代码
+    - **问题**: 失败！PrimeVue主题CSS文件路径不正确
+- [x] 21-1. 修复PrimeVue主题CSS导入路径
+    - **关键解决方法**: 移除了不存在的主题CSS文件，只保留基本的PrimeVue CSS
+- [x] 21-2. 重新编译前端代码
+- [x] 21-3. 修复PrimeVue CSS导入问题
+    - **关键解决方法**: 更新到PrimeVue v4的新主题导入方式，使用@primeuix/themes/aura
+- [ ] 21-4. 重新编译前端代码
+    - **问题**: 失败！PrimeVue CSS文件路径不正确，无法解析"primevue/resources/primevue.min.css"
+- [x] 21-5. 修复PrimeVue CSS导入路径问题
+    - **关键解决方法**: 移除了不存在的primevue/resources/primevue.min.css文件导入，PrimeVue v4使用主题系统而不是传统CSS文件
+- [x] 21-6. 重新编译前端代码
+- [ ] 22. 重新启动前端UI
+- [x] 22. 重新启动前端UI
+- [x] 23. 再次检查页面样式
+    - **问题**: 失败！页面空白一片，内容未显示
+- [x] 23-1. 检查页面空白问题
+    - **关键解决方法**: 创建了缺失的路由配置文件router/index.ts
+- [x] 23-2. 重新编译前端代码
+- [x] 23-3. 重新启动前端UI
+- [ ] 23-4. 检查页面内容和样式
+- [ ] 23. 再次检查页面样式

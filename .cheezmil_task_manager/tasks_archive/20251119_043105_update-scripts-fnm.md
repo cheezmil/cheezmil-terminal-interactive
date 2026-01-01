@@ -1,0 +1,10 @@
+- [x] 1. 读取所有需要修改的脚本文件内容
+- [x] 2. 修改 start_assist_load_npm_global_package.mjs
+- [x] 3. 修改 start_be_cheezmil-terminal-interactive.mjs
+- [x] 4. 修改 start_be_dev_cheezmil-terminal-interactive.mjs
+- [x] 5. 修改 start_build_be_cheezmil-terminal-interactive.mjs
+- [x] 6. 修改 start_build_fe_cheezmil-terminal-interactive.mjs
+- [x] 7. 修改 start_fe_cheezmil-terminal-interactive.mjs
+- [x] 8. 修改 start_fe_dev_cheezmil-terminal-interactive.mjs
+- [x] 9. 修改 start_install.mjs
+- [x] 10. 将所有脚本中的中文注释改为英文注释

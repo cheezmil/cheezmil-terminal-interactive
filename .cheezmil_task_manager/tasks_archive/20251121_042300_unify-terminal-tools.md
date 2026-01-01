@@ -1,0 +1,49 @@
+- [x] 1. 分析现有CTI终端工具的功能和使用方式
+- [x] 2. 设计统一的interact_with_terminal工具架构
+- [x] 3. 修改 terminal-manager.ts，添加友好终端ID映射机制
+- [x] 4. 更新所有终端操作方法以支持友好名称
+- [x] 5. 添加智能读取模式支持
+- [x] 6. 编译后端代码成功
+- [x] 7. 修正启动脚本进程检测逻辑（最优先！！！）
+- [x] 7-1. 分析启动脚本无法正确检测相关进程的根本原因
+- [x] 7-2. 重新设计进程匹配逻辑，支持多种启动方式
+- [x] 7-3. 测试修正后的进程检测功能
+- [x] 7-4. 根据跨平台最佳实践改进进程管理
+- [x] 7-5. 编译后端代码以应用进程管理改进
+- [x] 8. 成功编译后端代码，生成dist目录
+- [x] 9. 终止占用端口的旧进程
+- [x] 9-1. 成功终止PID 139776 (start_be_cheezmil-terminal-interactive.mjs)
+- [x] 9-2. 成功终止PID 186312 (dist/http-server.js)
+- [x] 9-3. 确认端口已释放
+- [x] 10. 重新启动后端服务成功
+- [x] 11. 测试友好终端ID功能
+- [x] 11-1. 发现MCP服务器层面不支持友好名称参数
+- [x] 11-2. 修改MCP服务器工具定义以支持友好名称
+- [x] 11-3. 发现启动脚本进程检测逻辑问题
+- [x] 11-4. 修正启动脚本进程检测和终止逻辑
+- [x] 11-5. 修正Windows系统编码乱码问题
+- [x] 12. 测试修正后的启动脚本
+- [x] 12-1. 发现Windows系统错误信息仍然有编码问题
+- [x] 12-2. 进一步修正Windows系统错误信息编码
+- [x] 12-3. 修复启动脚本语法错误
+- [x] 12-4. 测试修正后的启动脚本是否能正确显示中文错误信息
+- [x] 13. 创建interact_with_terminal工具实现
+- [x] 13-1. 卸载iconv-lite包并测试启动脚本
+- [x] 13-2. 改进start_assist_load_npm_global_package.mjs为动态模块加载器
+- [x] 13-3. 移除硬编码的模块导出，使模块加载器完全动态化
+- [x] 13-4. 更新start_be_cheezmil-terminal-interactive.mjs使用动态模块加载器
+- [x] 13-5. 在mcp-server.ts中添加统一的interact_with_terminal工具定义
+- [x] 13-6. 根据用户提供的改进版重写start_assist_load_npm_global_package.mjs，添加永久缓存机制
+- [x] 13-7. 修正terminal-manager.ts支持智能读取模式
+- [x] 13-8. 修复了start_be_cheezmil-terminal-interactive.mjs中的语法错误，重新组织了编码处理逻辑
+- [x] 13-9. 测试改进后的Windows系统编码乱码问题解决效果 - 部分成功，仍有少量乱码但已大幅改善
+- [x] 13-10. 在terminal-manager.ts中实现统一的终端交互逻辑 - 添加了interactWithTerminal方法，支持多种操作模式
+- [x] 13-11. 编译后端代码以应用统一终端交互逻辑
+- [ ] 13-12. 修复terminal-manager.ts中的语法错误 - const声明语法问题
+- [ ] 13-8. 进一步修正Windows系统编码乱码问题
+- [ ] 13-9. 在terminal-manager.ts中实现统一的终端交互逻辑
+- [ ] 13-10. 测试统一工具的所有功能
+- [x] 8-1. 修复terminal-manager.ts中的语法错误，将interactWithTerminal方法移到类内部
+- [x] 10. 重新启动后端服务，使修改生效
+- [ ] 11. 测试统一工具interact_with_terminal的各种功能
+- [ ] 11-1. 修复mcp-server.ts中的50个语法错误

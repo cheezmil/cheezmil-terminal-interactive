@@ -1,0 +1,24 @@
+- [x] 1. 重命名现有的脚本文件以符合新的命名规则
+- [x] 2. 创建缺失的前端运行脚本
+- [x] 3. 创建缺失的后端运行脚本
+- [x] 4. 创建缺失的开发模式脚本
+- [x] 4-1. 修正所有脚本的路径引用，使用相对路径
+- [x] 5. 重命名构建脚本文件以符合命名规范
+- [x] 6. 将 start_assist_load_npm_global_package.mjs 中的中文内容改为英文
+- [x] 7. 修改所有脚本文件，从 .env 文件读取端口配置，如果没有则使用默认端口
+- [x] 8. 更新所有脚本的进程终结方法，使用更有效的 wmic/taskkill 方法
+- [x] 9. 将所有脚本内容改为英文
+- [x] 10. 更新README.md，添加脚本使用指南
+- [x] 11. 更新README.en.md，添加脚本使用指南
+- [x] 12. 搜索其他MCP客户端的Streamable HTTP配置示例
+- [x] 13. 根据README.md修正README.en.md的Streamable HTTP配置部分
+- [x] 14. 完全剔除README.md中的stdio使用方法
+- [x] 15. 搜索所有MCP客户端的Streamable HTTP配置方法
+- [x] 16. 更新中文和英文文档，添加所有客户端的Streamable HTTP配置
+- [x] 17. 删除README.en.md中的"Advantages"部分
+- [x] 18. 简化README.en.md中的Web管理界面部分
+- [x] 19. 将环境变量说明移到README.en.md文档最后
+- [x] 20. 根据中文版README.md的修改同步更新英文版README.en.md
+- [x] 21. 根据中文版README.md的最新修改同步更新英文版README.en.md
+- [x] 22. 根据中文版README.md的最新修改同步更新英文版README.en.md
+- [x] 23. 根据中文版README.md的最新修改同步更新英文版README.en.md

@@ -1,0 +1,42 @@
+{
+  "_notes": [
+    "Copy the section matching your operating system into your claude_desktop_config.json",
+    "Remove the other section(s) after merging so only one cheezmil-terminal-interactive entry remains"
+  ],
+  "macOS_linux": {
+    "mcpServers": {
+      "cheezmil-terminal-interactive": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "cheezmil-terminal-interactive"
+        ],
+        "env": {
+          "MAX_BUFFER_SIZE": "10000",
+          "SESSION_TIMEOUT": "86400000",
+          "COMPACT_ANIMATIONS": "true",
+          "ANIMATION_THROTTLE_MS": "100"
+        }
+      }
+    }
+  },
+  "windows": {
+    "mcpServers": {
+      "cheezmil-terminal-interactive": {
+        "command": "cmd",
+        "args": [
+          "/c",
+          "npx",
+          "-y",
+          "cheezmil-terminal-interactive"
+        ],
+        "env": {
+          "MAX_BUFFER_SIZE": "10000",
+          "SESSION_TIMEOUT": "86400000",
+          "COMPACT_ANIMATIONS": "true",
+          "ANIMATION_THROTTLE_MS": "100"
+        }
+      }
+    }
+  }
+}

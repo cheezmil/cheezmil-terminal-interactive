@@ -1,0 +1,5 @@
+- [x] 1. 修复前端Vue错误：添加Toast服务和tooltip指令
+- [x] 2. 修改start_fe_cheezmil-terminal-interactive.mjs脚本，使其启动编译后的前端而非开发模式
+- [x] 3. 测试修改后的前端启动脚本
+- [ ] 4. 使用Chrome控制台检查是否还有其他错误
+- [ ] 5. 修复start_fe_cheezmil-terminal-interactive.mjs脚本中的进程终止逻辑，避免误杀其他nodejs进程

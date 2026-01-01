@@ -1,0 +1,12 @@
+- [x] 1. 使用Exa搜索模型上下文协议(MCP)相关资料，特别是Streamable HTTP协议
+    - **获得信息**: Streamable HTTP是2025年3月引入的新传输方式，使用单一HTTP端点进行双向通信，替代SSE传输，支持多个客户端连接
+    - **关键实现**: 需要使用StreamableHTTPServerTransport，支持会话管理，通过POST/GET/DELETE请求处理MCP通信
+- [x] 2. 分析当前项目的MCP实现方式
+    - **发现**: 当前使用StdioServerTransport进行stdio通信，有独立的REST API服务器但MCP仍使用stdio
+- [x] 3. 修改.env.example文件，移除REST API Server Port配置，添加前端端口配置
+- [ ] 4. 修改后端代码，将stdio方式改为Streamable HTTP方式，设置默认端口1106
+- [ ] 5. 修改前端代码，添加前端端口配置支持，默认1107
+- [ ] 6. 编译后端代码
+- [ ] 7. 编译前端代码
+- [ ] 8. 测试新的MCP配置方式
+- [ ] 9. 提供新的MCP客户端配置说明

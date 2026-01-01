@@ -1,0 +1,8 @@
+- [ ] 1. 检查当前前端控制台报错并定位到具体源码位置
+- [ ] 2. 排查终端组件（xtermjs）的渲染问题和错误样式
+- [ ] 3. 修复顶部导航覆盖 main 区域 header 的布局问题
+- [ ] 4. 研究并评估使用 D:\CodeRelated\code-server 网页版 VSCode 终端的可行方案
+- [ ] 5. 参考并迁移 D:\CodeRelated\code-server 中的 xtermjs 终端实现到当前前端 HomeView 终端组件
+- [ ] 6. 在前端 HomeView 中通过 iframe 集成 D:\CodeRelated\code-server 提供的 VSCode Web 界面以直接使用其终端
+- [ ] 7. 在可行前提下集成 code-server 终端或给出明确替代方案
+- [ ] 8. 重建前端并通过浏览器控制台和页面结构验证修改效果

@@ -306,6 +306,9 @@ async function testLongTaskWaitNotBlocked() {
     } else if (longWaitStructured.kind === 'progressive_wait_required') {
       console.log('❌ progressive_wait_required should not be returned anymore');
       console.log('Result:', JSON.stringify(longWait, null, 2));
+    } else if (longWaitStructured.blocked === true || longWaitStructured.blockedReason === 'long_task_guidance') {
+      console.log('❌ long_task_guidance should be guidance-only (not blocked)');
+      console.log('Result:', JSON.stringify(longWait, null, 2));
     } else if (!longWaitStructured.resultStatus || !['finished', 'timeout', 'running'].includes(longWaitStructured.resultStatus.state)) {
       console.log('❌ missing/invalid resultStatus on longTask call');
       console.log('Result:', JSON.stringify(longWait, null, 2));

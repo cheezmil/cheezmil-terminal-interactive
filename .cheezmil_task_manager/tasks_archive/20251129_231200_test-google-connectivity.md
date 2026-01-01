@@ -1,0 +1,1 @@
+- [x] 1. 使用 CTI_interact_with_terminal 工具执行 curl 命令测试谷歌连通性

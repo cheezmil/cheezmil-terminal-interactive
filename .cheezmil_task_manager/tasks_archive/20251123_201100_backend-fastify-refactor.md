@@ -1,0 +1,40 @@
+- [x] 1. 使用exa搜索Fastify安装和使用方法
+- [x] 2. 剔除后端原来使用的框架，改成完全使用Fastify
+- [x] 3. 前端API路径改造，不允许硬编码，必须从后端生成的API文档使用
+- [x] 4. 新增后端配置管理文件，集中管理config.yml
+- [x] 5. 实现config.yml自动生成功能，若不存在则自动生成
+- [x] 6. 实现config.yml字段自动补充功能，若不存在的字段也会自动生成
+- [x] 7. 剔除.env和.env.example文件，把配置项都放到config.yml和config.yml.example
+- [x] 8. 测试后端服务是否能正常启动
+- [x] 8-1. 修复TypeScript编译错误
+- [x] 8-2. 修复API文档生成器中的类型错误
+- [x] 8-3. 修复配置管理器中的类型错误
+- [x] 8-4. 修复REST API服务器中的返回值错误
+- [x] 8-5. 修复Web UI服务器中的返回值错误
+- [x] 9. 重新编译并测试后端服务
+- [x] 9-1. 修复REST API服务器原始路由中的返回值错误
+- [x] 10. 修复Fastify插件注册中的上下文丢失问题
+- [x] 10-1. 修复HTTP服务器中重复路由注册问题
+- [x] 11. 测试后端服务API端点
+- [x] 11-1. 测试健康检查API
+- [x] 11-2. 测试API文档端点
+- [x] 11-3. 测试配置管理API
+- [x] 11-4. 测试创建终端API
+- [x] 11-5. 测试列出终端API
+- [x] 12. 重命名有歧义的文件和类名，使其更清楚地表达实际用途
+- [x] 12-1. 将src/rest-api.ts重命名为src/terminal-api-routes.ts，类名从RestApiServer改为TerminalApiRoutes
+- [x] 12-2. 将src/web-ui-server.ts重命名为src/web-interface.ts，类名从WebUIServer改为WebInterfaceServer
+- [x] 12-3. 更新所有相关文件中的导入语句和类引用
+- [x] 12-4. 重新编译并测试后端服务，确保重命名后的代码正常工作
+- [x] 13. 修改前端代码，使用后端生成的API文档系统
+  - [x] 13-1. 创建前端API服务，从后端获取API文档
+  - [x] 13-2. 修改前端所有API调用，使用动态API路径而非硬编码
+    - [x] 修复HomeView.vue中的语法错误
+    - [x] 修改TerminalDetailView.vue
+    - [x] 修改settings.ts
+    - [x] 修复API服务中的类型错误，确保正确处理端点路径
+  - [x] 13-3. 测试前端与后端的API通信
+    - [x] 成功创建终端，API通信正常工作
+    - [x] 前端页面显示终端列表和状态
+  - [x] 13-4. 编译并启动前端服务进行测试
+    - [x] 修复前端构建时的块大小警告

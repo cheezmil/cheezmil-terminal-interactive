@@ -1,0 +1,2 @@
+- [x] 1. 在README-ZH.md表格中Cursor前面新增Antigravity列，所有功能标记为叉号
+- [x] 2. 在README.md表格中Cursor前面新增Antigravity列，所有功能标记为叉号

@@ -1,0 +1,4 @@
+- [ ] 1. 复现并定位 start_be 脚本里对 start_assist_load_npm_global_package.mjs 的 import 位置与用法
+- [ ] 2. 在仓库根目录补齐 start_assist_load_npm_global_package.mjs（或修正 import 路径）以满足依赖，并保证跨平台
+- [ ] 3. 运行后端构建与启动验证脚本，确认不再报 ERR_MODULE_NOT_FOUND
+- [ ] 4. 记录变更点与后续注意事项

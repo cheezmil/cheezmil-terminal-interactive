@@ -1,0 +1,125 @@
+{
+  "name": "cheezmil-terminal-interactive",
+  "version": "0.0.1",
+  "description": "A tool for managing interactive terminal sessions.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cheezmil-terminal-interactive": "dist/index.js",
+    "cheezmil-terminal-interactive-rest": "dist/rest-server.js",
+    "cheezmil-terminal-interactive-http": "dist/http-server.js"
+  },
+  "files": [
+    "dist",
+    "public",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./rest-server": {
+      "types": "./dist/rest-server.d.ts",
+      "import": "./dist/rest-server.js"
+    },
+    "./rest-api": {
+      "types": "./dist/rest-api.d.ts",
+      "import": "./dist/rest-api.js"
+    },
+    "./mcp-server": {
+      "types": "./dist/mcp-server.d.ts",
+      "import": "./dist/mcp-server.js"
+    },
+    "./terminal-manager": {
+      "types": "./dist/terminal-manager.d.ts",
+      "import": "./dist/terminal-manager.js"
+    },
+    "./web-ui-manager": {
+      "types": "./dist/web-ui-manager.d.ts",
+      "import": "./dist/web-ui-manager.js"
+    },
+    "./web-ui-server": {
+      "types": "./dist/web-ui-server.d.ts",
+      "import": "./dist/web-ui-server.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./http-server": {
+      "types": "./dist/http-server.d.ts",
+      "import": "./dist/http-server.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "dev:rest": "tsx src/rest-server.ts",
+    "start": "node dist/index.js",
+    "start:debug": "node dist/index.js 2> mcp-server.log",
+    "start:rest": "node dist/rest-server.js",
+    "test": "jest",
+    "test:unit": "jest",
+    "test:integration": "npm run test:integration:stdio && npm run test:integration:cursor && npm run test:integration:terminal",
+    "test:integration:stdio": "node tests/integration/test-mcp-stdio.mjs",
+    "test:integration:cursor": "node tests/integration/test-cursor-scenario.mjs",
+    "test:integration:terminal": "node tests/integration/test-terminal-fixes.mjs",
+    "test:all": "npm run test:unit && npm run test:integration",
+    "clean": "rm -rf dist",
+    "example:basic": "tsx src/examples/basic-usage.ts",
+    "example:rest": "tsx src/examples/rest-api-demo.ts",
+    "example:interactive": "tsx src/examples/interactive-demo.ts",
+    "example:smart": "tsx src/examples/smart-reading-demo.ts",
+    "example:spinner": "tsx src/examples/test-spinner-compaction.ts",
+    "example:webui": "tsx src/examples/test-web-ui.ts",
+    "test:tools": "tsx src/examples/test-all-tools.ts",
+    "test:fixes": "tsx src/examples/test-fixes.ts",
+    "test:spinner": "jest spinner-detection.test.ts",
+    "lint": "echo 'Linting not configured yet'",
+    "format": "echo 'Formatting not configured yet'"
+  },
+  "keywords": [
+    "mcp",
+    "terminal",
+    "pty",
+    "persistent",
+    "session",
+    "node-pty"
+  ],
+  "author": "cheezmil",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "node-pty": "^1.0.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.18.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.7",
+    "@types/ws": "^8.18.1",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": "^20.9.0"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}

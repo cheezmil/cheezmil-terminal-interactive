@@ -1,0 +1,4 @@
+- [x] 1. 修复 fastify-server.ts 文件中的语法错误
+- [ ] 2. 测试 MCP 连接是否正常工作
+- [ ] 2-1. 修复 "stream encoding should not be set" 错误
+- [ ] 3. 验证终端创建功能是否正常

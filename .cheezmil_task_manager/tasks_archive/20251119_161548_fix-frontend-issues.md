@@ -1,0 +1,7 @@
+- [x] 1. 检查start_fe_cheezmil-terminal-interactive.mjs脚本中的进程终止逻辑
+- [x] 2. 修复脚本误杀其他nodejs进程的问题
+- [ ] 3. 使用chrome访问http://localhost:1107/检查前端错误
+- [ ] 4. 修复LanguageSwitcher组件中的Vue错误
+- [ ] 5. 修复"Need to install with `app.use` function"错误
+- [x] 6. 在main.ts中添加i18n插件
+- [ ] 7. 修复start_fe_cheezmil-terminal-interactive.mjs脚本，确保启动编译后的前端而非开发模式

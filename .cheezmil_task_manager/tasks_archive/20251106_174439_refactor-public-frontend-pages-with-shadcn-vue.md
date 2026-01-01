@@ -1,0 +1,28 @@
+- [x] 1. 删除 `frontend/src/screens/HomeScreen.vue` 文件。
+- [x] 2. 创建新的任务列表，将 `public` 目录下的前端页面使用 `shadcn-vue` 进行重构。
+- [x] 3. 分析 `public` 目录下的现有前端页面，并为 `public/index.html` 创建对应的 Vue 组件 `frontend/src/views/HomeView.vue`。
+    - [x] 3-1. 安装 `vue-router` 并创建路由配置文件 `frontend/src/router/index.ts`。
+    - [x] 3-2. 修改 `frontend/src/main.ts` 以引入并使用 Vue Router，并修改 `frontend/src/App.vue`，用 `<router-view />` 替换了原有的 `HomeScreen` 组件。
+    - [x] 3-3. 解决 `HomeView.vue` 中 `useToast` 导致的 Vite 报错，逐步创建 `shadcn-vue` 的 toast 组件相关文件。
+        - [x] 3-3-1. 创建 `frontend/src/components/ui/toast/use-toast.ts`、`constants.ts`、`types.ts`、`index.vue`、`toasts.vue`、`toast.vue`、`toast-viewport.vue`、`toast-provider.vue`、`toast-close.vue`、`toast-title.vue` 和 `toast-description.vue` 等文件。
+        - [x] 3-3-2. 修正 `frontend/src/App.vue` 中 `Toaster` 组件导入路径大小写不匹配问题。
+        - [x] 3-3-3. 修正 `frontend/src/components/ui/toast/toasts.vue` 中 `Toast`、`ToastViewport` 和 `ToastProvider` 组件的导入路径解析失败问题。
+        - [x] 3-3-4. 修正 `frontend/src/components/ui/toast/toast.vue` 中 `ToastClose`、`ToastTitle` 和 `ToastDescription` 组件的导入路径解析失败问题。
+        - [x] 3-3-5. 解决 `frontend/src/main.ts` 中全局注册 `ToastProvider` 后，Vite 报告 `[@vue/compiler-sfc] Failed to resolve import source "radix-vue"` 错误，安装 `radix-vue`。
+        - [x] 3-3-6. 解决 `@radix-icons/vue` 无法解析的问题，安装 `@radix-icons/vue`。
+        - [x] 3-3-7. 尝试使用 `chrome-mcp-chrome_console` 查看控制台日志时，遇到调试器已被占用的错误，通过 `chrome-mcp-chrome_navigate` 刷新页面。
+        - [x] 3-3-8. 刷新页面后，成功查看控制台日志，发现新的警告 `[Vue warn]: injection "Symbol(TOAST_KEY)" not found.`。
+        - [x] 3-3-9. 为了解决 `TOAST_KEY` 注入问题，修改 `frontend/src/App.vue`，将 `<router-view />` 和 `<Toaster />` 包裹在 `<ToastProvider>` 组件中。
+        - [x] 3-3-10. 尝试使用 `chrome-mcp-chrome_console` 查看控制台日志，检查 `TOAST_KEY` 注入问题是否已解决。
+            - **问题**: 失败！`chrome-mcp-chrome_console` 报错 `Error in ConsoleTool: Cannot access chrome:// and edge:// URLs`。
+        - [x] 3-3-10-1. 导航到 `http://localhost:1106/` 确保 `chrome_console` 在有效页面上执行。
+        - [x] 3-3-10-2. 再次尝试使用 `chrome-mcp-chrome_console` 查看控制台日志，但返回了意外的 URL 且未捕获到日志。
+        - [x] 3-3-10-3. 再次尝试使用 `chrome-mcp-chrome_console` 查看控制台日志，并明确指定 `url` 参数为 `http://localhost:1106/`。成功捕获日志，但仍存在 `[Vue warn]: injection "Symbol(TOAST_KEY)" not found.` 警告。
+        - [x] 3-3-10-4. 读取 `frontend/src/components/ui/toast/toast-provider.vue` 的内容，检查 `provide` 逻辑。
+        - [x] 3-3-10-5. 读取 `frontend/src/components/ui/toast/use-toast.ts` 的内容，检查 `inject` 逻辑。
+        - [x] 3-3-10-6. 读取 `frontend/src/components/ui/toast/constants.ts` 的内容，确保 `TOAST_KEY` 是一个单一的、导出的 `Symbol` 实例。
+        - [x] 3-3-10-7. 尝试移除 `frontend/src/main.ts` 中全局注册 `ToastProvider` 的代码，但 `apply_diff` 匹配失败。
+        - [ ] 3-3-10-8. 再次读取 `frontend/src/main.ts` 的内容，以获取最新的精确内容。
+- [ ] 4. 使用 `shadcn-vue` 组件库重构每个 Vue 组件的 UI。
+- [ ] 5. 确保重构后的页面功能与原始页面一致。
+- [ ] 6. 更新路由配置以指向新的 Vue 组件。

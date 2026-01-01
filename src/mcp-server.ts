@@ -26,6 +26,10 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
 
+// Ensure we don't attach duplicate listeners to a shared TerminalManager across multiple MCP sessions.
+// 确保在多个 MCP 会话复用同一个 TerminalManager 时，不会重复绑定事件监听导致日志重复与监听器泄漏。
+const TERMINAL_MANAGER_LOG_LISTENERS_ATTACHED = new WeakSet<object>();
+
 /**
  * MCP 服务器实现
  * 将终端管理功能暴露为 MCP 工具和资源
@@ -1284,7 +1288,14 @@ For reading more output, tail/head, keyword-context extraction, and session meta
           const normalizeOutputText = (text: string, commandInput: string | undefined, enable: boolean): string => {
             if (!enable || !text) return text;
             const inputTrimmed = (commandInput ?? '').replace(/\r/g, '').trim();
-            const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+            // Some PTY/ConPTY outputs may "glue" the next PowerShell prompt onto the tail of a previous line.
+            // 某些 PTY/ConPTY 输出可能把下一次 PowerShell 提示符“粘连”到上一行末尾，导致回显/提示符混在一行里难以复盘。
+            const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const degluedText = normalizedText.replace(
+              /([^\n])(PS\s+[A-Za-z]:[^\n]*>)/g,
+              '$1\n$2'
+            );
+            const lines = degluedText.split('\n');
 
             const cleaned: string[] = [];
             let previousLine: string | null = null;
@@ -1494,8 +1505,18 @@ For reading more output, tail/head, keyword-context extraction, and session meta
               }
             }
 
-            // 针对疑似长任务：如果调用方式不符合“减少轮询/长等待/只取结束输出”，则返回指导提示词
-            // For likely long-running commands: if parameters do not follow best practices, return a guidance prompt
+            // 针对疑似长任务：不再“阻断”调用（blockedReason=long_task_guidance）。
+            // For likely long-running commands: do NOT hard-block the call (blockedReason=long_task_guidance).
+            //
+            // 需求背景（简述）：
+            // - 某些 MCP 客户端会把 wait.maxWaitMs 设得很大（例如 120s），但服务器单次调用本身有上限（~50s）。
+            // - 之前这里会直接 return isError + blockedReason，导致“短命令正常，稍长就被挡住”的体验。
+            // - 现在改为：继续执行 + 在 structuredContent/warnings 里附带提醒；并对 wait.maxWaitMs 做自动 clamp。
+            //
+            // Rationale:
+            // - Some MCP clients may pass a large wait.maxWaitMs (e.g. 120s) while the server caps per-call wait (~50s).
+            // - Previously we returned isError + blockedReason which prevented output from ever being produced/read.
+            // - Now: execute normally + attach guidance; clamp wait.maxWaitMs to the server cap when provided.
             const longTaskCandidates: string[] = [];
             if (typeof actualInput === 'string' && actualInput) longTaskCandidates.push(actualInput);
             if (resolvedKeySequence) {
@@ -1521,15 +1542,37 @@ For reading more output, tail/head, keyword-context extraction, and session meta
 
               if (!okWaitMode || !okMaxWait || !okIntermediate) {
                 const prompt = this.buildLongTaskCtiGuidancePrompt(String(cwd));
-                return {
-                  content: [{ type: 'text', text: prompt }],
-                  structuredContent: {
-                    blocked: true,
-                    blockedReason: 'long_task_guidance',
-                    terminalId: actualTerminalId
+                warnings.push(prompt);
+                structuredContent.longTaskGuidance = {
+                  // 仅做“提示/建议”，不再阻断执行
+                  // Guidance only; do not block execution
+                  kind: 'long_task_guidance',
+                  recommended: {
+                    longTask: true,
+                    waitMode: 'prompt',
+                    perCallMaxWaitMs: MAX_SINGLE_CALL_WAIT_MS,
+                    includeIntermediateOutput: false
                   },
-                  isError: true
-                } as CallToolResult;
+                  detected: { waitMode, includeIntermediateOutput, maxWaitMs }
+                };
+              }
+
+              // 自动对 wait.maxWaitMs 做单次调用上限 clamp，避免客户端传入超长等待导致“被拦截/误用”的体验
+              // Clamp wait.maxWaitMs to the per-call cap to avoid client-side overly-long waits.
+              if (wait && typeof wait === 'object') {
+                const raw = wait.maxWaitMs ?? wait.timeoutMs ?? wait.waitMs;
+                if (typeof raw === 'number' && Number.isFinite(raw) && raw > MAX_SINGLE_CALL_WAIT_MS) {
+                  // 不改变 wait.mode 等其他行为，只调整单次等待时长
+                  // Only adjust per-call maxWaitMs; do not change wait.mode or other behavior.
+                  wait.maxWaitMs = MAX_SINGLE_CALL_WAIT_MS;
+                  structuredContent.waitMaxWaitMsClamped = {
+                    // 让客户端能知道发生了自动调整
+                    // Let clients know an automatic adjustment happened.
+                    requested: raw,
+                    effective: MAX_SINGLE_CALL_WAIT_MS,
+                    cap: MAX_SINGLE_CALL_WAIT_MS
+                  };
+                }
               }
             }
 
@@ -1846,7 +1889,14 @@ For reading more output, tail/head, keyword-context extraction, and session meta
               const inputTrimmed = (commandInput ?? '').replace(/\r/g, '').trim();
               if (!text || !inputTrimmed) return text;
 
-              const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+              // Keep the same "deglue" normalization here so echo stripping can match prompt lines reliably.
+              // 这里同样做“去粘连”归一化，避免回显清理逻辑因为提示符不在行首而失效。
+              const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+              const degluedText = normalizedText.replace(
+                /([^\n])(PS\s+[A-Za-z]:[^\n]*>)/g,
+                '$1\n$2'
+              );
+              const lines = degluedText.split('\n');
               const cleaned: string[] = [];
               let removed = false;
 
@@ -2407,6 +2457,11 @@ Before calling this tool, gather as much information as possible:
    * 设置事件处理器
    */
   private setupEventHandlers(): void {
+    if (TERMINAL_MANAGER_LOG_LISTENERS_ATTACHED.has(this.terminalManager as unknown as object)) {
+      return;
+    }
+    TERMINAL_MANAGER_LOG_LISTENERS_ATTACHED.add(this.terminalManager as unknown as object);
+
     // 监听终端事件并记录日志
     // 使用 stderr 避免污染 stdio JSON-RPC 通道
 

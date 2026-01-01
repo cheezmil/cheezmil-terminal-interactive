@@ -1,0 +1,28 @@
+- [x] 1. 查看.env文件当前内容
+- [x] 2. 添加禁用工具列表的环境变量配置
+- [x] 3. 更新.env.example文件
+- [x] 4. 修改后端代码以支持禁用工具功能
+- [x] 5. 执行git提交和推送操作
+- [x] 6. 更新README.md和README.en.md文档说明
+- [x] 7. 执行最终git提交和推送操作
+- [x] 8. 编译后端代码确保修改生效
+- [x] 9. 执行完整的后端重启流程确保MCP服务生效
+- [x] 10. 调试修复禁用工具功能不生效的问题
+- [x] 10-1. 检查环境变量加载问题
+- [x] 10-2. 修复环境变量未正确加载的根本原因
+- [x] 11. 删除stdio版本相关文件
+- [x] 11-1. 更新package.json配置
+- [x] 11-2. 删除src/index.ts文件
+- [x] 11-3. 重启后端服务确保一切正常工作
+- [x] 12. 检查rest-api.ts和rest-server.ts是否多余
+- [x] 12-1. 确认rest-server.ts是多余的，因为http-server.ts已经集成了RestApiServer
+- [x] 12-2. 从package.json中移除rest-server相关配置
+- [x] 12-3. 删除rest-server.ts文件
+- [x] 12-4. 重新编译并重启服务
+- [x] 12-5. 分析rest-api.ts是否多余
+- [x] 12-6. 评估是否可以将REST API功能直接集成到http-server.ts中
+- [x] 12-7. 检查terminal-usage-guide和terminal-troubleshooting prompts的用途
+- [x] 12-8. 评估这些prompts是否有实际价值
+- [x] 12-9. 删除terminal-usage-guide和terminal-troubleshooting prompts
+- [x] 12-10. 更新http-server.ts中的prompts日志信息
+- [x] 12-11. 重新编译并重启服务

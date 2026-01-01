@@ -1,0 +1,9 @@
+- [x] 1. 审查当前 xtermjs 使用位置、依赖与样式，列出需要迁移的模块 / Review current xtermjs usage, deps, styles, and modules to migrate
+- [x] 2. 引入 vue-web-terminal 依赖与基础样式，建立最小可用终端组件 / Add vue-web-terminal dependency + base styles, create minimal working terminal component
+- [x] 3. 将现有终端视图和逻辑切换到 vue-web-terminal（连接、输出、输入、窗口尺寸） / Switch existing terminal view/logic to vue-web-terminal (connect, output, input, resize)
+- [x] 4. 更新终端列表/多实例切换行为，确保 terminalId 对应正确数据流 / Update terminal list/multi-tab switching to keep terminalId data flow correct
+- [x] 5. 移除 xtermjs 相关文件、样式、依赖，清理残留引用 / Remove xtermjs files/styles/deps and clean leftover references
+- [ ] 6. 运行前端构建和页面验证，确保终端展示与交互正常 / Run frontend build + page validation to ensure terminal display/interactions work
+- [ ] 7. 卸载 vue-web-terminal 依赖并移除所有相关引用 / Uninstall vue-web-terminal dependency and remove all related references
+- [x] 8. 重新安装并集成 xtermjs，替换前端终端实现 / Reinstall and integrate xtermjs to replace frontend terminal implementation
+- [x] 9. 调整前端通知为顶部悬浮弹出而不占用文档流 / Change frontend notifications to float at top instead of occupying layout

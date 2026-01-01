@@ -1,0 +1,8 @@
+- [x] 1. 检查前端项目的 package.json 文件，确认 vite 依赖配置
+- [x] 2. 检查根目录的 package.json 文件，了解整体项目依赖结构
+- [x] 3. 检查前端构建脚本 start_build_fe_cheezmil-terminal-interactive.mjs 的内容
+- [x] 4. 分析 vite 依赖缺失的原因
+- [x] 5. 手动安装前端依赖（因为 start_install.mjs 脚本有问题）
+- [x] 6. 重新运行前端构建脚本验证问题是否解决
+- [x] 5-1. 分析为什么 start_install.mjs 脚本没有正确安装前端依赖
+- [x] 5-2. 修复 start_install.mjs 脚本中的前端安装逻辑
