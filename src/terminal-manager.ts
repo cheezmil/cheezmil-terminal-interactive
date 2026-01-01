@@ -520,7 +520,10 @@ export class TerminalManager extends EventEmitter {
    * Chunked write to avoid ConPTY truncation on large payloads
    */
   private async writeInChunks(ptyProcess: any, data: string): Promise<void> {
-    const chunkSize = 4000;
+    // Windows ConPTY is more likely to drop characters when writes are too large or too bursty.
+    // Windows ConPTY 在 write 过大或过“突发”时更容易丢字符（表现为命令被截断、`--` 丢失等）。
+    const isWindows = process.platform === 'win32';
+    const chunkSize = isWindows ? 512 : 4000;
     for (let offset = 0; offset < data.length; offset += chunkSize) {
       const chunk = data.slice(offset, offset + chunkSize);
       const written = ptyProcess.write(chunk);
@@ -537,9 +540,12 @@ export class TerminalManager extends EventEmitter {
           }, 5000);
         });
       }
-      // 让出事件循环，给全屏程序处理输入的时间
-      // Yield to event loop to let fullscreen apps process input
-      await new Promise(resolve => setTimeout(resolve, 2));
+      if (isWindows) {
+        // Give ConPTY a chance to flush; avoid bursty writes that cause character loss.
+        // 给 ConPTY 一点刷新时间：避免“突发写入”导致字符丢失。
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        await new Promise<void>((resolve) => setTimeout(resolve, 2));
+      }
     }
   }
 
