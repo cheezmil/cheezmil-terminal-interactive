@@ -9,7 +9,6 @@ yarn-error.log*
 coverage/
 dist/.tsbuildinfo
 test/
-.codex/
 test-codex-fix/
 cheezmil-terminal-interactive-intro.html
 dist/
@@ -20,11 +19,5 @@ start_fe_cheezmil-terminal-interactive.log
 start_be_cheezmil-terminal-interactive.pid
 start_be_cheezmil-terminal-interactive.log
 start_fe_cheezmil-terminal-interactive.pid
-AGENTS.md
-.kilocode/
-.roo/
-.claude/
-.vscode/
 logs/
-CLAUDE.md
 image/
