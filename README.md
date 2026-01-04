@@ -11,13 +11,13 @@
 - In certain situations, you might need to restart codex cli or claude code to apply some settings, but you don't want to lose running terminal tasks.
 - Sometimes, even with prompts instructing AI on how to run commands, AI might forget and execute commands you don't want. You can add these commands to a blacklist with an additional prompt to strengthen the guidance for AI on correct operations.
 - Claude Code already has background tasks, so why do you still need this project? First, background tasks require explicit prompts to be called, otherwise they need to be triggered manually; background tasks require additional prompts with a fixed timeout that cannot be flexibly recognized; background tasks don't respond quickly to small tasks and often take several minutes to react, affecting efficiency. Additionally, there are redundant background tasks still receiving terminal destruction information. If your script has operations to terminate old instances, Claude Code starts to go crazy, checking and restarting scripts randomly, wasting time. (December 22, 2025)
-- This project provides Windows users with the following functionality: using wsl.exe or ssh root@127.0.0.1 as shell to directly input native Linux commands, reducing the probability of errors often encountered with wsl "input some file modification commands" or ssh root@127.0.0.1 "input some file modification commands".
+- Using wsl.exe or ssh root@127.0.0.1 as shell to directly input native Linux commands, reducing the probability of errors often encountered with wsl "input some file modification commands" or ssh root@127.0.0.1 "input some file modification commands".
 
 ## Usage
 ### Running the Backend
-> ⚠️ Due to `node-pty`, Windows users currently need to use Node.js version 20 or lower to work properly. For convenience, I've set all installation, compilation, and running scripts to use 20.19.5. Please make sure to install `https://github.com/Schniz/fnm`, otherwise it won't work unless you use the same Node.js version for all projects, which is unlikely since some AI programming tools or popular MCP tools mentioned in this documentation require Node.js 22+.
+> ⚠️ Due to `node-pty`, Windows users currently need to use Node.js version 20 or lower to work properly. For convenience, I've set all installation, compilation, and running scripts to use 20.19.5. Please make sure to install fnm (https://github.com/Schniz/fnm), otherwise it won't work.
 
-> If you are a Windows user, it is strongly recommended to install PowerShell 7 instead of the system default PowerShell to avoid some encoding issues. https://github.com/powershell/powershell/releases
+> If your system is Windows and you're used to using PowerShell, it's strongly recommended to install PowerShell 7 instead of the system default PowerShell to avoid some encoding issues. (https://github.com/powershell/powershell/releases)
 
 First fork this project for easy PR contributions, then:
 
@@ -44,9 +44,9 @@ Except for commands that locate and read code files, all other commands must be 
 ```
 > Of course, you can also ask your AI programming tool what the system's built-in command execution tool function is called, and then customize a prompt for it to combine CTI with the "system's built-in command execution tool function". If CTI is not running, AI will intelligently automatically use the original tool functions that come with the AI programming tool to execute commands. If you never tell it about the CTI tool, AI will likely never use CTI.
 
-> Different programming software has different MCP maximum timeout settings. Please refer to the corresponding documentation. Please set a very large timeout for CTI, otherwise some programming software has very short default timeouts. For example, Codex only has a default 60s timeout, which will not get any information output and thus cannot be used normally.
-
 #### All MCP clients that support Streamable HTTP can be used. Configuration will vary slightly for different MCP clients. Please refer to the corresponding client's official documentation. Here are simple examples:
+
+> Different programming software has different MCP maximum timeout settings. Please refer to the corresponding documentation. Please set a very large timeout for CTI, otherwise some programming software has very short default timeouts. For example, Codex only has a default 60s timeout, which will not get any information output and thus cannot be used normally.
 
 
 - **Cline / Roocode / Kilocode**:
