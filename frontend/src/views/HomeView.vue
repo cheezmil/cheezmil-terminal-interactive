@@ -60,6 +60,49 @@ const ACTIVE_TERMINAL_STORAGE_KEY = 'cti.activeTerminalId'
 const terminals = ref<any[]>([])
 const isLoading = ref(true)
 const activeTerminalId = ref<string | null>(null)
+
+// 防止 PTY 的 CR 覆盖效果导致“输出混在一起”的视觉混乱：将孤立的 \r 转换为换行 /
+// Prevent PTY CR overwrite effects that visually "smear" output: convert lone \r into newlines
+const createCROverwriteGuard = () => {
+  let pendingCR = false
+  return (chunk: string) => {
+    if (!chunk) return ''
+    let out = ''
+
+    let i = 0
+    if (pendingCR) {
+      if (chunk[0] === '\n') {
+        out += '\r\n'
+        i = 1
+      } else {
+        out += '\r\n'
+      }
+      pendingCR = false
+    }
+
+    for (; i < chunk.length; i++) {
+      const ch = chunk[i]!
+      if (ch !== '\r') {
+        out += ch
+        continue
+      }
+
+      const next = i + 1 < chunk.length ? chunk[i + 1] : ''
+      if (!next) {
+        pendingCR = true
+        continue
+      }
+      if (next === '\n') {
+        out += '\r\n'
+        i++
+        continue
+      }
+      out += '\r\n'
+    }
+
+    return out
+  }
+}
 const terminalInstances = ref<
   Map<
     string,
@@ -68,6 +111,7 @@ const terminalInstances = ref<
       fitAddon: FitAddon
       ws: WebSocket | null
       hasLiveOutput: boolean
+      applyCROverwriteGuard: (chunk: string) => string
       // 串行写入队列：防止历史分块写入与实时输出交错 /
       // Serial write queue: prevent interleaving between history chunk writes and live outputs
       writeQueue: { enqueue: (task: () => void | Promise<void>) => Promise<void> }
@@ -668,6 +712,7 @@ const initializeTerminal = async (terminalId: string) => {
       fitAddon,
       ws: null as WebSocket | null,
       hasLiveOutput: false,
+      applyCROverwriteGuard: createCROverwriteGuard(),
       writeQueue: createSerialWriteQueue()
     }
     terminalInstances.value.set(terminalId, instance)
@@ -802,6 +847,8 @@ const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
     }
     return
   }
+
+  const safeText = instance.applyCROverwriteGuard(String(text ?? ''))
   const shouldFollow = terminalStore.getTerminalAutoScroll(terminalId, defaultAutoScrollToBottom.value)
   // 通过串行队列保证 write 顺序，避免与历史分块写入互相穿插 /
   // Serialize writes via queue to avoid interleaving with historical chunk writes
@@ -809,7 +856,7 @@ const writeToXterm = (terminalId: string, term: Terminal, text: string) => {
     () =>
       new Promise<void>((resolve) => {
         try {
-          term.write(text, () => {
+          term.write(safeText, () => {
             if (shouldFollow) {
               try {
                 term.scrollToBottom()

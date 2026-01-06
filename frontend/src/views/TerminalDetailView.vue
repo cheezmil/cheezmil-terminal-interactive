@@ -23,12 +23,65 @@ const isLoading = ref(true)
 const isConnected = ref(false)
 const isFullscreen = ref(false)
 
+// 会话模式（local/remote）：用于明确展示当前 prompt 来源 /
+// Session mode (local/remote): used to clearly show current prompt source
+const sessionMode = ref<{
+  sessionKind: 'local' | 'remote'
+  remoteDestination: string | null
+  sessionStackDepth: number
+}>({ sessionKind: 'local', remoteDestination: null, sessionStackDepth: 1 })
+
 let ws: WebSocket | null = null
 // 串行写入队列：避免历史输出写入与实时 WS 输出交错 /
 // Serial write queue: prevent interleaving between history writes and live WS outputs
 const writeQueue = createSerialWriteQueue()
 let term: Terminal | null = null
 let fitAddon: FitAddon | null = null
+
+// 防止 PTY 的 CR 覆盖效果导致“历史输出盖住光标”的视觉混乱：将孤立的 \r 转换为换行 /
+// Prevent PTY CR overwrite effects that visually "smear" output over the cursor: convert lone \r into newlines
+const createCROverwriteGuard = () => {
+  let pendingCR = false
+  return (chunk: string) => {
+    if (!chunk) return ''
+    let out = ''
+
+    let i = 0
+    if (pendingCR) {
+      if (chunk[0] === '\n') {
+        out += '\r\n'
+        i = 1
+      } else {
+        out += '\r\n'
+      }
+      pendingCR = false
+    }
+
+    for (; i < chunk.length; i++) {
+      const ch = chunk[i]!
+      if (ch !== '\r') {
+        out += ch
+        continue
+      }
+
+      const next = i + 1 < chunk.length ? chunk[i + 1] : ''
+      if (!next) {
+        pendingCR = true
+        continue
+      }
+      if (next === '\n') {
+        out += '\r\n'
+        i++
+        continue
+      }
+      // Lone CR => treat as newline to avoid cursor-overwrite visual artifacts
+      out += '\r\n'
+    }
+
+    return out
+  }
+}
+const applyCROverwriteGuard = createCROverwriteGuard()
 
 // 计算属性
 const connectionStatus = computed(() => ({
@@ -53,6 +106,11 @@ const calculateUptime = (created: string) => {
 const terminalStats = computed(() => ({
   uptime: terminal.value ? calculateUptime(terminal.value.created) : '0m'
 }))
+
+const sessionModeBadgeText = computed(() => {
+  if (sessionMode.value.sessionKind === 'remote') return t('terminal.sessionRemote')
+  return t('terminal.sessionLocal')
+})
 
 // 是否允许前端写入终端输入（实验性设置）/ Whether frontend is allowed to send terminal input (experimental setting)
 const canSendTerminalInput = computed(() => {
@@ -355,12 +413,28 @@ const handleWebSocketMessage = (message: any) => {
           () =>
             new Promise<void>((resolve) => {
               try {
-                term!.write(message.data, resolve)
+                const safe = applyCROverwriteGuard(String(message.data ?? ''))
+                term!.write(safe, resolve)
               } catch {
                 resolve()
               }
             })
         )
+      }
+      break
+    case 'session_mode':
+      // 仅用于 UI 展示，不影响输入路由（后端会话栈已保证输入发往当前活跃层） /
+      // UI display only; input routing is handled by backend session stack.
+      try {
+        const info = message.info || {}
+        const kind = info.sessionKind === 'remote' ? 'remote' : 'local'
+        sessionMode.value = {
+          sessionKind: kind,
+          remoteDestination: typeof info.remoteDestination === 'string' ? info.remoteDestination : null,
+          sessionStackDepth: Number.isFinite(Number(info.sessionStackDepth)) ? Number(info.sessionStackDepth) : 1
+        }
+      } catch {
+        // ignore / 忽略
       }
       break
     case 'exit':
@@ -460,6 +534,29 @@ const sendCommand = async (command: string) => {
   } catch (error) {
     console.error('Failed to send command:', error)
   }
+}
+
+// 快捷操作：中断/退出远端/ssh断开（允许只读模式使用，以便紧急中断） /
+// Quick actions: interrupt/exit-remote/ssh-disconnect (allowed in read-only mode for emergency control)
+const sendRawToBackend = async (raw: string) => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return
+  try {
+    await terminalApi.writeInput(terminalId, raw, false)
+  } catch (e) {
+    console.error('Failed to send raw input:', e)
+  }
+}
+
+const interruptRemoteForeground = async () => {
+  await sendRawToBackend('\u0003') // Ctrl+C
+}
+
+const exitRemoteShell = async () => {
+  await sendRawToBackend('\u0004') // Ctrl+D
+}
+
+const disconnectSsh = async () => {
+  await sendRawToBackend('\r~.\r') // ssh escape: ~.
 }
 // 终端输入处理
 const handleTerminalData = (data: string) => {
@@ -567,6 +664,13 @@ onUnmounted(() => {
           >
             {{ connectionStatus.text }}
           </Badge>
+          <Badge
+            variant="secondary"
+            class="connection-badge"
+            :title="sessionMode.sessionKind === 'remote' && sessionMode.remoteDestination ? sessionMode.remoteDestination : ''"
+          >
+            {{ sessionModeBadgeText }}
+          </Badge>
         </div>
       </div>
       
@@ -579,6 +683,35 @@ onUnmounted(() => {
         </div>
         
         <div class="control-buttons">
+          <Button
+            variant="secondary"
+            size="sm"
+            class="control-btn"
+            @click="interruptRemoteForeground"
+            :title="t('terminal.interrupt')"
+          >
+            <span class="font-mono text-xs">^C</span>
+          </Button>
+          <Button
+            v-if="sessionMode.sessionKind === 'remote'"
+            variant="secondary"
+            size="sm"
+            class="control-btn"
+            @click="exitRemoteShell"
+            :title="t('terminal.exitRemoteShell')"
+          >
+            <span class="font-mono text-xs">^D</span>
+          </Button>
+          <Button
+            v-if="sessionMode.sessionKind === 'remote'"
+            variant="secondary"
+            size="sm"
+            class="control-btn"
+            @click="disconnectSsh"
+            :title="t('terminal.disconnectSsh')"
+          >
+            <span class="font-mono text-xs">~.</span>
+          </Button>
           <Button
             variant="secondary"
             size="sm"

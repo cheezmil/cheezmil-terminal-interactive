@@ -391,33 +391,51 @@ export class OutputBuffer extends EventEmitter {
           this.finalizeCurrentLine(newEntries);
           i++; // Skip the '\n' as we've already handled the newline
         } else {
-          // Carriage return without newline: check if it's a spinner update
-          if (this.compactAnimations && this.currentLineEntry) {
-            const isSpinner = this.isSpinnerLine(this.currentLineEntry.content);
-            if (isSpinner) {
-              this.spinnerCount++;
-              this.spinnerBuffer = this.currentLineEntry.content;
+          // Carriage return WITHOUT newline:
+          // - In many PTY/ConPTY environments, a bare '\r' can behave like a line terminator (CR-only line ending).
+          // - In spinner/progress redraws, '\r' is often used to overwrite the current line.
+          //
+          // Here we keep overwrite semantics ONLY for spinner-like lines; otherwise we treat '\r' as a newline
+          // to avoid losing output (especially for large fast outputs where ConPTY may emit CR-only line breaks).
+          //
+          // 无换行的回车：
+          // - 在部分 PTY/ConPTY 环境中，裸 '\r' 可能就是“换行终止符”（仅 CR 行尾）。
+          // - 但在 spinner/progress 重绘里，'\r' 常用于“覆盖当前行”。
+          //
+          // 这里仅对“疑似 spinner 行”保留覆盖语义；否则将 '\r' 视为换行，避免大输出丢行/丢尾。
+          const isSpinnerOverwrite =
+            this.compactAnimations &&
+            this.currentLineEntry &&
+            this.isSpinnerLine(this.currentLineEntry.content);
 
-              // Schedule a flush
-              this.clearSpinnerTimer();
-              this.spinnerFlushTimer = setTimeout(() => {
-                const flushEntries: OutputBufferEntry[] = [];
-                this.flushSpinnerBuffer(flushEntries, true, markUpdated);
-                if (flushEntries.length > 0) {
-                  this.emit('data', flushEntries);
-                }
-              }, this.animationThrottleMs);
-            } else {
-              // Non-spinner content, flush any pending spinners
-              this.flushSpinnerBuffer(newEntries, true, markUpdated);
+          if (isSpinnerOverwrite) {
+            this.spinnerCount++;
+            this.spinnerBuffer = this.currentLineEntry ? this.currentLineEntry.content : this.spinnerBuffer;
+
+            this.clearSpinnerTimer();
+            this.spinnerFlushTimer = setTimeout(() => {
+              const flushEntries: OutputBufferEntry[] = [];
+              this.flushSpinnerBuffer(flushEntries, true, markUpdated);
+              if (flushEntries.length > 0) {
+                this.emit('data', flushEntries);
+              }
+            }, this.animationThrottleMs);
+
+            // Overwrite current line (spinner redraw) / 覆盖当前行（spinner 重绘）
+            const line = this.touchCurrentLine(newEntries, true);
+            if (line) {
+              line.content = '';
+              markUpdated(line);
             }
-          }
-
-          // Overwrite current line
-          const line = this.touchCurrentLine(newEntries, true);
-          if (line) {
-            line.content = '';
-            markUpdated(line);
+          } else {
+            // Treat bare CR as newline / 将裸 CR 视为换行
+            if (this.compactAnimations && this.currentLineEntry) {
+              const isSpinner = this.isSpinnerLine(this.currentLineEntry.content);
+              if (!isSpinner) {
+                this.flushSpinnerBuffer(newEntries, true, markUpdated);
+              }
+            }
+            this.finalizeCurrentLine(newEntries);
           }
         }
         continue;

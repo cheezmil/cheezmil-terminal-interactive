@@ -70,6 +70,19 @@ export class cheezmilTerminalInteractiveServer {
       case 'double_esc':
       case 'esc+esc':
         return '\u001b\u001b';
+      // ssh escape: disconnect immediately (best-effort)
+      // ssh 转义：立即断开连接（尽力而为）
+      case 'ssh_disconnect':
+      case 'ssh+disconnect':
+      case 'ssh_escape':
+      case 'ssh+escape':
+      case 'ssh_escape_disconnect':
+      case 'ssh+escape+disconnect':
+      case 'tilde_dot':
+      case '~.':
+        // ssh escape sequence requires "~." at the beginning of a line; prefix with CR to get to BOL.
+        // ssh 转义序列要求 "~." 位于行首；这里先发 CR 回到行首再发送 "~."。
+        return '\r~.\r';
       default:
         return null;
     }
@@ -1376,6 +1389,148 @@ For reading more output, tail/head, keyword-context extraction, and session meta
 ---`);
           }
 
+          // wsl 前缀命令提示：建议直接使用 wsl.exe 作为 shell（不阻断执行）
+          // WSL-prefix command notice: strongly recommend using wsl.exe as the shell (non-blocking)
+          if (typeof input === 'string' && input.trim().length > 0) {
+            const trimmedInput = input.trim();
+            const isWslPrefixed = /^\s*wsl(\.exe)?(\s|$)/i.test(trimmedInput);
+            if (isWslPrefixed) {
+              const sessionInfo = this.terminalManager.getTerminalInfo(String(actualTerminalId));
+              const effectiveShellRaw = String(sessionInfo?.shell ?? shell ?? '').trim();
+              const effectiveShell = effectiveShellRaw.toLowerCase();
+              if (effectiveShell !== 'wsl.exe') {
+                warnings.push(
+                  'Tip: Detected a command starting with "wsl". Strongly recommended: set `shell: \"wsl.exe\"` when creating the terminal (instead of prefixing every command with `wsl ...`).'
+                );
+                structuredContent.wslShellSuggestion = {
+                  kind: 'wsl_shell_suggestion',
+                  detected: trimmedInput.slice(0, 64),
+                  recommendedShell: 'wsl.exe',
+                  currentShell: effectiveShellRaw || null
+                };
+              }
+            }
+          }
+
+          // ssh one-shot / ip "cmd" 提示：引导用户用“远端 shell 模式”，不要把远端命令塞进一条 ssh 命令里。
+          // ssh one-shot / ip "cmd" notice: guide users to enter "remote shell mode" instead of embedding remote commands in one ssh invocation.
+          const splitShellLikeArgs = (raw: string): string[] => {
+            const out: string[] = [];
+            let cur = '';
+            let quote: '"' | "'" | null = null;
+            let escaped = false;
+            for (let i = 0; i < raw.length; i++) {
+              const ch = raw[i]!;
+              if (escaped) {
+                cur += ch;
+                escaped = false;
+                continue;
+              }
+              if (ch === '\\') {
+                escaped = true;
+                continue;
+              }
+              if (quote) {
+                if (ch === quote) {
+                  quote = null;
+                  continue;
+                }
+                cur += ch;
+                continue;
+              }
+              if (ch === '"' || ch === "'") {
+                quote = ch as any;
+                continue;
+              }
+              if (/\s/.test(ch)) {
+                if (cur) {
+                  out.push(cur);
+                  cur = '';
+                }
+                continue;
+              }
+              cur += ch;
+            }
+            if (cur) out.push(cur);
+            return out;
+          };
+
+          const detectSshOneShot = (cmd: string): { destination: string | null; remoteCommandPreview: string | null } | null => {
+            const trimmed = (cmd || '').trim();
+            if (!/^ssh(\.exe)?(\s|$)/i.test(trimmed)) return null;
+            const tokens = splitShellLikeArgs(trimmed);
+            if (tokens.length < 3) return null;
+            const head = (tokens[0] || '').toLowerCase();
+            if (head !== 'ssh' && head !== 'ssh.exe') return null;
+
+            // best-effort: skip options; find destination; anything after destination => one-shot
+            let i = 1;
+            while (i < tokens.length && tokens[i]!.startsWith('-')) {
+              i++;
+              // options with a value (heuristic)
+              if (i < tokens.length && !tokens[i]!.startsWith('-') && /^-(p|o|i|l|J|L|R|D|F|S|W)$/i.test(tokens[i - 1]!)) {
+                i++;
+              }
+            }
+            const dest = tokens[i] || null;
+            const rest = tokens.slice(i + 1);
+            if (!dest || rest.length === 0) return null;
+            return { destination: dest, remoteCommandPreview: rest.join(' ').slice(0, 120) };
+          };
+
+          const detectIpOneShot = (cmd: string): { ip: string; remoteCommandPreview: string } | null => {
+            const trimmed = (cmd || '').trim();
+            const m = trimmed.match(/^(\d{1,3}(?:\.\d{1,3}){3})\s+(['"])([\s\S]+)\2\s*$/);
+            if (!m) return null;
+            const ip = m[1]!;
+            const remoteCommandPreview = String(m[3] || '').slice(0, 120);
+            return { ip, remoteCommandPreview };
+          };
+
+          if (typeof input === 'string' && input.trim().length > 0 && !specialOperation && !keys && !(Array.isArray(keySequence) && keySequence.length > 0)) {
+            const trimmed = input.trim();
+            const sshOneShot = detectSshOneShot(trimmed);
+            if (sshOneShot) {
+              return {
+                content: [{
+                  type: 'text',
+                  text:
+                    `提示：检测到一次性 ssh 远端命令写法（ssh ${sshOneShot.destination ?? '<host>'} "<cmd>"）。\n` +
+                    `建议：请先执行 \`ssh ${sshOneShot.destination ?? '<host>'}\` 进入“远端 shell”会话模式，然后再逐条执行命令。\n` +
+                    `这样可以获得更稳定的回显/续读/中断行为，避免输出串到本地 prompt。`
+                }],
+                structuredContent: {
+                  kind: 'ssh_one_shot_suggestion',
+                  terminalId: actualTerminalId,
+                  destination: sshOneShot.destination,
+                  remoteCommandPreview: sshOneShot.remoteCommandPreview,
+                  recommended: { command: sshOneShot.destination ? `ssh ${sshOneShot.destination}` : 'ssh <host>' },
+                  resultStatus: { state: 'notice', reason: 'ssh_one_shot_detected', nextAction: 'Enter ssh remote shell mode, then rerun the command(s).' }
+                }
+              } as CallToolResult;
+            }
+
+            const ipOneShot = detectIpOneShot(trimmed);
+            if (ipOneShot) {
+              return {
+                content: [{
+                  type: 'text',
+                  text:
+                    `提示：检测到形如 \`${ipOneShot.ip} \"<linux-cmd>\"\`\n` +
+                    `建议：直接使用 \`ssh ${ipOneShot.ip}\` 进入“远端 shell”会话模式，然后再执行命令。`
+                }],
+                structuredContent: {
+                  kind: 'ip_one_shot_suggestion',
+                  terminalId: actualTerminalId,
+                  ip: ipOneShot.ip,
+                  remoteCommandPreview: ipOneShot.remoteCommandPreview,
+                  recommended: { command: `ssh ${ipOneShot.ip}` },
+                  resultStatus: { state: 'notice', reason: 'ip_one_shot_detected', nextAction: 'Enter ssh remote shell mode, then rerun the command(s).' }
+                }
+              } as CallToolResult;
+            }
+          }
+
           // 处理特殊操作
           const defaultKeyDelay = typeof keyDelayMs === 'number' && Number.isFinite(keyDelayMs)
             ? Math.max(0, Math.floor(keyDelayMs))
@@ -1642,8 +1797,9 @@ For reading more output, tail/head, keyword-context extraction, and session meta
                 const maxWaitMs = Math.max(0, Math.round(Number(waitForOutput) * 1000));
                 return { mode: maxWaitMs > 0 ? 'idle' : 'none', maxWaitMs, idleMs: 500, includeIntermediateOutput: true };
               }
-              // Default: idle wait to capture command output, safe for long-running processes.
-              return { mode: 'idle', maxWaitMs: 2000, idleMs: 900, includeIntermediateOutput: true };
+              // Default: wait for a stable prompt (or awaiting-input) to capture complete command output.
+              // 默认：等待稳定提示符（或等待输入态），尽量一次性拿到完整命令输出。
+              return { mode: 'prompt', maxWaitMs: 15000, idleMs: 900, includeIntermediateOutput: true };
             })();
 
             const waitMode = mappedWait.mode ?? 'idle';
@@ -1722,7 +1878,9 @@ For reading more output, tail/head, keyword-context extraction, and session meta
             // 未传 mode 时，默认使用 this_command_output（只返回本次命令的输出增量）
             // If mode is omitted, default to this_command_output (only return delta output for this command)
             const effectiveMode = mode || 'this_command_output';
-            const effectiveReadModeForTerminalManager = effectiveMode === 'this_command_output' ? 'tail' : effectiveMode;
+            // For this_command_output, prefer raw incremental reads (mode omitted) to avoid "tail/head" decorations.
+            // 对 this_command_output：优先省略 mode，使用纯增量读取，避免 tail/head 的“省略提示”污染输出。
+            const effectiveReadModeForTerminalManager: any = effectiveMode === 'this_command_output' ? undefined : effectiveMode;
 
             // this_command_output：以写入前的 cursor 作为“基准 since”，只读取本次新增输出
             // this_command_output: use cursor-before-write as baseline, only read new output produced by this write
@@ -1781,10 +1939,13 @@ For reading more output, tail/head, keyword-context extraction, and session meta
                 const readOptions: any = {
                   terminalName: actualTerminalId,
                   since: nextSince,
-                  maxLines: maxLines || 1000,
+                  maxLines: maxLines !== undefined ? maxLines : 1000,
                   mode: effectiveReadModeForTerminalManager,
                   headLines: headLines || undefined,
-                  tailLines: tailLines || undefined
+                  tailLines: tailLines || undefined,
+                  // Always read forward when using `since` to avoid "tail" skipping and output loss.
+                  // 使用 since 增量读取时必须 forward，否则 tail 语义会跳过中间输出导致丢行/丢尾。
+                  direction: 'forward'
                 };
 
                 const outputResult = await this.terminalManager.readFromTerminal(readOptions);
@@ -1868,13 +2029,19 @@ For reading more output, tail/head, keyword-context extraction, and session meta
               ? baselineSince
               : (since !== undefined ? since : currentCursor);
 
+            const finalMaxLines =
+              maxLines !== undefined
+                ? maxLines
+                : (effectiveMode === 'this_command_output' ? 0 : 1000);
+
             const finalResult = await this.terminalManager.readFromTerminal({
               terminalName: actualTerminalId,
               since: finalReadSince,
-              maxLines: maxLines || 1000,
+              maxLines: finalMaxLines,
               mode: effectiveReadModeForTerminalManager,
               headLines: headLines || undefined,
-              tailLines: tailLines || undefined
+              tailLines: tailLines || undefined,
+              direction: 'forward'
             });
 
             const stripAnsiForMatching = (value: string): string => {
@@ -1929,11 +2096,29 @@ For reading more output, tail/head, keyword-context extraction, and session meta
               return cleaned.join('\n');
             };
 
+            const removeTrailingPromptLine = (text: string, promptLine: string | null): string => {
+              if (!text || !promptLine) return text;
+              const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+              const lines = normalizedText.split('\n');
+              let end = lines.length - 1;
+              while (end >= 0 && !lines[end]!.trim()) end--;
+              if (end < 0) return text;
+
+              const last = stripAnsiForMatching(lines[end]!).trimEnd();
+              const prompt = stripAnsiForMatching(promptLine).trimEnd();
+              if (last === prompt) {
+                const kept = lines.slice(0, end).join('\n').replace(/\n+$/g, '');
+                return kept;
+              }
+              return text;
+            };
+
             let finalOutputRaw = normalizeOutputText(stripSpinnerChars(finalResult.output || '', effectiveStripSpinner), actualInput, effectiveNoEcho);
             // this_command_output 默认不需要回显“提示符+输入命令”，只保留命令结果
             // this_command_output should not include "prompt + input command" echo, keep only command results
             if (effectiveMode === 'this_command_output') {
               finalOutputRaw = removeCommandEchoForThisCommandOutput(finalOutputRaw, actualInput);
+              finalOutputRaw = removeTrailingPromptLine(finalOutputRaw, (finalResult.status && typeof finalResult.status.promptLine === 'string') ? finalResult.status.promptLine : null);
             }
 
             // 对“本次命令输出”做智能截断：限制返回文本大小（约 32k token 量级）
@@ -2215,6 +2400,191 @@ For reading more output, tail/head, keyword-context extraction, and session meta
       );
     } else {
       console.log('[MCP-INFO] Tool "interact_with_terminal" is disabled');
+    }
+
+    // 结构化采集模式：在远端 ssh 上一次性落地执行脚本并回传 stdout/stderr/exitCode（避免 PTY 回显/折行干扰）
+    // Structured capture mode: run a script on remote ssh in one shot and return stdout/stderr/exitCode (avoid PTY echo/wrapping noise)
+    if (!this.isToolDisabled('capture_remote_script')) {
+      const captureRemoteScriptSchema: any = {
+        terminalId: z.string().describe('Terminal ID. Must currently be in remote ssh session mode.'),
+        script: z.string().describe('Script content to run on the remote host (sent via stdin, no quoting needed).'),
+        interpreter: z.enum(['bash', 'sh', 'python3', 'python']).optional().describe('Remote interpreter (default: bash).'),
+        timeoutMs: z.number().optional().describe('Timeout in milliseconds (default: 30000; capped at 50000).')
+      };
+
+      (this.server as any).tool(
+        'capture_remote_script',
+        `Run a script on the current remote ssh session in a structured capture mode (stdout/stderr separated, exit code explicit).
+
+Usage:
+- First enter remote shell mode via \`ssh host\` (interactive).
+- Then call this tool with \`terminalId\` and \`script\` to execute without PTY interference.`,
+        captureRemoteScriptSchema,
+        async (args: any) => {
+          try {
+            const terminalId = String(args?.terminalId || '').trim();
+            const script = String(args?.script ?? '');
+            const interpreter = String(args?.interpreter || 'bash');
+            const timeoutMsRaw = Number.isFinite(Number(args?.timeoutMs)) ? Number(args.timeoutMs) : 30000;
+            const timeoutMs = Math.min(50_000, Math.max(0, Math.floor(timeoutMsRaw)));
+
+            if (!terminalId) {
+              throw new Error('terminalId is required');
+            }
+            if (!script) {
+              throw new Error('script is required');
+            }
+
+            const session = this.terminalManager.getTerminalInfo(terminalId);
+            const remoteInfo = session?.remoteInfo || null;
+            if (!session || session.kind !== 'remote' || !remoteInfo || remoteInfo.kind !== 'ssh') {
+              return {
+                content: [{
+                  type: 'text',
+                  text: 'Notice: terminal is not in remote ssh session mode. Enter ssh remote shell first (e.g. `ssh user@host`), then retry.'
+                }],
+                structuredContent: {
+                  kind: 'capture_remote_script_notice',
+                  terminalId,
+                  resultStatus: { state: 'notice', reason: 'not_in_remote_ssh', nextAction: 'Enter remote ssh shell mode, then retry.' }
+                }
+              } as CallToolResult;
+            }
+
+            // Remove TTY-forcing flags from the original ssh args and force no-tty allocation for structured capture.
+            // 从原 ssh 参数中移除强制 TTY 的选项，并强制 -T 以便结构化采集（stdout/stderr 分离）。
+            const originalArgs = Array.isArray(remoteInfo.args) ? remoteInfo.args.map((x) => String(x)) : [];
+            const filteredArgs: string[] = [];
+            for (let i = 0; i < originalArgs.length; i++) {
+              const a = originalArgs[i]!;
+              const lower = a.toLowerCase();
+              if (lower === '-t' || lower === '-tt') {
+                continue;
+              }
+              // Best-effort: drop RequestTTY force options
+              if (lower === '-o' && i + 1 < originalArgs.length && /^requesttty=/i.test(originalArgs[i + 1]!)) {
+                i++;
+                continue;
+              }
+              if (/^-orequesttty=/i.test(lower)) {
+                continue;
+              }
+              filteredArgs.push(a);
+            }
+
+            // Ensure -T is present (no tty) / 确保带 -T（禁止分配 tty）
+            const finalArgs = filteredArgs.includes('-T') ? filteredArgs : ['-T', ...filteredArgs];
+
+            const remoteCommand: string[] = (() => {
+              switch (interpreter) {
+                case 'sh':
+                  return ['sh', '-s'];
+                case 'python3':
+                  return ['python3', '-'];
+                case 'python':
+                  return ['python', '-'];
+                case 'bash':
+                default:
+                  return ['bash', '-s'];
+              }
+            })();
+
+            const startedAt = Date.now();
+            const child = spawn('ssh', [...finalArgs, ...remoteCommand], {
+              stdio: ['pipe', 'pipe', 'pipe']
+            });
+
+            const stdoutChunks: Buffer[] = [];
+            const stderrChunks: Buffer[] = [];
+            let stdoutBytes = 0;
+            let stderrBytes = 0;
+            const MAX_CAPTURE_BYTES = 2_000_000; // 2MB per stream
+
+            child.stdout?.on('data', (chunk) => {
+              const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+              if (stdoutBytes < MAX_CAPTURE_BYTES) {
+                const remaining = MAX_CAPTURE_BYTES - stdoutBytes;
+                stdoutChunks.push(buf.slice(0, remaining));
+              }
+              stdoutBytes += buf.length;
+            });
+            child.stderr?.on('data', (chunk) => {
+              const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+              if (stderrBytes < MAX_CAPTURE_BYTES) {
+                const remaining = MAX_CAPTURE_BYTES - stderrBytes;
+                stderrChunks.push(buf.slice(0, remaining));
+              }
+              stderrBytes += buf.length;
+            });
+
+            const scriptToSend = script.endsWith('\n') ? script : script + '\n';
+            if (child.stdin) {
+              child.stdin.write(scriptToSend);
+              child.stdin.end();
+            }
+
+            const result = await Promise.race([
+              new Promise<{ exitCode: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+                child.on('close', (code, signal) => resolve({ exitCode: code, signal }));
+              }),
+              new Promise<{ exitCode: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+                setTimeout(() => resolve({ exitCode: null, signal: null }), timeoutMs);
+              })
+            ]);
+
+            const timedOut = result.exitCode === null && result.signal === null;
+            if (timedOut) {
+              try {
+                child.kill('SIGKILL');
+              } catch {
+                // ignore
+              }
+            }
+
+            const stdout = Buffer.concat(stdoutChunks).toString('utf8');
+            const stderr = Buffer.concat(stderrChunks).toString('utf8');
+            const durationMs = Date.now() - startedAt;
+
+            return {
+              content: [{
+                type: 'text',
+                text:
+                  `capture_remote_script done.\n` +
+                  `exitCode=${result.exitCode ?? 'null'} timedOut=${timedOut} durationMs=${durationMs}\n` +
+                  `--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`
+              }],
+              structuredContent: {
+                kind: 'capture_remote_script_result',
+                terminalId,
+                remote: { destination: remoteInfo.destination ?? null },
+                interpreter,
+                timeoutMs,
+                timedOut,
+                durationMs,
+                exitCode: result.exitCode,
+                signal: result.signal,
+                stdout,
+                stderr,
+                truncated: {
+                  stdout: stdoutBytes > MAX_CAPTURE_BYTES,
+                  stderr: stderrBytes > MAX_CAPTURE_BYTES
+                }
+              }
+            } as CallToolResult;
+          } catch (error) {
+            return {
+              content: [{
+                type: 'text',
+                text: `Error in capture_remote_script: ${error instanceof Error ? error.message : String(error)}`
+              }],
+              structuredContent: { isError: true, reason: 'CAPTURE_REMOTE_SCRIPT_FAILED' },
+              isError: true
+            } as CallToolResult;
+          }
+        }
+      );
+    } else {
+      console.log('[MCP-INFO] Tool "capture_remote_script" is disabled');
     }
 
     // Codex Bug Fix Tool

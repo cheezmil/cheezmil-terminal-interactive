@@ -2,6 +2,10 @@
  * 终端会话相关的类型定义
  */
 
+// 会话层级类型：local=本地shell；remote=远端shell（例如通过 ssh 进入）
+// Session layer kind: local=local shell; remote=remote shell (e.g. entered via ssh)
+export type TerminalSessionKind = 'local' | 'remote';
+
 export interface TerminalSession {
   id: string;
   pid: number;
@@ -29,6 +33,21 @@ export interface TerminalSession {
   // 原始输出环形缓冲（用于全屏程序时回退）
   // Raw output ring buffer (fallback for fullscreen apps)
   rawOutput?: string;
+
+  // 当前会话层级类型（local/remote）
+  // Current session layer kind (local/remote)
+  kind?: TerminalSessionKind;
+  // 若为 remote，会话的父层 internalId（用于调试/回溯）
+  // If remote, parent layer internalId (for debugging/backtracking)
+  parentSessionId?: string | null;
+  // 若为 remote，记录远端连接信息（目前仅用于 ssh 会话识别）
+  // If remote, record remote connection info (currently for ssh session identification)
+  remoteInfo?: {
+    kind: 'ssh';
+    destination: string | null;
+    args: string[];
+    originalInput: string;
+  } | null;
 }
 
 export interface CommandRuntimeInfo {
@@ -89,6 +108,12 @@ export interface TerminalReadStatus {
   // 是否检测到备用屏幕模式（vim 等）
   // Whether alternate screen mode is detected (vim etc.)
   alternateScreen?: boolean;
+
+  // 会话层级信息：用于 UI 明确展示 prompt 来源（local/remote）
+  // Session layer info: used by UI to clearly show prompt source (local/remote)
+  sessionKind?: TerminalSessionKind;
+  sessionStackDepth?: number;
+  sessionStackIndex?: number;
 }
 
 export interface CommandSummary {

@@ -365,6 +365,24 @@ export class WebInterfaceServer {
 
       process.stderr.write('[WEB-UI] WebSocket client connected\n');
 
+      // 新连接初始化：发送各终端当前会话模式（local/remote），保证 UI 能立即显示 prompt 来源 /
+      // Initial handshake: send current session mode (local/remote) for terminals so UI can show prompt source immediately
+      void (async () => {
+        try {
+          const list = await this.terminalManager.listTerminals();
+          for (const t of list.terminals) {
+            try {
+              const info = this.terminalManager.getTerminalSessionMode(t.id);
+              connection.send(JSON.stringify({ type: 'session_mode', terminalId: t.id, info }));
+            } catch {
+              // ignore / 忽略
+            }
+          }
+        } catch {
+          // ignore / 忽略
+        }
+      })();
+
       connection.on('close', () => {
         this.clients.delete(connection);
         process.stderr.write('[WEB-UI] WebSocket client disconnected\n');
@@ -388,6 +406,15 @@ export class WebInterfaceServer {
       this.broadcast({
         type: 'exit',
         terminalId
+      });
+    });
+
+    // 会话模式变化（local/remote）/ Session mode changes (local/remote)
+    this.terminalManager.on('terminalModeChanged', (terminalId: string, info: any) => {
+      this.broadcast({
+        type: 'session_mode',
+        terminalId,
+        info
       });
     });
   }

@@ -265,6 +265,236 @@ async function testWaitTimeoutReturnsResult() {
   }
 }
 
+// 测试 ssh one-shot 提示：ssh host "cmd" 不应作为 error 返回，且应给出引导提示 /
+// Test ssh one-shot suggestion: ssh host "cmd" must NOT be returned as error and should provide guidance
+async function testSshOneShotSuggestion() {
+  console.log('Testing ssh one-shot suggestion...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `ssh-one-shot-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            cwd: process.cwd(),
+            input: 'ssh 1.2.3.4 \"echo hi\"',
+            appendNewline: true,
+            wait: { mode: 'none', maxWaitMs: 0 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const structured = result.structuredContent || {};
+    if (result.isError === true) {
+      console.log('❌ ssh one-shot incorrectly returned as error');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (structured.kind !== 'ssh_one_shot_suggestion') {
+      console.log('❌ expected kind=ssh_one_shot_suggestion');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ ssh one-shot suggestion returned (expected)');
+    }
+
+    await client
+      .request(
+        { method: 'tools/call', params: { name: 'interact_with_terminal', arguments: { killTerminal: true, terminalId } } },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ ssh one-shot suggestion test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// 测试 ip "cmd" 提示：不应作为 error 返回，且应提示用 ssh ip 进入远端 shell /
+// Test ip "cmd" suggestion: must NOT be returned as error and should suggest using ssh ip remote shell mode
+async function testIpOneShotSuggestion() {
+  console.log('Testing ip one-shot suggestion...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `ip-one-shot-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            cwd: process.cwd(),
+            input: '1.2.3.4 \"uname -a\"',
+            appendNewline: true,
+            wait: { mode: 'none', maxWaitMs: 0 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const structured = result.structuredContent || {};
+    if (result.isError === true) {
+      console.log('❌ ip one-shot incorrectly returned as error');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (structured.kind !== 'ip_one_shot_suggestion') {
+      console.log('❌ expected kind=ip_one_shot_suggestion');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ ip one-shot suggestion returned (expected)');
+    }
+
+    await client
+      .request(
+        { method: 'tools/call', params: { name: 'interact_with_terminal', arguments: { killTerminal: true, terminalId } } },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ ip one-shot suggestion test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// 测试 1000+ 行输出不丢尾部：node 打印 1500 行，返回应包含 line 1500 /
+// Test 1000+ lines output keeps tail: node prints 1500 lines; result should include line 1500
+async function testLargeOutputKeepsTail() {
+  console.log('Testing large output keeps tail...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `large-output-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    const cmd = `node -e \"for (let i=1;i<=1500;i++) console.log('line '+i)\"`;
+
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'interact_with_terminal',
+          arguments: {
+            terminalId,
+            cwd: process.cwd(),
+            input: cmd,
+            appendNewline: true,
+            // prompt 等待更符合“命令结束”语义 / prompt wait better matches "command finished"
+            wait: { mode: 'prompt', maxWaitMs: 20000 }
+          }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const structured = result.structuredContent || {};
+    const output = typeof structured.commandOutput === 'string' ? structured.commandOutput : '';
+    const delta = structured.delta && typeof structured.delta.text === 'string' ? structured.delta.text : '';
+    const combined = `${output}\n${delta}`;
+
+    if (result.isError === true) {
+      console.log('❌ large output test returned error');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (!combined.includes('line 1500')) {
+      console.log('❌ expected tail line missing (line 1500)');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ large output includes tail (expected)');
+    }
+
+    await client
+      .request(
+        { method: 'tools/call', params: { name: 'interact_with_terminal', arguments: { killTerminal: true, terminalId } } },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ large output test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// 测试结构化采集工具在非远端模式下返回 notice（不应报错）/
+// Test structured capture tool returns notice (not error) when not in remote mode
+async function testCaptureRemoteScriptNotice() {
+  console.log('Testing capture_remote_script notice...');
+
+  const baseUrl = 'http://localhost:1106';
+  const mcpUrl = new URL(`${baseUrl}/mcp`);
+  const terminalId = `capture-remote-notice-test-${Date.now()}`;
+
+  try {
+    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(mcpUrl);
+    await client.connect(transport);
+
+    // Create a local terminal first / 先创建一个本地终端
+    await client.request(
+      {
+        method: 'tools/call',
+        params: { name: 'interact_with_terminal', arguments: { terminalId, cwd: process.cwd(), wait: { mode: 'none', maxWaitMs: 0 } } }
+      },
+      CallToolResultSchema
+    );
+
+    const result = await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'capture_remote_script',
+          arguments: { terminalId, script: 'echo hello-from-capture', interpreter: 'bash', timeoutMs: 1000 }
+        }
+      },
+      CallToolResultSchema
+    );
+
+    const structured = result.structuredContent || {};
+    if (result.isError === true) {
+      console.log('❌ capture_remote_script incorrectly returned as error in non-remote mode');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else if (structured.kind !== 'capture_remote_script_notice') {
+      console.log('❌ expected kind=capture_remote_script_notice');
+      console.log('Result:', JSON.stringify(result, null, 2));
+    } else {
+      console.log('✅ capture_remote_script returned notice in non-remote mode (expected)');
+    }
+
+    await client
+      .request(
+        { method: 'tools/call', params: { name: 'interact_with_terminal', arguments: { killTerminal: true, terminalId } } },
+        CallToolResultSchema
+      )
+      .catch(() => {});
+
+    await transport.close();
+  } catch (error) {
+    console.log(`⚠️ capture_remote_script notice test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 // 测试 longTask 机制：不再用 progressive_wait_required 阻断；服务端单次调用仍会 cap 到 ~50s
 // Test longTask: do NOT block with progressive_wait_required; server still caps per-call wait to ~50s
 async function testLongTaskWaitNotBlocked() {
@@ -487,6 +717,10 @@ async function runTests() {
   await testInteractiveTerminalNotice();
   await testWaitIdleDeltaEchoHello();
   await testWaitTimeoutReturnsResult();
+  await testSshOneShotSuggestion();
+  await testIpOneShotSuggestion();
+  await testLargeOutputKeepsTail();
+  await testCaptureRemoteScriptNotice();
   await testLongTaskWaitNotBlocked();
   await testReadCtiAndResetAndInterrupt();
 
