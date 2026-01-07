@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { WebglAddon } from '@xterm/addon-webgl'
 import { Copy } from 'lucide-vue-next'
 import { useTerminalStore } from '../stores/terminal'
 import { initializeApiService, terminalApi } from '../services/api-service'
@@ -524,22 +523,10 @@ const initializeTerminal = async (terminalId: string) => {
     term.open(container)
     console.log('Terminal opened in container')
 
-    // Prefer VS Code-like GPU renderer to avoid DOM renderer spacing issues /
-    // 优先使用 VS Code 类似的 GPU 渲染器，避免 DOM 渲染的字距问题
-    try {
-      const webglAddon = new WebglAddon()
-      webglAddon.onContextLoss(() => {
-        try {
-          webglAddon.dispose()
-        } catch {
-          // ignore / 忽略
-        }
-      })
-      term.loadAddon(webglAddon)
-      console.log('WebglAddon loaded')
-    } catch (error) {
-      console.warn('WebglAddon failed, fallback to DOM renderer:', error)
-    }
+    // 禁用 WebGL renderer：在大输出/高频输出时可能出现“行叠影/输出混乱”的渲染异常，
+    // 且会影响浏览器截图/调试工具的 readback 稳定性（部分环境会报 image readback failed）。
+    // Disable WebGL renderer: it may glitch (row ghosting / messy output) under huge/high-frequency output,
+    // and can break screenshot/readback stability in some environments (image readback failed).
 
     // Stabilize DOM renderer spacing (xterm may inject huge letter-spacing when char width is mis-measured) /
     // 稳定 DOM renderer 的字距（xterm 在字符宽度误测时会写入巨大的 letter-spacing）

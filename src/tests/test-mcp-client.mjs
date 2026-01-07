@@ -437,64 +437,6 @@ async function testLargeOutputKeepsTail() {
   }
 }
 
-// 测试结构化采集工具在非远端模式下返回 notice（不应报错）/
-// Test structured capture tool returns notice (not error) when not in remote mode
-async function testCaptureRemoteScriptNotice() {
-  console.log('Testing capture_remote_script notice...');
-
-  const baseUrl = 'http://localhost:1106';
-  const mcpUrl = new URL(`${baseUrl}/mcp`);
-  const terminalId = `capture-remote-notice-test-${Date.now()}`;
-
-  try {
-    const client = new Client({ name: 'cti-test-client', version: '1.0.0' }, { capabilities: {} });
-    const transport = new StreamableHTTPClientTransport(mcpUrl);
-    await client.connect(transport);
-
-    // Create a local terminal first / 先创建一个本地终端
-    await client.request(
-      {
-        method: 'tools/call',
-        params: { name: 'interact_with_terminal', arguments: { terminalId, cwd: process.cwd(), wait: { mode: 'none', maxWaitMs: 0 } } }
-      },
-      CallToolResultSchema
-    );
-
-    const result = await client.request(
-      {
-        method: 'tools/call',
-        params: {
-          name: 'capture_remote_script',
-          arguments: { terminalId, script: 'echo hello-from-capture', interpreter: 'bash', timeoutMs: 1000 }
-        }
-      },
-      CallToolResultSchema
-    );
-
-    const structured = result.structuredContent || {};
-    if (result.isError === true) {
-      console.log('❌ capture_remote_script incorrectly returned as error in non-remote mode');
-      console.log('Result:', JSON.stringify(result, null, 2));
-    } else if (structured.kind !== 'capture_remote_script_notice') {
-      console.log('❌ expected kind=capture_remote_script_notice');
-      console.log('Result:', JSON.stringify(result, null, 2));
-    } else {
-      console.log('✅ capture_remote_script returned notice in non-remote mode (expected)');
-    }
-
-    await client
-      .request(
-        { method: 'tools/call', params: { name: 'interact_with_terminal', arguments: { killTerminal: true, terminalId } } },
-        CallToolResultSchema
-      )
-      .catch(() => {});
-
-    await transport.close();
-  } catch (error) {
-    console.log(`⚠️ capture_remote_script notice test skipped/failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
 // 测试 longTask 机制：不再用 progressive_wait_required 阻断；服务端单次调用仍会 cap 到 ~50s
 // Test longTask: do NOT block with progressive_wait_required; server still caps per-call wait to ~50s
 async function testLongTaskWaitNotBlocked() {
@@ -720,7 +662,6 @@ async function runTests() {
   await testSshOneShotSuggestion();
   await testIpOneShotSuggestion();
   await testLargeOutputKeepsTail();
-  await testCaptureRemoteScriptNotice();
   await testLongTaskWaitNotBlocked();
   await testReadCtiAndResetAndInterrupt();
 

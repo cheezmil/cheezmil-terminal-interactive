@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { createSerialWriteQueue } from '@/lib/serial-write-queue.mjs'
-import { WebglAddon } from '@xterm/addon-webgl'
 import { initializeApiService, terminalApi } from '../services/api-service'
 import { useSettingsStore } from '../stores/settings'
 
@@ -250,22 +249,10 @@ const setupTerminal = () => {
           await waitForFontsReady()
           term.open(host || container)
 
-          // Prefer VS Code-like GPU renderer to avoid DOM renderer spacing issues /
-          // 优先使用 VS Code 类似的 GPU 渲染器，避免 DOM 渲染的字距问题
-          try {
-            const webglAddon = new WebglAddon()
-            webglAddon.onContextLoss(() => {
-              try {
-                webglAddon.dispose()
-              } catch {
-                // ignore / 忽略
-              }
-            })
-            term.loadAddon(webglAddon)
-            console.log('WebglAddon loaded')
-          } catch (error) {
-            console.warn('WebglAddon failed, fallback to DOM renderer:', error)
-          }
+          // 禁用 WebGL renderer：在大输出/高频输出时可能出现“行叠影/输出混乱”的渲染异常，
+          // 且会影响浏览器截图/调试工具的 readback 稳定性（部分环境会报 image readback failed）。
+          // Disable WebGL renderer: it may glitch (row ghosting / messy output) under huge/high-frequency output,
+          // and can break screenshot/readback stability in some environments (image readback failed).
 
           // Stabilize DOM renderer spacing (xterm may inject huge letter-spacing when char width is mis-measured) /
           // 稳定 DOM renderer 的字距（xterm 在字符宽度误测时会写入巨大的 letter-spacing）
@@ -443,7 +430,8 @@ const handleWebSocketMessage = (message: any) => {
           () =>
             new Promise<void>((resolve) => {
               try {
-                term!.write('\r\n\x1b[31m[Terminal Exited]\x1b[0m\r\n', resolve)
+                const safe = applyCROverwriteGuard('\r\n\x1b[31m[Terminal Exited]\x1b[0m\r\n')
+                term!.write(safe, resolve)
               } catch {
                 resolve()
               }
@@ -498,7 +486,8 @@ const loadTerminalOutput = async () => {
         () =>
           new Promise<void>((resolve) => {
             try {
-              term.write(data.output, resolve)
+              const safe = applyCROverwriteGuard(String(data.output ?? ''))
+              term.write(safe, resolve)
             } catch {
               resolve()
             }

@@ -25,9 +25,9 @@ import { OutputBufferEntry } from './types.js';
 export class TerminalManager extends EventEmitter {
   private sessions = new Map<string, TerminalSession>();
   private ptyProcesses = new Map<string, any>();
-  // 输出缓冲以“用户可见 terminalName”为 key：一个终端（含 local/remote 层级）共享一份历史输出
-  // Output buffer keyed by public terminalName: one terminal (incl. local/remote layers) shares one unified history buffer
-  private outputBuffersByTerminalName = new Map<string, OutputBuffer>();
+  // 输出缓冲以 internalId 为 key：每个终端对应一个 PTY 进程与一份输出缓冲
+  // Output buffer keyed by internalId: each terminal has one PTY process and one output buffer
+  private outputBuffers = new Map<string, OutputBuffer>();
   private exitPromises = new Map<string, Promise<void>>();
   private exitResolvers = new Map<string, () => void>();
   private writeChains = new Map<string, Promise<void>>();
@@ -35,11 +35,8 @@ export class TerminalManager extends EventEmitter {
   private cleanupTimer: NodeJS.Timeout;
   
   // Terminal name mapping - 终端名称映射
-  private terminalNameMap = new Map<string, string>(); // name -> base internal UUID
+  private terminalNameMap = new Map<string, string>(); // name -> internal UUID
   private terminalReverseMap = new Map<string, string>(); // internal UUID -> name
-  // 显式会话栈：同一个 terminalName 可能拥有多层会话（local -> remote ssh）
-  // Explicit session stack: one terminalName may have multiple layers (local -> remote ssh)
-  private terminalStacks = new Map<string, string[]>(); // name -> internal UUID stack (top is active)
 
   constructor(config: TerminalManagerConfig = {}) {
     super();
@@ -51,7 +48,8 @@ export class TerminalManager extends EventEmitter {
       defaultCols: config.defaultCols || 80,
       defaultRows: config.defaultRows || 24,
       compactAnimations: config.compactAnimations ?? true,
-      animationThrottleMs: config.animationThrottleMs || 100
+      animationThrottleMs: config.animationThrottleMs || 100,
+      windowsUseConpty: config.windowsUseConpty as any
     };
 
     // 定期清理超时的会话
@@ -73,8 +71,7 @@ export class TerminalManager extends EventEmitter {
     }
     // 如果是终端名称，映射到内部 UUID
     // If it's a terminal name, map to internal UUID
-    const stack = this.terminalStacks.get(terminalName);
-    const internalId = (stack && stack.length > 0) ? stack[stack.length - 1] : this.terminalNameMap.get(terminalName);
+    const internalId = this.terminalNameMap.get(terminalName);
     if (!internalId) {
       throw new Error(`Terminal "${terminalName}" was not found. Available terminals: ${Array.from(this.terminalNameMap.keys()).join(', ')}`);
     }
@@ -91,20 +88,6 @@ export class TerminalManager extends EventEmitter {
       return this.terminalReverseMap.get(value) || null;
     }
     return value;
-  }
-
-  private getActiveInternalIdForPublicName(terminalName: string): string | null {
-    const stack = this.terminalStacks.get(terminalName);
-    if (stack && stack.length > 0) {
-      return stack[stack.length - 1] || null;
-    }
-    return this.terminalNameMap.get(terminalName) || null;
-  }
-
-  private getActiveSessionByPublicName(terminalName: string): TerminalSession | null {
-    const activeId = this.getActiveInternalIdForPublicName(terminalName);
-    if (!activeId) return null;
-    return this.sessions.get(activeId) || null;
   }
 
   /**
@@ -125,19 +108,16 @@ export class TerminalManager extends EventEmitter {
       this.getPublicTerminalName(resolvedId) ||
       terminalNameOrId;
 
-    const stack = this.terminalStacks.get(publicName) || [];
-    const activeInternalId = stack.length > 0 ? stack[stack.length - 1]! : resolvedId;
-    const idx = stack.length > 0 ? stack.findIndex((id) => id === activeInternalId) : 0;
-    const session = this.sessions.get(activeInternalId);
+    const session = this.sessions.get(resolvedId);
     const kind = (session?.kind || 'local') as TerminalSessionKind;
     const remoteDestination = kind === 'remote' ? (session?.remoteInfo?.destination ?? null) : null;
 
     return {
       terminalName: publicName,
-      activeInternalId,
+      activeInternalId: resolvedId,
       sessionKind: kind,
-      sessionStackDepth: Math.max(1, stack.length || 1),
-      sessionStackIndex: Math.max(0, idx),
+      sessionStackDepth: 1,
+      sessionStackIndex: 0,
       remoteDestination
     };
   }
@@ -184,7 +164,6 @@ export class TerminalManager extends EventEmitter {
     // Establish mapping relationship
     this.terminalNameMap.set(terminalName, internalId);
     this.terminalReverseMap.set(internalId, terminalName);
-    this.terminalStacks.set(terminalName, [internalId]);
 
     let { shell } = options;
     // Handle shell parameter conversion for Windows compatibility
@@ -216,15 +195,31 @@ export class TerminalManager extends EventEmitter {
       };
 
       // 创建 PTY 进程
-      const ptyProcess = spawn(resolvedShell, [], {
+      const spawnOptions: any = {
         name: 'xterm-256color',  // 修复：使用正确的终端类型
         cols,
         rows,
         cwd,
         env: ptyEnv,
-        // 启用 UTF-8 编码
-        encoding: 'utf8' as any
-      });
+      };
+
+      // Windows: allow forcing ConPTY/WinPTY; omit encoding because node-pty ignores it on Windows.
+      // Windows：允许强制 ConPTY/WinPTY；encoding 在 Windows 上会被 node-pty 忽略且会打印警告，因此这里省略。
+      if (process.platform === 'win32') {
+        if (process.env.CTI_WINDOWS_USE_CONPTY === '0') {
+          spawnOptions.useConpty = false;
+        } else if (process.env.CTI_WINDOWS_USE_CONPTY === '1') {
+          spawnOptions.useConpty = true;
+        } else if ((this.config as any).windowsUseConpty !== undefined) {
+          spawnOptions.useConpty = Boolean((this.config as any).windowsUseConpty);
+        }
+      } else {
+        // Non-Windows: enable UTF-8 encoding.
+        // 非 Windows：启用 UTF-8 编码。
+        spawnOptions.encoding = 'utf8' as any;
+      }
+
+      const ptyProcess = spawn(resolvedShell, [], spawnOptions);
 
       let resolveExit: (() => void) | null = null;
       const exitPromise = new Promise<void>((resolve) => {
@@ -261,18 +256,15 @@ export class TerminalManager extends EventEmitter {
       };
 
       // 创建输出缓冲器
-      const outputBuffer = new OutputBuffer(terminalName, this.config.maxBufferSize, {
+      const outputBuffer = new OutputBuffer(internalId, this.config.maxBufferSize, {
         compactAnimations: this.config.compactAnimations,
         animationThrottleMs: this.config.animationThrottleMs
       });
 
-      // 监听输出缓冲的更新以追踪提示符和命令状态（仅更新当前活跃层级）
-      // Track prompt/command status from buffer updates (only update the currently active layer)
+      // 监听输出缓冲的更新以追踪提示符和命令状态
+      // Track prompt/command status from buffer updates
       outputBuffer.on('data', (entries: OutputBufferEntry[]) => {
-        const active = this.getActiveSessionByPublicName(terminalName);
-        if (active) {
-          this.processBufferEntries(active, entries);
-        }
+        this.processBufferEntries(session, entries);
       });
 
       // 监听 PTY 输出 - 始终使用用户可见的终端名称进行事件广播
@@ -285,11 +277,13 @@ export class TerminalManager extends EventEmitter {
 
           // 调试：记录收到的原始数据长度与预览（stderr），避免干扰 MCP 通信
           // Debug: log raw data length & preview (stderr) to avoid polluting MCP communication
-          const nowMs = Date.now();
-          if (nowMs - lastDebugOnDataLogAt >= 250) {
-            lastDebugOnDataLogAt = nowMs;
-            const preview = data.length > 200 ? `${data.slice(0, 200)}...` : data;
-            console.error(`[PTY-DATA][${terminalName}] len=${data.length} preview=${JSON.stringify(preview)}`);
+          if (process.env.MCP_DEBUG === 'true') {
+            const nowMs = Date.now();
+            if (nowMs - lastDebugOnDataLogAt >= 250) {
+              lastDebugOnDataLogAt = nowMs;
+              const preview = data.length > 200 ? `${data.slice(0, 200)}...` : data;
+              console.error(`[PTY-DATA][${terminalName}] len=${data.length} preview=${JSON.stringify(preview)}`);
+            }
           }
 
           // 记录原始输出，并检测是否进入/退出备用屏幕（vim 等全屏程序）
@@ -307,13 +301,30 @@ export class TerminalManager extends EventEmitter {
       // 监听 PTY 退出 - 统一使用终端名称进行事件广播
       // Listen PTY exit - consistently emit events with terminal name
       ptyProcess.onExit((e: { exitCode: number; signal?: number }) => {
-        this.handlePtyExit(internalId, terminalName, e);
+        session.status = 'terminated';
+        session.lastActivity = new Date();
+        const publicTerminalId = this.terminalReverseMap.get(internalId) || terminalName;
+        this.emit('terminalExit', publicTerminalId, e.exitCode, e.signal);
+
+        const resolver = this.exitResolvers.get(internalId);
+        if (resolver) {
+          resolver();
+          this.exitResolvers.delete(internalId);
+        }
+
+        // 清理资源
+        const cleanupTimer = setTimeout(() => {
+          this.cleanupSession(internalId);
+        }, 5000); // 5秒后清理
+        if (typeof cleanupTimer.unref === 'function') {
+          cleanupTimer.unref();
+        }
       });
 
       // 存储会话信息 / Store session info
       this.sessions.set(internalId, session);
       this.ptyProcesses.set(internalId, ptyProcess);
-      this.outputBuffersByTerminalName.set(terminalName, outputBuffer);
+      this.outputBuffers.set(internalId, outputBuffer);
 
       // Windows 下 PTY/Shell 启动有一定延迟，过早写入可能导致“无输出”
       // On Windows, PTY/Shell startup can lag; writing too early may result in "empty output"
@@ -408,12 +419,19 @@ export class TerminalManager extends EventEmitter {
       // 对“多行输入”默认不自动追加，避免粘贴到全屏程序（vim）时多余回车导致状态错乱；
       // 但对“类对话交互程序”（如 Claude Code）多行消息往往需要最终回车提交，因此默认仍追加。
       // Auto-append Enter (CR) when input doesn't end with a newline.
-      // For multi-line input we default to NO auto-append to avoid breaking fullscreen apps (vim),
-      // but for chat-like interactive apps (e.g., Claude Code) multi-line messages typically need a final Enter to submit.
+      // For multi-line input:
+      // - In normal shells, we DO auto-append a final Enter so the last line is executed.
+      // - In interactive TUIs / fullscreen apps (vim/nano/claude-style redraw), avoid auto-append to prevent state corruption.
+      //
+      // 对多行输入：
+      // - 普通 shell 默认自动补“最后一次回车”，确保最后一行也能执行（否则容易出现“最后一行没跑”）。
+      // - 交互式 TUI / 全屏程序（vim/nano/类 Claude 重绘）默认不补回车，避免粘贴时破坏程序状态。
       const hasMultiline = input.includes('\n') || input.includes('\r\n');
-      const isChatLikeInteractive = this.isLikelyChatInteractiveSession(liveSession);
-      const autoAppend =
-        appendNewline ?? (hasMultiline ? isChatLikeInteractive : this.shouldAutoAppendNewline(input));
+      const rawTailForHeuristics = (liveSession.rawOutput || '').slice(-4000);
+      const isLikelyInteractiveApp =
+        Boolean(liveSession.alternateScreen) || this.isLikelyInteractiveTail(rawTailForHeuristics);
+
+      const autoAppend = appendNewline ?? (hasMultiline ? !isLikelyInteractiveApp : this.shouldAutoAppendNewline(input));
       const needsNewline = autoAppend && !input.endsWith('\n') && !input.endsWith('\r');
       const newlineChar = '\r';
       const inputWithAutoNewline = needsNewline ? input + newlineChar : input;
@@ -421,14 +439,49 @@ export class TerminalManager extends EventEmitter {
 
       const executed = /[\n\r]$/.test(inputToWrite);
 
-      // 显式会话模式：检测 ssh 进入交互式远端 shell（remote），并将其作为新层级 push 到会话栈顶。
-      // Explicit session mode: detect interactive ssh remote shell entry and push it as a new layer on the session stack.
-      if (executed && (liveSession.kind || 'local') === 'local') {
+      // 退出远端 shell：当处于 remote 时，识别 exit / Ctrl+D / ssh escape (~.) 并回退为 local。
+      // Exit remote shell: when in remote mode, detect exit / Ctrl+D / ssh escape (~.) and fall back to local.
+      //
+      // NOTE: 这是“最佳努力”的 UI 状态标记，不会影响真实 PTY 里的 ssh 行为；若远端未退出，
+      // 仍然会继续在同一 PTY 内接收输入/输出。
+      // NOTE: This is a best-effort UI state marker; it does not change actual ssh behavior in the PTY.
+      const isRemote = (liveSession.kind || 'local') === 'remote';
+      const hasCtrlD = inputToWrite.includes('\u0004');
+      const hasSshEscapeDisconnect = inputToWrite.includes('\r~.\r') || inputToWrite.includes('\n~.\n');
+      if (isRemote && (hasCtrlD || hasSshEscapeDisconnect)) {
+        liveSession.kind = 'local';
+        liveSession.remoteInfo = null;
+        this.emit('terminalModeChanged', terminalName, this.getTerminalSessionMode(terminalName));
+      }
+
+      // 显式会话模式（轻量）：在“同一个终端/同一个 PTY”内，仅对 `ssh <dest>` 做状态标记为 remote。
+      // 这样用户后续输入仍然发送到同一个终端（ssh 会话里），不需要额外创建 PTY/会话栈。
+      //
+      // Explicit session mode (lightweight): within the same terminal/PTY, mark `ssh <dest>` as remote.
+      // Subsequent inputs still go to the same terminal (inside ssh), no extra PTY/session-stack needed.
+      if (executed) {
         const commandText = this.extractCommandText(inputToWrite);
-        const sshRequest = commandText ? this.tryParseSshInteractiveRequest(commandText) : null;
-        if (sshRequest) {
-          await this.pushSshRemoteSession(terminalName, resolvedId, sshRequest);
-          return;
+        const trimmedCommand = (commandText || '').replace(/\r/g, '').trim();
+
+        if ((liveSession.kind || 'local') === 'remote') {
+          // 远端交互 shell 常见退出命令 / Common remote-shell exit commands
+          if (trimmedCommand === 'exit' || trimmedCommand === 'logout') {
+            liveSession.kind = 'local';
+            liveSession.remoteInfo = null;
+            this.emit('terminalModeChanged', terminalName, this.getTerminalSessionMode(terminalName));
+          }
+        } else {
+          const sshEnter = trimmedCommand ? this.tryParseSshInteractiveEnter(trimmedCommand) : null;
+          if (sshEnter) {
+            liveSession.kind = 'remote';
+            liveSession.remoteInfo = {
+              kind: 'ssh',
+              destination: sshEnter.destination,
+              args: sshEnter.args,
+              originalInput: sshEnter.originalInput
+            };
+            this.emit('terminalModeChanged', terminalName, this.getTerminalSessionMode(terminalName));
+          }
         }
       }
 
@@ -632,7 +685,7 @@ export class TerminalManager extends EventEmitter {
     return out;
   }
 
-  private tryParseSshInteractiveRequest(commandText: string): { args: string[]; destination: string | null; originalInput: string } | null {
+  private tryParseSshInteractiveEnter(commandText: string): { args: string[]; destination: string | null; originalInput: string } | null {
     // 仅识别“进入远端交互 shell”的 ssh：即 `ssh [opts...] <dest>` 且 dest 后没有额外命令。
     // Only recognize ssh that enters an interactive remote shell: `ssh [opts...] <dest>` and no extra command after dest.
     const trimmed = (commandText || '').trim();
@@ -676,200 +729,6 @@ export class TerminalManager extends EventEmitter {
 
     const args = tokens.slice(1);
     return { args, destination, originalInput: trimmed };
-  }
-
-  private async pushSshRemoteSession(
-    terminalName: string,
-    parentInternalId: string,
-    request: { args: string[]; destination: string | null; originalInput: string }
-  ): Promise<void> {
-    const publicName = this.getPublicTerminalName(terminalName) || terminalName;
-    const parentSession = this.sessions.get(parentInternalId);
-    if (!parentSession || parentSession.status !== 'active') {
-      return;
-    }
-
-    const stack = this.terminalStacks.get(publicName);
-    if (!stack || stack.length === 0) {
-      return;
-    }
-
-    // Ensure parent is still the active top / 确保父层仍是栈顶
-    if (stack[stack.length - 1] !== parentInternalId) {
-      return;
-    }
-
-    const outputBuffer = this.outputBuffersByTerminalName.get(publicName);
-    if (!outputBuffer) {
-      return;
-    }
-
-    const remoteInternalId = uuidv4();
-
-    // Echo the original command to the shared output buffer so the UI doesn't "lose" what the user typed.
-    // 将用户输入回显到共享输出缓冲，避免 UI 看起来“吞掉了输入”。
-    const echoed = this.normalizeNewlines(request.originalInput) + '\r\n';
-    outputBuffer.append(echoed);
-    this.emit('terminalOutput', publicName, echoed);
-
-    // Create PTY for ssh / 创建 ssh 的 PTY 会话
-    const ptyEnv = {
-      ...parentSession.env,
-      TERM: parentSession.env.TERM || 'xterm-256color',
-      LANG: parentSession.env.LANG || 'en_US.UTF-8',
-      PAGER: parentSession.env.PAGER || 'cat',
-    };
-
-    const cols = parentSession.cols ?? this.config.defaultCols;
-    const rows = parentSession.rows ?? this.config.defaultRows;
-
-    const ptyProcess = spawn('ssh', request.args, {
-      name: 'xterm-256color',
-      cols,
-      rows,
-      cwd: parentSession.cwd,
-      env: ptyEnv,
-      encoding: 'utf8' as any
-    });
-
-    let resolveExit: (() => void) | null = null;
-    const exitPromise = new Promise<void>((resolve) => {
-      resolveExit = resolve;
-    });
-    this.exitPromises.set(remoteInternalId, exitPromise);
-    if (resolveExit) {
-      this.exitResolvers.set(remoteInternalId, resolveExit);
-    }
-
-    const remoteSession: TerminalSession = {
-      id: remoteInternalId,
-      pid: ptyProcess.pid,
-      shell: `ssh ${request.args.join(' ')}`,
-      cwd: parentSession.cwd,
-      pendingCwd: null,
-      env: parentSession.env,
-      cols,
-      rows,
-      created: new Date(),
-      lastActivity: new Date(),
-      status: 'active',
-      pendingCommand: null,
-      lastCommand: null,
-      lastPromptLine: null,
-      lastPromptAt: null,
-      hasPrompt: false,
-      alternateScreen: false,
-      rawOutput: '',
-      kind: 'remote',
-      parentSessionId: parentInternalId,
-      remoteInfo: {
-        kind: 'ssh',
-        destination: request.destination,
-        args: request.args,
-        originalInput: request.originalInput
-      }
-    };
-
-    this.sessions.set(remoteInternalId, remoteSession);
-    this.ptyProcesses.set(remoteInternalId, ptyProcess);
-    this.terminalReverseMap.set(remoteInternalId, publicName);
-    stack.push(remoteInternalId);
-    this.terminalStacks.set(publicName, stack);
-
-    // Stream output to shared buffer / 将输出写入共享缓冲并广播
-    let lastDebugOnDataLogAt = 0;
-    ptyProcess.onData((data: string) => {
-      setImmediate(() => {
-        remoteSession.lastActivity = new Date();
-        const nowMs = Date.now();
-        if (nowMs - lastDebugOnDataLogAt >= 250) {
-          lastDebugOnDataLogAt = nowMs;
-          const preview = data.length > 200 ? `${data.slice(0, 200)}...` : data;
-          console.error(`[PTY-DATA][${publicName}][remote] len=${data.length} preview=${JSON.stringify(preview)}`);
-        }
-
-        this.updateRawOutputAndScreenState(remoteSession, data);
-        outputBuffer.append(data);
-        this.emit('terminalOutput', publicName, data);
-      });
-    });
-
-    ptyProcess.onExit((e: { exitCode: number; signal?: number }) => {
-      this.handlePtyExit(remoteInternalId, publicName, e);
-    });
-
-    this.emit('terminalModeChanged', publicName, this.getTerminalSessionMode(publicName));
-  }
-
-  private handlePtyExit(internalId: string, terminalName: string, e: { exitCode: number; signal?: number }): void {
-    const publicName = this.getPublicTerminalName(terminalName) || terminalName;
-    const session = this.sessions.get(internalId);
-    if (session) {
-      session.status = 'terminated';
-      session.lastActivity = new Date();
-    }
-
-    const resolver = this.exitResolvers.get(internalId);
-    if (resolver) {
-      try {
-        resolver();
-      } catch {
-        // ignore
-      }
-      this.exitResolvers.delete(internalId);
-    }
-
-    const stack = this.terminalStacks.get(publicName) || [];
-    const isTop = stack.length > 0 && stack[stack.length - 1] === internalId;
-    const isRemote = (session?.kind || 'local') === 'remote';
-
-    // remote 层级退出：弹栈并回到本地 shell，不向前端广播“终端已退出”事件
-    // Remote layer exit: pop stack and return to local shell; do NOT broadcast "terminal exited" to frontend
-    if (isRemote && isTop && stack.length > 1) {
-      stack.pop();
-      this.terminalStacks.set(publicName, stack);
-
-      // 给用户一个明确提示 / Provide a clear notice to the user
-      const notice = '\r\n[Remote shell exited, switched back to local]\r\n';
-      const outputBuffer = this.outputBuffersByTerminalName.get(publicName);
-      if (outputBuffer) {
-        outputBuffer.append(notice);
-      }
-      this.emit('terminalOutput', publicName, notice);
-
-      // Best-effort: nudge local prompt to appear on a fresh line
-      // 尽力而为：轻推本地 prompt 在新行出现
-      const localId = stack[stack.length - 1];
-      const localPty = localId ? this.ptyProcesses.get(localId) : null;
-      try {
-        localPty?.write('\r');
-      } catch {
-        // ignore
-      }
-
-      this.emit('terminalModeChanged', publicName, this.getTerminalSessionMode(publicName));
-
-      // 延迟清理退出的 remote 层级资源
-      // Delay cleanup for the exited remote layer
-      const cleanupTimer = setTimeout(() => {
-        this.cleanupSession(internalId);
-      }, 5000);
-      if (typeof cleanupTimer.unref === 'function') {
-        cleanupTimer.unref();
-      }
-      return;
-    }
-
-    // 最外层退出（或没有可回退的层级）：视为终端退出
-    // Base layer exit (or no fallback layer): treat as terminal exit
-    this.emit('terminalExit', publicName, e.exitCode, e.signal);
-
-    const cleanupTimer = setTimeout(() => {
-      this.cleanupSession(internalId);
-    }, 5000);
-    if (typeof cleanupTimer.unref === 'function') {
-      cleanupTimer.unref();
-    }
   }
 
   /**
@@ -971,11 +830,7 @@ export class TerminalManager extends EventEmitter {
     // Resolve terminal name
     const resolvedId = this.resolveTerminalName(terminalName);
 
-    const publicName =
-      this.getPublicTerminalName(terminalName) ||
-      this.getPublicTerminalName(resolvedId) ||
-      terminalName;
-    const outputBuffer = this.outputBuffersByTerminalName.get(publicName);
+    const outputBuffer = this.outputBuffers.get(resolvedId);
     const session = this.sessions.get(resolvedId);
 
     if (!outputBuffer || !session) {
@@ -1385,11 +1240,7 @@ export class TerminalManager extends EventEmitter {
     // Resolve terminal name
     const resolvedId = this.resolveTerminalName(terminalName);
     
-    const publicName =
-      this.getPublicTerminalName(terminalName) ||
-      this.getPublicTerminalName(resolvedId) ||
-      terminalName;
-    const outputBuffer = this.outputBuffersByTerminalName.get(publicName);
+    const outputBuffer = this.outputBuffers.get(resolvedId);
     const session = this.sessions.get(resolvedId);
 
     if (!outputBuffer || !session) {
@@ -1423,14 +1274,8 @@ export class TerminalManager extends EventEmitter {
    * Get terminal's output buffer - internal method
    */
   getOutputBuffer(terminalName: string): OutputBuffer | null {
-    // 允许 terminalName 或 internalId：最终统一映射到“public terminalName”的输出缓冲
-    // Accept terminalName or internalId: always map to the output buffer keyed by public terminalName
     const resolvedId = this.resolveTerminalName(terminalName);
-    const publicName =
-      this.getPublicTerminalName(terminalName) ||
-      this.getPublicTerminalName(resolvedId) ||
-      terminalName;
-    return this.outputBuffersByTerminalName.get(publicName) || null;
+    return this.outputBuffers.get(resolvedId) || null;
   }
 
   /**
@@ -1497,15 +1342,12 @@ export class TerminalManager extends EventEmitter {
    * 列出所有终端会话
    */
   async listTerminals(): Promise<TerminalListResult> {
-    // 只列出“用户可见终端”（terminalName），并展示当前活跃层（local/remote）的信息
-    // List only public terminals (terminalName) and show info of the active layer (local/remote)
-    const terminals = Array.from(this.terminalNameMap.keys()).map((terminalName) => {
-      const activeId = this.getActiveInternalIdForPublicName(terminalName) || this.terminalNameMap.get(terminalName)!;
-      const session = this.sessions.get(activeId);
-
+    // 只列出“用户可见终端”（terminalName）/ List only public terminals (terminalName)
+    const terminals = Array.from(this.terminalNameMap.entries()).map(([terminalName, internalId]) => {
+      const session = this.sessions.get(internalId);
       return {
         id: terminalName,
-        internalId: activeId,
+        internalId,
         pid: session?.pid ?? -1,
         shell: session?.shell ?? '',
         cwd: session?.cwd ?? '',
@@ -1529,11 +1371,11 @@ export class TerminalManager extends EventEmitter {
       this.getPublicTerminalName(resolvedId) ||
       terminalName;
 
-    // 若传入的是 internalId，则只杀这一层（并从栈中移除）；若传入 terminalName，则杀整个栈。
-    // If an internalId is passed, only kill that layer (and remove from stack); if terminalName, kill the whole stack.
-    const killAll = !this.isInternalIdLike(terminalName);
-    const stack = (killAll ? (this.terminalStacks.get(publicName) || []) : [resolvedId]).slice();
-    if (stack.length === 0) {
+    const ptyProcess = this.ptyProcesses.get(resolvedId);
+    const session = this.sessions.get(resolvedId);
+    const exitPromise = this.exitPromises.get(resolvedId);
+
+    if (!ptyProcess || !session) {
       const error: TerminalError = new Error(`Terminal ${terminalName} not found`) as TerminalError;
       error.code = 'TERMINAL_NOT_FOUND';
       error.terminalName = terminalName;
@@ -1541,64 +1383,39 @@ export class TerminalManager extends EventEmitter {
     }
 
     try {
-      for (let i = stack.length - 1; i >= 0; i--) {
-        const id = stack[i]!;
-        const ptyProcess = this.ptyProcesses.get(id);
-        const session = this.sessions.get(id);
-        const exitPromise = this.exitPromises.get(id);
-        if (!ptyProcess || !session) continue;
-
-        if (process.platform === 'win32') {
-          ptyProcess.kill();
-        } else {
-          ptyProcess.kill(signal);
-        }
-
-        session.status = 'terminated';
-        session.lastActivity = new Date();
-        await this.waitForPtyExit(id, ptyProcess, exitPromise);
-
-        this.ptyProcesses.delete(id);
-        this.sessions.delete(id);
-        this.exitPromises.delete(id);
-        this.exitResolvers.delete(id);
-        this.writeChains.delete(id);
-        this.terminalReverseMap.delete(id);
+      // Windows平台特殊处理：node-pty 在 Windows 上不可靠地支持 POSIX 信号
+      // Windows special handling: node-pty on Windows doesn't reliably support POSIX signals
+      if (process.platform === 'win32') {
+        ptyProcess.kill();
+      } else {
+        ptyProcess.kill(signal);
       }
 
-      if (killAll) {
-        const buffer = this.outputBuffersByTerminalName.get(publicName);
-        if (buffer) {
-          buffer.removeAllListeners();
-        }
-        this.outputBuffersByTerminalName.delete(publicName);
-        this.terminalStacks.delete(publicName);
+      session.status = 'terminated';
+      session.lastActivity = new Date();
+      this.emit('terminalKilled', publicName, signal);
+
+      await this.waitForPtyExit(resolvedId, ptyProcess, exitPromise);
+
+      const buffer = this.outputBuffers.get(resolvedId);
+      if (buffer) {
+        buffer.removeAllListeners();
+      }
+
+      // 清理资源：从 Map 中删除已终止的终端
+      // Cleanup resources: remove terminated terminal from maps
+      this.ptyProcesses.delete(resolvedId);
+      this.outputBuffers.delete(resolvedId);
+      this.sessions.delete(resolvedId);
+      this.exitPromises.delete(resolvedId);
+      this.exitResolvers.delete(resolvedId);
+      this.writeChains.delete(resolvedId);
+
+      this.terminalReverseMap.delete(resolvedId);
+      // 若是通过 terminalName 调用 kill，则同时清理名称映射
+      // If kill is called via terminalName, also cleanup name mappings
+      if (!this.isInternalIdLike(terminalName)) {
         this.terminalNameMap.delete(publicName);
-        this.emit('terminalKilled', publicName, signal);
-        this.emit('terminalModeChanged', publicName, {
-          terminalName: publicName,
-          activeInternalId: '',
-          sessionKind: 'local',
-          sessionStackDepth: 0,
-          sessionStackIndex: 0,
-          remoteDestination: null
-        });
-      } else {
-        const liveStack = this.terminalStacks.get(publicName);
-        if (liveStack) {
-          const next = liveStack.filter((x) => x !== resolvedId);
-          if (next.length > 0) {
-            this.terminalStacks.set(publicName, next);
-            this.emit('terminalModeChanged', publicName, this.getTerminalSessionMode(publicName));
-          } else {
-            const buffer = this.outputBuffersByTerminalName.get(publicName);
-            if (buffer) buffer.removeAllListeners();
-            this.outputBuffersByTerminalName.delete(publicName);
-            this.terminalStacks.delete(publicName);
-            this.terminalNameMap.delete(publicName);
-            this.emit('terminalKilled', publicName, signal);
-          }
-        }
       }
     } catch (error) {
       const terminalError: TerminalError = new Error(`Failed to kill terminal: ${error}`) as TerminalError;
@@ -1700,15 +1517,35 @@ export class TerminalManager extends EventEmitter {
    */
   private cleanupSession(internalId: string): void {
     const ptyProcess = this.ptyProcesses.get(internalId);
+    const session = this.sessions.get(internalId);
     const publicName = this.terminalReverseMap.get(internalId) || null;
 
     if (ptyProcess) {
+      // Avoid calling `pty.kill()` for already-terminated sessions on Windows ConPTY,
+      // because node-pty may spawn a helper that can error noisily (AttachConsole failed).
+      // 对于已终止会话，尤其是 Windows ConPTY，避免再次调用 `pty.kill()`：
+      // node-pty 可能会拉起辅助进程并产生 AttachConsole failed 噪音。
+      const shouldKill =
+        session && session.status === 'active';
+      if (shouldKill) {
+        try {
+          ptyProcess.kill();
+        } catch {
+          // ignore / 忽略
+        }
+      }
+      this.ptyProcesses.delete(internalId);
+    }
+
+    const outputBuffer = this.outputBuffers.get(internalId);
+    if (outputBuffer) {
       try {
-        ptyProcess.kill();
+        outputBuffer.removeAllListeners();
+        outputBuffer.clear();
       } catch {
         // ignore / 忽略
       }
-      this.ptyProcesses.delete(internalId);
+      this.outputBuffers.delete(internalId);
     }
 
     this.sessions.delete(internalId);
@@ -1718,24 +1555,11 @@ export class TerminalManager extends EventEmitter {
     this.terminalReverseMap.delete(internalId);
 
     if (publicName) {
-      const stack = this.terminalStacks.get(publicName);
-      if (stack) {
-        const next = stack.filter((id) => id !== internalId);
-        if (next.length > 0) {
-          this.terminalStacks.set(publicName, next);
-        } else {
-          // 栈空：清理 terminalName 映射与输出缓冲
-          // Stack empty: cleanup terminalName mapping and output buffer
-          this.terminalStacks.delete(publicName);
-          this.terminalNameMap.delete(publicName);
-
-          const outputBuffer = this.outputBuffersByTerminalName.get(publicName);
-          if (outputBuffer) {
-            outputBuffer.removeAllListeners();
-            outputBuffer.clear();
-          }
-          this.outputBuffersByTerminalName.delete(publicName);
-        }
+      // 仅当 publicName 仍映射到本 internalId 时才移除映射，避免误删“同名但已重建”的终端映射。
+      // Only delete publicName mapping if it still points to this internalId to avoid removing a re-created terminal mapping.
+      const mapped = this.terminalNameMap.get(publicName);
+      if (mapped === internalId) {
+        this.terminalNameMap.delete(publicName);
       }
     }
 
@@ -1794,7 +1618,7 @@ export class TerminalManager extends EventEmitter {
   getStats() {
     const activeSessions = Array.from(this.sessions.values()).filter(s => s.status === 'active').length;
     const totalSessions = this.sessions.size;
-    const totalBufferSize = Array.from(this.outputBuffersByTerminalName.values())
+    const totalBufferSize = Array.from(this.outputBuffers.values())
       .reduce((total, buffer) => total + buffer.getStats().bufferedLines, 0);
 
     return {
@@ -1829,13 +1653,10 @@ export class TerminalManager extends EventEmitter {
     // 等待一段时间让进程正常退出
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // 强制清理所有会话层级（以 public terminalName 为粒度）
-    // Force cleanup all session layers (by public terminalName)
-    for (const terminalId of activeTerminals) {
-      const stack = this.terminalStacks.get(terminalId) || [];
-      for (const internalId of stack) {
-        this.cleanupSession(internalId);
-      }
+    // 强制清理所有残留的 internal 会话（killTerminal 可能因异常导致部分资源未清掉）
+    // Force cleanup any remaining internal sessions (killTerminal may leave leftovers on errors).
+    for (const internalId of Array.from(this.sessions.keys())) {
+      this.cleanupSession(internalId);
     }
 
     this.emit('shutdown');
@@ -2010,10 +1831,6 @@ export class TerminalManager extends EventEmitter {
         }
       : null;
 
-    const publicName = this.terminalReverseMap.get(session.id) || null;
-    const stack = publicName ? (this.terminalStacks.get(publicName) || []) : [];
-    const idx = stack.length > 0 ? stack.findIndex((id) => id === session.id) : 0;
-
     return {
       isRunning: Boolean(session.pendingCommand),
       hasPrompt: Boolean(session.hasPrompt),
@@ -2023,8 +1840,10 @@ export class TerminalManager extends EventEmitter {
       lastActivity: session.lastActivity.toISOString(),
       alternateScreen: Boolean(session.alternateScreen),
       sessionKind: (session.kind || 'local') as TerminalSessionKind,
-      sessionStackDepth: Math.max(1, stack.length || 1),
-      sessionStackIndex: Math.max(0, idx)
+      // 已移除“会话栈/多 PTY”机制：当前终端只有 1 层（local 或 remote 标记）。
+      // The session stack / multi-PTY mechanism is removed: each terminal has a single layer (local or remote marker).
+      sessionStackDepth: 1,
+      sessionStackIndex: 0
     };
   }
 

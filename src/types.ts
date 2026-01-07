@@ -165,6 +165,9 @@ export interface TerminalManagerConfig {
   defaultRows?: number;
   compactAnimations?: boolean;
   animationThrottleMs?: number;
+  // Windows: whether to force using ConPTY (true) or WinPTY (false). Undefined = auto-detect by node-pty.
+  // Windows：是否强制使用 ConPTY（true）或 WinPTY（false）。未定义则交给 node-pty 自动判断。
+  windowsUseConpty?: boolean;
 }
 
 export interface TerminalError extends Error {
